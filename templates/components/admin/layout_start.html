@@ -1,0 +1,26 @@
+{% load static %}
+<div class="admin-layout">
+  {% include "components/admin/sidebar.html" %}
+  <div class="admin-layout__content">
+    <header class="admin-topbar">
+      <button
+        type="button"
+        class="btn btn-light admin-menu-btn"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#mobileAdminSidebar"
+        aria-label="Open menu"
+      >
+        <i class="bi bi-list fs-4" aria-hidden="true"></i>
+      </button>
+      <div class="admin-topbar-actions">
+        {% include "components/shared/portal_notifications_bell.html" with icon_btn_class="admin-icon-btn" %}
+        <div class="admin-user-chip">
+          <div id="staff-initials" class="admin-user-avatar">{{ portal_initials|default:"A" }}</div>
+          <div class="admin-user-details">
+            <p id="staff-display-name" class="admin-user-name mb-0">{{ portal_display_name|default:"Admin" }}</p>
+            <p id="staff-role-label" class="admin-user-role mb-0">{{ portal_role_label|default:"Administrator" }}</p>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="admin-main">

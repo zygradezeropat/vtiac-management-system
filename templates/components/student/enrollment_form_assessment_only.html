@@ -1,0 +1,435 @@
+{% with fi=form_initial aa=fi.assessment_application %}
+<div class="tesda-app-form">
+
+  <header class="tesda-app-form__header">
+    <div class="tesda-app-form__header-meta">
+      <span class="tesda-app-form__form-code">TESDA-OP-CO-05-F26</span>
+      <span class="tesda-app-form__form-rev">Rev. 00 — 03/01/17</span>
+    </div>
+    <div class="tesda-app-form__header-body">
+      <div class="tesda-app-form__agency">
+        <p class="tesda-app-form__agency-en mb-0">TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY</p>
+        <p class="tesda-app-form__agency-fil mb-0">Pangasiwaan sa Edukasyong Teknikal at Pagpapaunlad ng Kasanayan</p>
+      </div>
+      <h2 class="tesda-app-form__title">APPLICATION FORM</h2>
+    </div>
+    <input type="hidden" name="tsmis" value="{{ tsmis_display }}" />
+  </header>
+
+  <section class="tesda-app-form__section">
+    <div class="row g-3 align-items-start">
+      <div class="col-lg-8">
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="student-enroll-label" for="field-school-name">Name of School / Training Center / Company</label>
+        <input id="field-school-name" name="school_name" type="text" class="student-enroll-input student-enroll-input--locked" value="{{ assessment_default_school_name }}" readonly tabindex="-1" aria-readonly="true" />
+      </div>
+      <div class="col-12">
+        <label class="student-enroll-label" for="field-school-address">Address</label>
+        <input id="field-school-address" name="school_address" type="text" class="student-enroll-input student-enroll-input--locked" value="{{ assessment_default_school_address }}" readonly tabindex="-1" aria-readonly="true" />
+      </div>
+      <div class="col-md-8">
+        <label class="student-enroll-label" for="field-assessment-title">Title of Assessment applied for <span class="student-enroll-required">*</span></label>
+        <input id="field-assessment-title" name="assessment_title" type="text" class="student-enroll-input" value="{{ aa.assessment_title|default:program_name }}" required data-required />
+      </div>
+      <div class="col-md-4">
+        <span class="student-enroll-label d-block">Assessment Type <span class="student-enroll-required">*</span></span>
+        <div class="tesda-app-form__inline-checks flex-column align-items-start" id="assessment-type-group">
+          {% for value, label in assessment_type_options %}
+          <div class="form-check student-enroll-check">
+            <input class="form-check-input" type="radio" name="assessment_type" value="{{ value }}" id="atype-{{ value }}"{% if value in aa.assessment_types %} checked{% endif %}{% if forloop.first %} required data-required{% endif %} />
+            <label class="form-check-label" for="atype-{{ value }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="row g-3 mt-2 align-items-end">
+      <div class="col-md-8">
+        <label class="student-enroll-label" for="field-signature">Applicant's Signature (Type Full Name) <span class="student-enroll-required">*</span></label>
+        <input id="field-signature" name="signature" type="text" class="student-enroll-input" value="{{ fi.signature|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label">Date of Application</label>
+        <input type="text" class="student-enroll-input" value="{{ date_accomplished_display }}" readonly />
+      </div>
+    </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="tesda-app-form__photo-block h-100">
+          <label class="student-enroll-label" for="field-photo">PICTURE <span class="student-enroll-required">*</span></label>
+          <p class="tesda-app-form__photo-hint mb-2">Colored, passport size</p>
+          <div class="student-file-upload-row" data-file-preview-root>
+            <input
+              id="field-photo"
+              name="photo"
+              type="file"
+              class="student-enroll-input student-enroll-file"
+              accept="image/jpeg,image/png"
+              data-preview-existing-url="{{ fi.existing_photo_url|default:'' }}"
+              data-preview-existing-name="{{ fi.existing_photo_name|default:'1×1 Photo' }}"
+              {% if not has_existing_photo %} required data-required{% endif %}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="tesda-app-form__section">
+    <h3 class="tesda-app-form__section-title">1. Client Type <span class="student-enroll-required">*</span></h3>
+    <div class="row g-2" id="assessment-client-type-group">
+      {% for value, label in assessment_client_types %}
+      <div class="col-md-4 col-lg">
+        <div class="form-check student-enroll-check">
+          <input class="form-check-input" type="radio" name="assessment_client_type" value="{{ value }}" id="client-{{ value }}"{% if value in aa.client_types %} checked{% endif %}{% if forloop.first %} required data-required{% endif %} />
+          <label class="form-check-label" for="client-{{ value }}">{{ label }}</label>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="tesda-app-form__section">
+    <h3 class="tesda-app-form__section-title">2. Profile</h3>
+
+    <p class="tesda-app-form__subsection">2.1 Name</p>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-last-name">Surname <span class="student-enroll-required">*</span></label>
+        <input id="field-last-name" name="last_name" type="text" class="student-enroll-input" value="{{ fi.last_name|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-first-name">First Name <span class="student-enroll-required">*</span></label>
+        <input id="field-first-name" name="first_name" type="text" class="student-enroll-input" value="{{ fi.first_name|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-middle-name">Middle Name</label>
+        <input id="field-middle-name" name="middle_name" type="text" class="student-enroll-input" value="{{ fi.middle_name|default:'' }}" />
+        <div class="form-check student-enroll-check mt-1">
+          <input class="form-check-input" type="checkbox" id="field-no-middle-name" />
+          <label class="form-check-label" for="field-no-middle-name">I don't have a middle name</label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-extension">Name Extension</label>
+        <select id="field-extension" name="name_extension" class="student-enroll-input student-enroll-select">
+          <option value="">—</option>
+          {% for ext in name_extensions %}
+          {% if ext %}
+          <option value="{{ ext }}"{% if fi.name_extension == ext %} selected{% endif %}>{{ ext }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <p class="tesda-app-form__subsection mt-4">2.2 Mailing Address</p>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-street">Number, Street <span class="student-enroll-required">*</span></label>
+        <input id="field-street" name="street_house" type="text" class="student-enroll-input" value="{{ fi.street_house|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-district">District</label>
+        <input id="field-district" name="district" type="text" class="student-enroll-input" value="{{ fi.district|default:'' }}" />
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-barangay">Barangay <span class="student-enroll-required">*</span></label>
+        <select id="field-barangay" name="barangay_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-city">City / Municipality <span class="student-enroll-required">*</span></label>
+        <select id="field-city" name="city_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-province">Province <span class="student-enroll-required">*</span></label>
+        <select id="field-province" name="province_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-region">Region <span class="student-enroll-required">*</span></label>
+        <select id="field-region" name="region_code" class="student-enroll-input student-enroll-select" required data-required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-zip">Zip Code</label>
+        <input id="field-zip" name="zip_code" type="text" class="student-enroll-input" maxlength="10" value="{{ aa.zip_code|default:'' }}" />
+      </div>
+    </div>
+
+    <div class="row g-3 mt-2">
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-mother">2.3 Mother's Name (Last Name, First Name, Middle Name)</label>
+        <input id="field-mother" name="mother_name" type="text" class="student-enroll-input" value="{{ aa.mother_name|default:'' }}" />
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-father">2.4 Father's Name (Last Name, First Name, Middle Name)</label>
+        <input id="field-father" name="father_name" type="text" class="student-enroll-input" value="{{ aa.father_name|default:'' }}" />
+      </div>
+    </div>
+
+    <div class="row g-3 mt-2">
+      <div class="col-md-3">
+        <span class="student-enroll-label d-block">2.5 Sex <span class="student-enroll-required">*</span></span>
+        <div class="tesda-app-form__inline-checks">
+          <div class="form-check student-enroll-check">
+            <input class="form-check-input" type="radio" name="sex" value="male" id="sex-male"{% if fi.sex == "male" %} checked{% endif %} required data-required />
+            <label class="form-check-label" for="sex-male">Male</label>
+          </div>
+          <div class="form-check student-enroll-check">
+            <input class="form-check-input" type="radio" name="sex" value="female" id="sex-female"{% if fi.sex == "female" %} checked{% endif %} />
+            <label class="form-check-label" for="sex-female">Female</label>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-9">
+        <span class="student-enroll-label d-block">2.6 Civil Status <span class="student-enroll-required">*</span></span>
+        <div class="tesda-app-form__inline-checks flex-wrap">
+          {% for value, label in civil_status_choices %}
+          <div class="form-check student-enroll-check">
+            <input class="form-check-input" type="radio" name="civil_status" value="{{ value }}" id="civil-{{ value }}"{% if fi.civil_status == value %} checked{% endif %} required data-required />
+            <label class="form-check-label" for="civil-{{ value }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <p class="tesda-app-form__subsection mt-3">2.7 Contact Number(s)</p>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-tel">Tel.</label>
+        <input id="field-tel" name="tel_number" type="tel" class="student-enroll-input" value="{{ aa.tel_number|default:'' }}" />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-contact">Mobile <span class="student-enroll-required">*</span></label>
+        <input id="field-contact" name="contact_number" type="tel" class="student-enroll-input" placeholder="09171234567" value="{{ fi.contact_number|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-email">E-mail <span class="student-enroll-required">*</span></label>
+        <input id="field-email" name="email" type="email" class="student-enroll-input" value="{{ fi.email|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-fax">Fax</label>
+        <input id="field-fax" name="fax" type="text" class="student-enroll-input" value="{{ aa.fax|default:'' }}" />
+      </div>
+      <div class="col-12">
+        <label class="student-enroll-label" for="field-contact-other">Others</label>
+        <input id="field-contact-other" name="contact_other" type="text" class="student-enroll-input" value="{{ aa.contact_other|default:'' }}" />
+      </div>
+    </div>
+
+    <div class="row g-3 mt-2">
+      <div class="col-12">
+        <label class="student-enroll-label" for="field-education">2.8 Highest Educational Attainment <span class="student-enroll-required">*</span></label>
+        <select id="field-education" name="educational_attainment" class="student-enroll-input student-enroll-select" required data-required>
+          <option value="">Select</option>
+          {% for value, label in tesda_education_choices %}
+          <option value="{{ value }}"{% if fi.educational_attainment == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <span class="student-enroll-label d-block">2.9 Employment Status <span class="student-enroll-required">*</span></span>
+        <div class="tesda-app-form__inline-checks flex-wrap" id="employment-status-group">
+          {% for value, label in tesda_employment_choices %}
+          <div class="form-check student-enroll-check">
+            <input class="form-check-input" type="radio" name="employment_status" value="{{ value }}" id="emp-{{ value }}"{% if fi.employment_status == value %} checked{% endif %} required data-required />
+            <label class="form-check-label" for="emp-{{ value }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-birthdate">2.10 Birth date <span class="student-enroll-required">*</span></label>
+        <input id="field-birthdate" name="birth_date" type="date" class="student-enroll-input" value="{{ fi.birth_date|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-5">
+        <label class="student-enroll-label" for="field-birthplace">2.11 Birth place <span class="student-enroll-required">*</span></label>
+        <input id="field-birthplace" name="birthplace" type="text" class="student-enroll-input" value="{{ fi.birthplace|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-age">2.12 Age</label>
+        <input id="field-age" name="age" type="number" min="1" max="120" class="student-enroll-input" value="{{ aa.age|default:'' }}" />
+      </div>
+    </div>
+  </section>
+
+  <section class="tesda-app-form__section">
+    <h3 class="tesda-app-form__section-title">3. Work Experience (National Qualification-related)</h3>
+    <div class="tesda-app-table-wrap">
+      <div class="table-responsive">
+        <table class="tesda-app-table">
+          <thead>
+            <tr>
+              <th>3.1 Name of Company</th>
+              <th>3.2 Position</th>
+              <th>3.3 Inclusive Dates</th>
+              <th>3.4 Monthly Salary</th>
+              <th>3.5 Status of Appointment</th>
+              <th>3.6 No. of Yrs. Working Exp.</th>
+              <th class="tesda-app-table__actions-col" aria-label="Row actions"></th>
+            </tr>
+          </thead>
+          <tbody data-tesda-table="work">
+            {% for row in aa.work_experience %}
+            <tr class="tesda-app-table__row">
+              <td><input type="text" name="work_company_{{ forloop.counter0 }}" data-field="company" class="tesda-app-table__input" value="{{ row.company }}" /></td>
+              <td><input type="text" name="work_position_{{ forloop.counter0 }}" data-field="position" class="tesda-app-table__input" value="{{ row.position }}" /></td>
+              <td><input type="month" name="work_inclusive_dates_{{ forloop.counter0 }}" data-field="inclusive_dates" data-month-year="1" class="tesda-app-table__input tesda-app-table__input--month" value="{{ row.inclusive_dates }}" title="Select month and year only" /></td>
+              <td><input type="text" name="work_monthly_salary_{{ forloop.counter0 }}" data-field="monthly_salary" class="tesda-app-table__input" value="{{ row.monthly_salary }}" /></td>
+              <td><input type="text" name="work_appointment_status_{{ forloop.counter0 }}" data-field="appointment_status" class="tesda-app-table__input" value="{{ row.appointment_status }}" /></td>
+              <td><input type="text" name="work_years_experience_{{ forloop.counter0 }}" data-field="years_experience" class="tesda-app-table__input" value="{{ row.years_experience }}" /></td>
+              <td class="tesda-app-table__actions-cell text-center">
+                <button type="button" class="btn btn-sm btn-link text-danger tesda-remove-row-btn p-0" title="Remove row" aria-label="Remove row"><i class="bi bi-trash" aria-hidden="true"></i></button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="tesda-app-table__toolbar">
+        <button type="button" class="btn btn-sm btn-outline-primary tesda-add-row-btn">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> Add Row
+        </button>
+      </div>
+    </div>
+    <p class="tesda-app-form__footnote">Add as many rows as you need. Empty rows are not saved.</p>
+  </section>
+
+  <section class="tesda-app-form__section">
+    <h3 class="tesda-app-form__section-title">4. Other Training/Seminars Attended (National Qualification-related)</h3>
+    <div class="tesda-app-table-wrap">
+      <div class="table-responsive">
+        <table class="tesda-app-table">
+          <thead>
+            <tr>
+              <th>4.1 Title</th>
+              <th>4.2 Venue</th>
+              <th>4.3 Inclusive Dates</th>
+              <th>4.4 No. of Hours</th>
+              <th>4.5 Conducted By</th>
+              <th class="tesda-app-table__actions-col" aria-label="Row actions"></th>
+            </tr>
+          </thead>
+          <tbody data-tesda-table="training">
+            {% for row in aa.training_seminars %}
+            <tr class="tesda-app-table__row">
+              <td><input type="text" name="training_title_{{ forloop.counter0 }}" data-field="title" class="tesda-app-table__input" value="{{ row.title }}" /></td>
+              <td><input type="text" name="training_venue_{{ forloop.counter0 }}" data-field="venue" class="tesda-app-table__input" value="{{ row.venue }}" /></td>
+              <td><input type="month" name="training_inclusive_dates_{{ forloop.counter0 }}" data-field="inclusive_dates" data-month-year="1" class="tesda-app-table__input tesda-app-table__input--month" value="{{ row.inclusive_dates }}" title="Select month and year only" /></td>
+              <td><input type="text" name="training_hours_{{ forloop.counter0 }}" data-field="hours" class="tesda-app-table__input" value="{{ row.hours }}" /></td>
+              <td><input type="text" name="training_conducted_by_{{ forloop.counter0 }}" data-field="conducted_by" class="tesda-app-table__input" value="{{ row.conducted_by }}" /></td>
+              <td class="tesda-app-table__actions-cell text-center">
+                <button type="button" class="btn btn-sm btn-link text-danger tesda-remove-row-btn p-0" title="Remove row" aria-label="Remove row"><i class="bi bi-trash" aria-hidden="true"></i></button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="tesda-app-table__toolbar">
+        <button type="button" class="btn btn-sm btn-outline-primary tesda-add-row-btn">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> Add Row
+        </button>
+      </div>
+    </div>
+    <p class="tesda-app-form__footnote">Add as many rows as you need. Empty rows are not saved.</p>
+  </section>
+
+  <section class="tesda-app-form__section">
+    <h3 class="tesda-app-form__section-title">5. Licensure Examination(s) Passed</h3>
+    <div class="tesda-app-table-wrap">
+      <div class="table-responsive">
+        <table class="tesda-app-table">
+          <thead>
+            <tr>
+              <th>5.1 Title</th>
+              <th>5.2 Year Taken</th>
+              <th>5.3 Examination Venue</th>
+              <th>5.4 Rating</th>
+              <th>5.5 Remarks</th>
+              <th>5.6 Expiry Date</th>
+              <th class="tesda-app-table__actions-col" aria-label="Row actions"></th>
+            </tr>
+          </thead>
+          <tbody data-tesda-table="license">
+            {% for row in aa.licensure_exams %}
+            <tr class="tesda-app-table__row">
+              <td><input type="text" name="license_title_{{ forloop.counter0 }}" data-field="title" class="tesda-app-table__input" value="{{ row.title }}" /></td>
+              <td><input type="text" name="license_year_taken_{{ forloop.counter0 }}" data-field="year_taken" class="tesda-app-table__input" value="{{ row.year_taken }}" /></td>
+              <td><input type="text" name="license_venue_{{ forloop.counter0 }}" data-field="venue" class="tesda-app-table__input" value="{{ row.venue }}" /></td>
+              <td><input type="text" name="license_rating_{{ forloop.counter0 }}" data-field="rating" class="tesda-app-table__input" value="{{ row.rating }}" /></td>
+              <td><input type="text" name="license_remarks_{{ forloop.counter0 }}" data-field="remarks" class="tesda-app-table__input" value="{{ row.remarks }}" /></td>
+              <td><input type="month" name="license_expiry_date_{{ forloop.counter0 }}" data-field="expiry_date" data-month-year="1" class="tesda-app-table__input tesda-app-table__input--month" value="{{ row.expiry_date }}" title="Select month and year only" /></td>
+              <td class="tesda-app-table__actions-cell text-center">
+                <button type="button" class="btn btn-sm btn-link text-danger tesda-remove-row-btn p-0" title="Remove row" aria-label="Remove row"><i class="bi bi-trash" aria-hidden="true"></i></button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="tesda-app-table__toolbar">
+        <button type="button" class="btn btn-sm btn-outline-primary tesda-add-row-btn">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> Add Row
+        </button>
+      </div>
+    </div>
+    <p class="tesda-app-form__footnote">Add as many rows as you need. Empty rows are not saved.</p>
+  </section>
+
+  <section class="tesda-app-form__section">
+    <h3 class="tesda-app-form__section-title">6. Competency Assessment(s) Passed</h3>
+    <div class="tesda-app-table-wrap">
+      <div class="table-responsive">
+        <table class="tesda-app-table">
+          <thead>
+            <tr>
+              <th>6.1 Title</th>
+              <th>6.2 Qualification Level</th>
+              <th>6.3 Industry Sector</th>
+              <th>6.4 Certificate Number</th>
+              <th>6.5 Date of Issuance</th>
+              <th>6.6 Expiration Date</th>
+              <th class="tesda-app-table__actions-col" aria-label="Row actions"></th>
+            </tr>
+          </thead>
+          <tbody data-tesda-table="competency">
+            {% for row in aa.competency_assessments %}
+            <tr class="tesda-app-table__row">
+              <td><input type="text" name="competency_title_{{ forloop.counter0 }}" data-field="title" class="tesda-app-table__input" value="{{ row.title }}" /></td>
+              <td><input type="text" name="competency_qualification_level_{{ forloop.counter0 }}" data-field="qualification_level" class="tesda-app-table__input" value="{{ row.qualification_level }}" /></td>
+              <td><input type="text" name="competency_industry_sector_{{ forloop.counter0 }}" data-field="industry_sector" class="tesda-app-table__input" value="{{ row.industry_sector }}" /></td>
+              <td><input type="text" name="competency_certificate_number_{{ forloop.counter0 }}" data-field="certificate_number" class="tesda-app-table__input" value="{{ row.certificate_number }}" /></td>
+              <td><input type="month" name="competency_date_issued_{{ forloop.counter0 }}" data-field="date_issued" data-month-year="1" class="tesda-app-table__input tesda-app-table__input--month" value="{{ row.date_issued }}" title="Select month and year only" /></td>
+              <td><input type="month" name="competency_expiration_date_{{ forloop.counter0 }}" data-field="expiration_date" data-month-year="1" class="tesda-app-table__input tesda-app-table__input--month" value="{{ row.expiration_date }}" title="Select month and year only" /></td>
+              <td class="tesda-app-table__actions-cell text-center">
+                <button type="button" class="btn btn-sm btn-link text-danger tesda-remove-row-btn p-0" title="Remove row" aria-label="Remove row"><i class="bi bi-trash" aria-hidden="true"></i></button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="tesda-app-table__toolbar">
+        <button type="button" class="btn btn-sm btn-outline-primary tesda-add-row-btn">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i> Add Row
+        </button>
+      </div>
+    </div>
+    <p class="tesda-app-form__footnote">Add as many rows as you need. Empty rows are not saved.</p>
+  </section>
+
+  <section class="tesda-app-form__section">
+    <div class="student-enroll-consent">
+      <div class="form-check student-enroll-check mb-0">
+        <input class="form-check-input" type="checkbox" name="privacy_consent" id="field-privacy" value="1" required data-required{% if fi.privacy_consent %} checked{% endif %} />
+        <label class="form-check-label" for="field-privacy">
+          I certify that the information stated above is true and correct. <span class="student-enroll-required">*</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endwith %}

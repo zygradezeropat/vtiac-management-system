@@ -1,0 +1,32 @@
+{% load static %}
+{% if link_url %}
+<a href="{{ link_url }}" class="vtiac-brand d-flex align-items-center gap-2 text-decoration-none text-dark {{ wrapper_class }}">
+{% else %}
+<div class="vtiac-brand d-flex align-items-center gap-2 {{ wrapper_class }}">
+{% endif %}
+  <div class="vtiac-logo-wrap {{ logo_wrap_class|default:'' }}">
+    <img
+      src="{% static 'img/valient-logo.svg' %}"
+      alt="VTIAC"
+      class="navbar-logo-img"
+      width="{{ logo_size|default:40 }}"
+      height="{{ logo_size|default:40 }}"
+      {% if logo_id %}id="{{ logo_id }}"{% endif %}
+    />
+  </div>
+  {% if subtitle and stacked_subtitle %}
+  <div class="vtiac-brand-text d-flex flex-column min-w-0">
+    <span class="vtiac-brand-name {{ name_class|default:'' }}"{% if brand_id %} id="{{ brand_id }}"{% endif %}>VTIAC</span>
+    <span class="vtiac-brand-sub {{ subtitle_class|default:'' }}">{{ subtitle }}</span>
+  </div>
+  {% else %}
+  <span class="vtiac-brand-name {{ name_class|default:'' }}"{% if brand_id %} id="{{ brand_id }}"{% endif %}>VTIAC</span>
+  {% if subtitle %}
+  <span class="vtiac-brand-sub {{ subtitle_class|default:'' }}">{{ subtitle }}</span>
+  {% endif %}
+  {% endif %}
+{% if link_url %}
+</a>
+{% else %}
+</div>
+{% endif %}

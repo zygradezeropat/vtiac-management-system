@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VTIAC</title>
+  <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="32x32" />
+  <link rel="icon" href="{% static 'img/favicon-32.png' %}" type="image/png" sizes="32x32" />
+  <link rel="icon" href="{% static 'img/valient-logo.svg' %}" type="image/svg+xml" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 48rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #0f172a; }
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1rem; margin-top: 1.5rem; }
+    .muted { color: #64748b; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <h1>VTIAC Student Handbook</h1>
+  <p class="muted">Effective {{ date_display }}</p>
+  <h2>1. General policies</h2>
+  <p>Students are expected to follow institutional rules, attendance requirements, and assessment schedules set by the registrar and trainers.</p>
+  <h2>2. Enrollment</h2>
+  <p>Complete your learner profile, upload required documents, and settle fees before class schedules are finalized.</p>
+  <h2>3. Conduct</h2>
+  <p>Maintain professionalism in training areas, laboratories, and assessment venues at all times.</p>
+  <p class="muted">For the full PDF handbook, contact the registrar office.</p>
+</body>
+</html>

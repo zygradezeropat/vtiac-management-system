@@ -1,0 +1,143 @@
+{% extends "trainer/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/trainer/layout_start.html" %}
+{% include "components/trainer/page_header.html" %}
+
+<article class="trainer-panel">
+  <div class="trainer-panel__head trainer-panel__head--stack">
+    <h2 class="trainer-panel__title">Grading System</h2>
+    <p class="trainer-panel__subtitle">Grade students per Unit Competency (UC)</p>
+  </div>
+  <div class="trainer-panel__body">
+    <div class="trainer-grading-info">
+      <h3>Grading Criteria</h3>
+      <ul>
+        <li><strong>Written Score:</strong> Written examination results</li>
+        <li><strong>Demo:</strong> Practical demonstration performance</li>
+        <li><strong>Interview:</strong> Oral assessment results</li>
+        <li><strong>Average ≥ 75:</strong> Competent (C)</li>
+        <li><strong>Average &lt; 75:</strong> Not Yet Competent (NYC)</li>
+      </ul>
+    </div>
+
+    <div class="trainer-form-group mt-4">
+      <label class="trainer-form-label" for="grading-student-select">Select Student</label>
+      <select class="form-select" id="grading-student-select">
+        <option value="">Choose a student...</option>
+      </select>
+    </div>
+
+    <div id="grading-container" class="mt-4 hidden">
+      <h3 class="h5 fw-semibold">Unit Competencies</h3>
+      <div id="uc-grading-list"></div>
+
+      <div class="mt-4">
+        <h3 class="h5 fw-semibold">Learning Outcomes Achievement</h3>
+        <div id="learning-outcomes-list"></div>
+      </div>
+
+      <div class="mt-4">
+        <h3 class="h5 fw-semibold"> Assessment Results</h3>
+        <div class="trainer-national-assessment">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="trainer-form-label" for="national-assessment-result">Assessment Result</label>
+              <select class="form-select" id="national-assessment-result">
+                <option value="">Not Yet Assessed</option>
+                <option value="passed">Passed</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="trainer-form-label" for="national-assessment-date">Assessment Date</label>
+              <input type="date" class="form-control" id="national-assessment-date" />
+            </div>
+            <div class="col-12 hidden" id="retake-section">
+              <div class="alert alert-warning mb-0">
+                <strong>Retake Available:</strong> Student failed the national assessment. Schedule retake?
+                <button type="button" class="btn btn-sm btn-primary ms-3" id="scheduleRetakeBtn">
+                  Schedule Retake
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="btn trainer-btn-primary mt-4" id="saveGradesBtn">Save Grades</button>
+    </div>
+  </div>
+</article>
+
+<article class="trainer-panel" id="progress-chart-card">
+  <div class="trainer-panel__head">
+    <h2 class="trainer-panel__title">Progress Chart</h2>
+    <button type="button" class="btn btn-sm trainer-btn-outline" id="printProgressChartBtn">
+      <i class="bi bi-printer" aria-hidden="true"></i>
+      Print / Download
+    </button>
+  </div>
+  <div class="trainer-panel__body">
+    <div id="progress-chart-content">
+      <p class="text-muted mb-0">Select a student to view progress chart</p>
+    </div>
+  </div>
+</article>
+
+{% include "components/trainer/layout_end.html" %}
+
+<div
+  class="modal fade"
+  id="gradingSaveConfirmModal"
+  tabindex="-1"
+  aria-labelledby="gradingSaveConfirmModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content trainer-grading-save-modal">
+      <div class="modal-body p-4">
+        <div class="trainer-grading-save-modal__icon" aria-hidden="true">
+          <i class="bi bi-check-circle"></i>
+        </div>
+        <h3 class="h5 fw-bold mb-2" id="gradingSaveConfirmModalLabel">
+          Save grades?
+        </h3>
+        <p class="text-secondary mb-1">
+          This will save the grades for
+          <strong id="grading-save-student-name">this student</strong>.
+        </p>
+        <p class="text-muted small mb-0" id="grading-save-student-program"></p>
+        <p class="text-danger small mt-2 mb-0 hidden" id="grading-save-modal-error" role="alert"></p>
+        <div class="d-flex flex-column flex-sm-row gap-2 mt-4">
+          <button
+            type="button"
+            class="btn btn-outline-secondary flex-grow-1 fw-semibold"
+            data-bs-dismiss="modal"
+            id="gradingSaveCancelBtn"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn flex-grow-1 fw-semibold text-white"
+            id="gradingSaveConfirmBtn"
+            style="background: #059669; border-color: #059669"
+          >
+            Yes, save grades
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% csrf_token %}
+{% include "components/trainer/scripts_common.html" %}
+<script id="grading-config" type="application/json">{{ grading_config_json|default:"{}"|safe }}</script>
+<script type="module" src="{% static 'js/trainer-grading.js' %}"></script>
+{% endblock %}

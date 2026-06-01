@@ -1,0 +1,26 @@
+{% load static %}
+<div class="d-flex vh-100 registrar-layout">
+  {% include "components/registrar/sidebar.html" %}
+  <div class="d-flex flex-column flex-grow-1 min-w-0">
+    <header class="registrar-topbar">
+      <button
+        type="button"
+        class="btn btn-light registrar-menu-btn d-lg-none"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#mobileRegistrarSidebar"
+        aria-label="Open menu"
+      >
+        <i class="bi bi-list fs-4" aria-hidden="true"></i>
+      </button>
+      <div class="registrar-topbar-actions ms-auto">
+        {% include "components/shared/portal_notifications_bell.html" with icon_btn_class="registrar-icon-btn" %}
+        <div class="registrar-user-chip">
+          <div id="staff-initials" class="registrar-user-avatar">{{ portal_initials|default:"R" }}</div>
+          <div class="lh-1 d-none d-sm-block">
+            <p id="staff-display-name" class="registrar-user-name mb-0">{{ portal_display_name|default:"Registrar" }}</p>
+            <p id="staff-role-label" class="registrar-user-role mb-0">Registrar</p>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="registrar-main flex-grow-1 overflow-auto">

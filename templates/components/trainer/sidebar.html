@@ -1,0 +1,23 @@
+{% load static %}
+<aside class="trainer-sidebar d-none d-lg-flex flex-column flex-shrink-0">
+  <a href="{% url 'trainer_dashboard' %}" class="trainer-brand text-decoration-none">
+    {% include "components/shared/vtiac_brand.html" with name_class="trainer-brand-name" logo_wrap_class="trainer-brand-logo" %}
+  </a>
+
+  <nav class="trainer-nav flex-column flex-grow-1" aria-label="Trainer navigation">
+    {% for item in sidebar_menu %}
+    <a
+      href="{{ item.route }}"
+      class="trainer-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+    >
+      <span class="trainer-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+      <span class="trainer-nav-label">{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <a href="{% url 'logout' %}" class="trainer-logout">
+    <i class="bi bi-box-arrow-left" aria-hidden="true"></i>
+    <span>Logout</span>
+  </a>
+</aside>

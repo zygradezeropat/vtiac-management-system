@@ -1,0 +1,54 @@
+<div id="view-enrollment-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <div class="min-w-0 flex-grow-1 pe-2">
+          <h3 id="view-enrollment-name" class="modal-title h4 fw-semibold mb-1 text-truncate"></h3>
+          <p id="view-enrollment-meta" class="text-muted small mb-0"></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div id="view-enrollment-body" class="modal-body pt-2 pb-3"></div>
+      <div class="modal-footer border-0 pt-0">
+        <button
+          type="button"
+          id="view-enrollment-doc-next"
+          class="btn btn-success px-4 d-none"
+          disabled
+          aria-label="Release to payment"
+        >
+          Release to payment
+        </button>
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="doc-reject-reason-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h3 class="modal-title h5 fw-semibold mb-0">Reject document</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-2">
+        <p id="doc-reject-reason-title" class="text-muted small mb-2"></p>
+        <label for="doc-reject-reason-input" class="form-label fw-semibold">Reason for rejection</label>
+        <textarea
+          id="doc-reject-reason-input"
+          class="form-control"
+          rows="3"
+          maxlength="500"
+          placeholder="Explain what the student needs to correct or re-upload."
+          required
+        ></textarea>
+        <p id="doc-reject-reason-error" class="text-danger small mb-0 mt-2 d-none" role="alert"></p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="doc-reject-reason-submit" class="btn btn-danger px-4">Reject document</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,313 @@
+{% with fi=form_initial %}
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">1. T2MIS Auto Generated</h3>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-tsmis">TSMIS</label>
+      <input id="field-tsmis" name="tsmis" type="text" class="student-enroll-input" value="{{ tsmis_display }}" readonly />
+      <span class="student-enroll-hint">Auto-generated</span>
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-uli">Unique Learner Identifier (ULI)</label>
+      <input id="field-uli" name="uli" type="text" class="student-enroll-input" placeholder="Enter ULI if available" value="{{ fi.uli|default:'' }}" />
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-entry-date">Entry Date (MM/DD/YY)</label>
+      <input id="field-entry-date" name="entry_date" type="text" class="student-enroll-input" value="{{ entry_date_display }}" readonly />
+    </div>
+  </div>
+</section>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">2. Learner / Manpower Profile</h3>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <label class="student-enroll-label" for="field-last-name">Last Name <span class="student-enroll-required">*</span></label>
+      <input id="field-last-name" name="last_name" type="text" class="student-enroll-input" placeholder="Enter last name" value="{{ fi.last_name|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-3">
+      <label class="student-enroll-label" for="field-first-name">First Name <span class="student-enroll-required">*</span></label>
+      <input id="field-first-name" name="first_name" type="text" class="student-enroll-input" placeholder="Enter first name" value="{{ fi.first_name|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-3">
+      <label class="student-enroll-label" for="field-middle-name">Middle Name</label>
+      <input id="field-middle-name" name="middle_name" type="text" class="student-enroll-input" placeholder="Enter middle name" value="{{ fi.middle_name|default:'' }}" />
+      <div class="form-check student-enroll-check mt-1">
+        <input class="form-check-input" type="checkbox" id="field-no-middle-name" />
+        <label class="form-check-label" for="field-no-middle-name">I don't have a middle name</label>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <label class="student-enroll-label" for="field-extension">Extension (Jr., Sr.)</label>
+      <select id="field-extension" name="name_extension" class="student-enroll-input student-enroll-select">
+        <option value="">Select</option>
+        {% for ext in name_extensions %}
+        {% if ext %}
+        <option value="{{ ext }}"{% if fi.name_extension == ext %} selected{% endif %}>{{ ext }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12">
+      <p class="student-enroll-section__hint mb-2">Complete Permanent Mailing Address</p>
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-street">Number, Street <span class="student-enroll-required">*</span></label>
+      <input id="field-street" name="street_house" type="text" class="student-enroll-input" placeholder="House no., street name" value="{{ fi.street_house|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-district">District</label>
+      <input id="field-district" name="district" type="text" class="student-enroll-input" placeholder="District (if applicable)" value="{{ fi.district|default:'' }}" />
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-barangay">Barangay <span class="student-enroll-required">*</span></label>
+      <select id="field-barangay" name="barangay_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-city">City / Municipality <span class="student-enroll-required">*</span></label>
+      <select id="field-city" name="city_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-province">Province <span class="student-enroll-required">*</span></label>
+      <select id="field-province" name="province_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-region">Region <span class="student-enroll-required">*</span></label>
+      <select id="field-region" name="region_code" class="student-enroll-input student-enroll-select" required data-required></select>
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-email">Email Address / Facebook Account <span class="student-enroll-required">*</span></label>
+      <input id="field-email" name="email" type="email" class="student-enroll-input" placeholder="Enter email or Facebook account" value="{{ fi.email|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-contact">Contact No. <span class="student-enroll-required">*</span></label>
+      <input id="field-contact" name="contact_number" type="tel" class="student-enroll-input" placeholder="09171234567" value="{{ fi.contact_number|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-nationality">Nationality <span class="student-enroll-required">*</span></label>
+      <input id="field-nationality" name="nationality" type="text" class="student-enroll-input" value="{{ fi.nationality|default:'Filipino' }}" required data-required />
+    </div>
+  </div>
+</section>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">3. Personal Information</h3>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-sex">Sex <span class="student-enroll-required">*</span></label>
+      <select id="field-sex" name="sex" class="student-enroll-input student-enroll-select" required data-required>
+        <option value="">Select sex</option>
+        <option value="male"{% if fi.sex == "male" %} selected{% endif %}>Male</option>
+        <option value="female"{% if fi.sex == "female" %} selected{% endif %}>Female</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-civil-status">Civil Status <span class="student-enroll-required">*</span></label>
+      <select id="field-civil-status" name="civil_status" class="student-enroll-input student-enroll-select" required data-required>
+        <option value="">Select status</option>
+        {% for value, label in civil_status_choices %}
+        <option value="{{ value }}"{% if fi.civil_status == value %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-employment">Employment Status (before training) <span class="student-enroll-required">*</span></label>
+      <select id="field-employment" name="employment_status" class="student-enroll-input student-enroll-select" required data-required>
+        <option value="">Select status</option>
+        {% for value, label in employment_status_choices %}
+        <option value="{{ value }}"{% if fi.employment_status == value %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6" id="employment-type-wrap">
+      <label class="student-enroll-label" for="field-employment-type">Employment Type <span class="student-enroll-required" id="employment-type-required-mark">*</span></label>
+      <select id="field-employment-type" name="employment_type" class="student-enroll-input student-enroll-select">
+        {% for value, label in employment_type_choices %}
+        <option value="{{ value }}"{% if fi.employment_type == value %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <span class="student-enroll-hint">Required if wage-employed or underemployed</span>
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-birthdate">Birthdate <span class="student-enroll-required">*</span></label>
+      <input id="field-birthdate" name="birth_date" type="date" class="student-enroll-input" value="{{ fi.birth_date|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-birthplace">Birthplace (City/Municipality, Province) <span class="student-enroll-required">*</span></label>
+      <input id="field-birthplace" name="birthplace" type="text" class="student-enroll-input" placeholder="City/Municipality, Province" value="{{ fi.birthplace|default:'' }}" required data-required />
+    </div>
+    <div class="col-12">
+      <label class="student-enroll-label" for="field-education">Educational Attainment Before the Training <span class="student-enroll-required">*</span></label>
+      <select id="field-education" name="educational_attainment" class="student-enroll-input student-enroll-select" required data-required>
+        <option value="">Select educational attainment</option>
+        {% for value, label in educational_attainment_choices %}
+        <option value="{{ value }}"{% if fi.educational_attainment == value %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-guardian-name">Parent / Guardian Name <span class="student-enroll-required">*</span></label>
+      <input id="field-guardian-name" name="parent_guardian_name" type="text" class="student-enroll-input" placeholder="Complete name" value="{{ fi.parent_guardian_name|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-6">
+      <label class="student-enroll-label" for="field-guardian-address">Parent / Guardian Complete Address <span class="student-enroll-required">*</span></label>
+      <input id="field-guardian-address" name="parent_guardian_address" type="text" class="student-enroll-input" placeholder="Complete address" value="{{ fi.parent_guardian_address|default:'' }}" required data-required />
+    </div>
+  </div>
+</section>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">4. Learner / Trainee / Student (Client) Classification</h3>
+  <p class="student-enroll-section__hint">Select all that apply <span class="student-enroll-required">*</span> (at least one)</p>
+  <div class="row g-2 student-enroll-classifications" id="client-classifications-group" data-required-group="client_classification">
+    {% for label in client_classifications %}
+    <div class="col-md-4">
+      <div class="form-check student-enroll-check">
+        <input class="form-check-input" type="checkbox" name="client_classification" value="{{ label }}" id="class-{{ forloop.counter }}"{% if label in fi.selected_classifications %} checked{% endif %} />
+        <label class="form-check-label" for="class-{{ forloop.counter }}">{{ label }}</label>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">5. Type of Disability</h3>
+  <p class="student-enroll-section__hint">For persons with disability only — select all that apply (leave blank if not applicable)</p>
+  <div class="row g-2 student-enroll-classifications" id="disability-types-group">
+    {% for label in disability_types %}
+    <div class="col-md-4">
+      <div class="form-check student-enroll-check">
+        <input class="form-check-input" type="checkbox" name="disability_type" value="{{ label }}" id="disability-type-{{ forloop.counter }}" data-disability-type{% if label == "Multiple Disabilities" %} data-multiple-disabilities="1"{% endif %}{% if label in fi.selected_disability_types %} checked{% endif %} />
+        <label class="form-check-label" for="disability-type-{{ forloop.counter }}">{{ label }}</label>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="mt-3{% if 'Multiple Disabilities' not in fi.selected_disability_types %} d-none{% endif %}" id="disability-other-wrap">
+    <label class="student-enroll-label" for="field-disability-other">If multiple disabilities, please specify</label>
+    <input id="field-disability-other" name="disability_other_specify" type="text" class="student-enroll-input" placeholder="Specify disability types" value="{{ fi.disability_other_specify|default:'' }}" />
+  </div>
+</section>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">6. Causes of Disability</h3>
+  <p class="student-enroll-section__hint">For persons with disability only — select all that apply (leave blank if not applicable)</p>
+  <div class="row g-2 student-enroll-classifications" id="disability-causes-group">
+    {% for label in disability_causes %}
+    <div class="col-md-4">
+      <div class="form-check student-enroll-check">
+        <input class="form-check-input" type="checkbox" name="disability_cause" value="{{ label }}" id="disability-cause-{{ forloop.counter }}"{% if label in fi.selected_disability_causes %} checked{% endif %} />
+        <label class="form-check-label" for="disability-cause-{{ forloop.counter }}">{{ label }}</label>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="student-panel student-enroll-card" id="enrollment-program-section">
+  <h3 class="student-enroll-section__title">7. Name of Course / Qualification</h3>
+  <input type="hidden" name="selected_program" id="field-selected-program" value="{{ program_name }}" />
+
+  <div id="program-display-view">
+    <div class="student-program-card">
+      <p class="student-program-card__label">Selected Course</p>
+      <p class="student-program-card__name" id="program-display-name">{{ program_name }}</p>
+      <p class="student-program-card__type">{{ program_type_label }}</p>
+    </div>
+    <button type="button" class="btn student-program-edit-btn student-program-edit-btn--secondary mt-2" id="program-change-btn">
+      <i class="bi bi-pencil" aria-hidden="true"></i> Change course / qualification
+    </button>
+  </div>
+
+  <div id="program-edit-view" class="d-none mt-2">
+    <p class="student-enroll-section__hint mb-2">Choose the correct course if you selected the wrong one during registration.</p>
+    <label class="student-enroll-label" for="field-selected-program-select">Course / Qualification</label>
+    <select id="field-selected-program-select" class="student-enroll-input student-enroll-select mb-3">
+      {% for program in enrollment_program_options %}
+      <option value="{{ program }}"{% if program == program_name %} selected{% endif %}>{{ program }}</option>
+      {% endfor %}
+    </select>
+    <div class="student-program-edit-actions">
+      <button type="button" class="btn student-program-edit-btn student-program-edit-btn--primary" id="program-done-btn">Done</button>
+      <button type="button" class="btn student-program-edit-btn student-program-edit-btn--secondary" id="program-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</section>
+
+<div class="modal fade" id="changeProgramConfirmModal" tabindex="-1" aria-labelledby="changeProgramConfirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content student-confirm-modal student-program-change-modal">
+      <div class="modal-body p-4">
+        <div class="student-program-change-modal__icon" aria-hidden="true">
+          <i class="bi bi-exclamation-circle"></i>
+        </div>
+        <h3 class="h5 fw-bold mb-2" id="changeProgramConfirmModalLabel">Do you really want to change your Course / Qualification?</h3>
+        
+        <p class="student-program-change-modal__current mb-0">
+          <span class="text-muted">Current selection:</span>
+          <strong id="modal-current-program" class="d-block mt-1">{{ program_name }}</strong>
+        </p>
+        <div class="d-flex flex-column flex-sm-row gap-2 mt-4">
+          <button type="button" class="btn btn-outline-secondary flex-grow-1 fw-semibold rounded-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn flex-grow-1 fw-semibold rounded-3 text-white" id="program-confirm-change-btn" style="background:#00a859;border-color:#00a859">Yes, change</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">8. Scholarship Package (TWSP, PESFA, STEP, others)</h3>
+  <label class="student-enroll-label" for="field-scholarship">If scholar, select type (if applicable)</label>
+  <select id="field-scholarship" name="scholarship_type" class="student-enroll-input student-enroll-select">
+    {% for value, label in scholarship_type_choices %}
+    <option value="{{ value }}"{% if fi.scholarship_type == value %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</section>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">9. Privacy Consent and Disclaimer</h3>
+  <div class="student-enroll-consent">
+    <div class="form-check student-enroll-check mb-0">
+      <input class="form-check-input" type="checkbox" name="privacy_consent" id="field-privacy" value="1" required data-required{% if fi.privacy_consent %} checked{% endif %} />
+      <label class="form-check-label" for="field-privacy">
+        I agree to allow TESDA to use/post my contact details and other information I provided for scholarship processing, employment opportunities, and related purposes per TESDA data privacy policy. <span class="student-enroll-required">*</span>
+      </label>
+    </div>
+  </div>
+</section>
+
+<section class="student-panel student-enroll-card">
+  <h3 class="student-enroll-section__title">10. Applicant's Signature</h3>
+  <p class="student-enroll-section__hint">This is to certify that the information stated above is true and correct.</p>
+  <div class="row g-3 align-items-end student-enroll-signature-row">
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-signature">Applicant's Signature (Type Full Name) <span class="student-enroll-required">*</span></label>
+      <input id="field-signature" name="signature" type="text" class="student-enroll-input" placeholder="Type your full name as signature" value="{{ fi.signature|default:'' }}" required data-required />
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-date-accomplished">Date Accomplished</label>
+      <input id="field-date-accomplished" type="text" class="student-enroll-input" value="{{ date_accomplished_display }}" readonly />
+    </div>
+    <div class="col-md-4">
+      <label class="student-enroll-label" for="field-photo">Upload 1×1 Photo {% if not has_existing_photo %}<span class="student-enroll-required">*</span>{% endif %}</label>
+      <div class="student-file-upload-row" data-file-preview-root>
+        <input
+          id="field-photo"
+          name="photo"
+          type="file"
+          class="student-enroll-input student-enroll-file"
+          accept="image/jpeg,image/png"
+          data-preview-existing-url="{{ fi.existing_photo_url|default:'' }}"
+          data-preview-existing-name="{{ fi.existing_photo_name|default:'1×1 Photo' }}"
+          {% if not has_existing_photo %} required data-required{% endif %}
+        />
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endwith %}

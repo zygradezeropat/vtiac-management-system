@@ -1,0 +1,75 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+
+<header class="registrar-page-header">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+</header>
+
+<script id="trainer-egace-seed" type="application/json">{{ trainer_egace_seed_json|default:"[]"|safe }}</script>
+
+<section class="registrar-panel mb-0">
+  <div class="registrar-panel__head flex-wrap gap-3 border-0 pb-0">
+    <div class="d-flex align-items-start gap-3">
+      <span class="registrar-egace-section-icon" aria-hidden="true">
+        <i class="bi bi-clipboard-data"></i>
+      </span>
+      <div>
+        <h2 class="registrar-panel__title mb-1">Student Progress Tracking</h2>
+        <p class="registrar-panel__subtitle mb-0">Track student completion status across all milestones</p>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2 ms-lg-auto">
+      <p id="egace-sync-hint" class="text-muted small mb-0 registrar-egace-sync-hint"></p>
+      <input
+        type="search"
+        id="egace-search"
+        class="form-control form-control-sm registrar-verification-search"
+        placeholder="Search student or course..."
+        autocomplete="off"
+      />
+    </div>
+  </div>
+  <div class="registrar-panel__body pt-3">
+    <div class="table-responsive registrar-egace-table-wrap">
+      <table class="table registrar-table registrar-egace-table mb-0">
+        <thead>
+          <tr>
+            <th scope="col">Student Name</th>
+            <th scope="col">Status</th>
+            <th scope="col">Statement of Account</th>
+            <th scope="col">Graduate</th>
+            <th scope="col">Assessment</th>
+            <th scope="col">Certified</th>
+          </tr>
+        </thead>
+        <tbody id="egace-table-body"></tbody>
+      </table>
+    </div>
+    <div id="egace-empty" class="registrar-verification-empty text-center py-5 d-none">
+      <i class="bi bi-inbox display-4 text-muted opacity-50" aria-hidden="true"></i>
+      <p class="fw-semibold mt-3 mb-1">No records to display</p>
+      <p class="text-muted small mb-0">Trainer module data will appear here when available.</p>
+    </div>
+    <p class="text-muted small mb-0 mt-3">
+      <span id="egace-row-count">0</span> students · Employment status is maintained in the trainer module only and is not shown in this table.
+    </p>
+  </div>
+</section>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-egace-table.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+{% endblock %}

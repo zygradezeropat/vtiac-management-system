@@ -1,0 +1,300 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header">
+  <div>
+    <h1 class="student-page-title">{{ page_title }}</h1>
+    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
+</header>
+
+{% if messages %}
+<div class="mb-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="student-enroll-list student-payments-panel">
+  <section class="student-panel student-enroll-card">
+    <div class="student-pay-card__head">
+      <span class="student-req-card__icon"><i class="bi bi-credit-card" aria-hidden="true"></i></span>
+      <div>
+        <h2 class="student-pay-card__title mb-0">Statement of Account</h2>
+        <p class="student-pay-card__subtitle mb-0">Your enrollment fees and payment summary</p>
+      </div>
+    </div>
+
+    <h3 class="student-pay-section-label">Total Fees</h3>
+    <ul class="student-pay-fee-list list-unstyled mb-0">
+      {% for line in fee_lines %}
+      <li class="student-pay-fee-list__item">
+        <span>{{ line.label }}</span>
+        <span class="student-pay-fee-list__amount">
+          {{ line.amount_display }}
+          {% if line.paid_display %}
+          <span class="student-pay-fee-list__meta d-block small text-muted">
+            Paid {{ line.paid_display }} · Balance {{ line.balance_display }}
+          </span>
+          {% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% if has_cashier_payments %}
+    <p class="student-pay-section-label mt-3 mb-1">Amount paid (cashier)</p>
+    <p class="mb-2 text-muted small">{{ paid_display }} recorded at the VTIAC cashier.</p>
+    {% endif %}
+
+    <div class="student-pay-balance">
+      <span class="student-pay-balance__label">Remaining Balance</span>
+      <span class="student-pay-balance__amount">{{ balance_display }}</span>
+    </div>
+  </section>
+
+  {% if cashier_payments %}
+  <section class="student-panel student-enroll-card" id="cashier-payments-section">
+    <div class="student-pay-card__head">
+      <span class="student-req-card__icon"><i class="bi bi-cash-coin" aria-hidden="true"></i></span>
+      <div>
+        <h2 class="student-pay-card__title mb-0">Cashier payments</h2>
+        <p class="student-pay-card__subtitle mb-0">Payments recorded by the cashier office</p>
+      </div>
+    </div>
+    <ul class="student-pay-proof-list list-unstyled mb-0">
+      {% for row in cashier_payments %}
+      <li class="student-pay-proof-list__item">
+        <div class="student-pay-proof-list__info">
+          <i class="bi bi-receipt-cutoff text-success me-2" aria-hidden="true"></i>
+          <div>
+            <p class="student-pay-proof-list__name mb-0">{{ row.control_number }}{% if row.or_number %} · OR {{ row.or_number }}{% endif %}</p>
+            <p class="student-pay-proof-list__meta mb-0">
+              {{ row.recorded_display }} · {{ row.particulars_summary }} · {{ row.status }}
+            </p>
+            <p class="student-pay-proof-list__meta mb-0">
+              Paid {{ row.paid_display }} of {{ row.total_display }}
+              {% if row.balance_display != "₱0.00" %} · Balance {{ row.balance_display }}{% endif %}
+            </p>
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="student-panel student-enroll-card" id="enrollment-form-section">
+    <div class="student-pay-card__head">
+      <span class="student-req-card__icon"><i class="bi bi-journal-text" aria-hidden="true"></i></span>
+      <div>
+        <h2 class="student-pay-card__title mb-0">Enrollment Form</h2>
+        <p class="student-pay-card__subtitle mb-0">Learner's Profile Form (TESDA) — required before payment proof</p>
+      </div>
+      <span class="student-pay-status-badge student-pay-status-badge--{{ enrollment_form_status_class }}">
+        {{ enrollment_form_status_label }}
+      </span>
+    </div>
+
+    {% if enrollment_form_complete %}
+    <div class="student-pay-enroll-summary">
+      <p class="mb-1"><strong>Program:</strong> {{ enrollment_form_program }}</p>
+      <p class="mb-0 text-muted small">Last updated {{ enrollment_form_updated }}</p>
+    </div>
+    <a href="{% url 'student_enrollment' %}" class="student-pay-link-btn">
+      <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>View or update enrollment form
+    </a>
+    {% else %}
+    <p class="student-pay-locked-msg mb-3">
+      Complete your enrollment form details before you can upload proof of payment.
+    </p>
+    <a href="{% url 'student_enrollment' %}" class="student-enroll-submit text-decoration-none d-inline-flex">
+      Continue Enrollment Form
+      <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
+    </a>
+    {% endif %}
+  </section>
+
+  <section class="student-panel student-enroll-card" id="proof-of-payment-section">
+    <div class="student-pay-card__head">
+      <span class="student-req-card__icon"><i class="bi bi-receipt" aria-hidden="true"></i></span>
+      <div>
+        <h2 class="student-pay-card__title mb-0">Proof of Payment</h2>
+        <p class="student-pay-card__subtitle mb-0">Upload your payment receipt or transaction screenshot</p>
+      </div>
+    </div>
+
+    {% if not can_upload_payment_proof %}
+    <div class="student-pay-locked-banner" role="status">
+      <i class="bi bi-lock-fill" aria-hidden="true"></i>
+      <p class="mb-0">Finish the <strong>Enrollment Form</strong> section above to enable uploads.</p>
+    </div>
+    {% else %}
+    <p class="student-pay-proof-hint mb-3">
+      Accepted formats: PDF, JPEG, or PNG (max 5MB each). You may upload multiple receipts if needed.
+    </p>
+
+    <form
+      method="post"
+      action="{% url 'student_payments' %}"
+      enctype="multipart/form-data"
+      class="student-pay-proof-form mb-3"
+      id="payment-proof-form"
+    >
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload_payment_proof" />
+      <div class="mb-2">
+        <label class="form-label fw-medium small" for="payment-reference-note">Reference / OR number (optional)</label>
+        <input
+          type="text"
+          id="payment-reference-note"
+          name="reference_note"
+          class="form-control form-control-sm form-control-vtiac"
+          placeholder="e.g. OR-2026-04182"
+          maxlength="128"
+        />
+      </div>
+      <div class="student-pay-proof-upload-row student-file-upload-row" data-file-preview-root>
+        <input
+          type="file"
+          name="file"
+          id="payment-proof-file"
+          class="student-req-file-input"
+          accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf"
+          aria-label="Upload proof of payment"
+          required
+        />
+        <label for="payment-proof-file" class="student-req-upload-btn">
+          <i class="bi bi-upload" aria-hidden="true"></i>
+          Upload proof
+        </label>
+      </div>
+      <div class="student-req-pending d-none mt-2" id="payment-proof-pending" data-req-pending>
+        <span class="student-req-pending__name" data-req-pending-name></span>
+        <button type="button" class="file-preview-btn" data-req-pending-view hidden aria-label="Preview proof of payment">
+          <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button type="button" class="student-req-pending__confirm btn btn-success btn-sm fw-semibold" id="payment-proof-confirm">Upload file</button>
+        <button type="button" class="student-req-pending__cancel btn btn-outline-secondary btn-sm" id="payment-proof-cancel">Cancel</button>
+      </div>
+    </form>
+
+    {% if has_payment_proofs %}
+    <h3 class="student-pay-section-label">Submitted proofs</h3>
+    <ul class="student-pay-proof-list list-unstyled mb-0">
+      {% for proof in payment_proofs %}
+      <li class="student-pay-proof-list__item">
+        <div class="student-pay-proof-list__info">
+          <i class="bi bi-file-earmark-check text-success me-2" aria-hidden="true"></i>
+          <div>
+            <p class="student-pay-proof-list__name mb-0">{{ proof.filename }}</p>
+            <p class="student-pay-proof-list__meta mb-0">
+              {{ proof.uploaded_display }}
+              {% if proof.reference_note %} · Ref: {{ proof.reference_note }}{% endif %}
+            </p>
+          </div>
+        </div>
+        {% if proof.file_url %}
+        <button
+          type="button"
+          class="file-preview-btn"
+          data-preview-url="{{ proof.file_url }}"
+          data-preview-name="{{ proof.filename }}"
+          aria-label="Preview {{ proof.filename }}"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% endif %}
+  </section>
+
+  <section class="student-panel student-enroll-card">
+    <div class="student-pay-card__head">
+      <span class="student-req-card__icon"><i class="bi bi-cash-stack" aria-hidden="true"></i></span>
+      <div>
+        <h2 class="student-pay-card__title mb-0">Payment Instructions</h2>
+        <p class="student-pay-card__subtitle mb-0">Complete your payment physically and save your receipt</p>
+      </div>
+    </div>
+
+    <div class="student-pay-qr-wrap">
+      <div class="student-pay-qr-box" aria-hidden="true">
+        <p class="student-pay-qr-box__org mb-1">VALIANT TECHNICAL INSTITUTE</p>
+        <p class="student-pay-qr-box__label mb-1">QR CODE</p>
+        <p class="student-pay-qr-box__hint mb-0">For Payment Reference</p>
+      </div>
+      <p class="student-pay-qr-caption mb-0">
+        <strong>Valiant Technical Institute</strong><br />
+        Assessment Center, Inc.
+      </p>
+    </div>
+
+    <div class="student-pay-info-banner">
+      <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+      <div>
+        <p class="student-pay-info-banner__title mb-1">Important Payment Information</p>
+        <p class="mb-0">
+          Please complete your payment physically at the cashier/registrar office and save your receipt for verification.
+        </p>
+      </div>
+    </div>
+
+    <div class="student-pay-responsibilities">
+      <p class="fw-bold mb-2">Your Responsibilities:</p>
+      <ul class="mb-0">
+        <li>Keep a copy of your payment receipt</li>
+        <li>Upload your receipt or screenshot in the Proof of Payment section above</li>
+        <li>Present your receipt during onsite or manual verification</li>
+        <li>Ensure all payment details are accurate and legible</li>
+      </ul>
+    </div>
+
+    <p class="student-pay-disclaimer mb-0">
+      This system provides payment guidance only. All payments must be processed physically at the cashier office.
+    </p>
+  </section>
+</div>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/student-payments.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
+{% endblock %}

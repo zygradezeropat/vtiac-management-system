@@ -1,0 +1,109 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header">
+  <div>
+    <h1 class="student-page-title">{{ page_title }}</h1>
+    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
+</header>
+
+{% if messages %}
+<div class="mb-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="student-doc-list">
+  {% for doc in documents %}
+  <article class="student-panel student-doc-card">
+    <div class="student-doc-card__main">
+      <span class="student-doc-card__icon" aria-hidden="true">
+        <i class="bi {{ doc.icon }}"></i>
+      </span>
+      <div class="student-doc-card__info">
+        <h2 class="student-doc-card__title">{{ doc.title }}</h2>
+        <p class="student-doc-card__meta">{{ doc.meta_line }}</p>
+      </div>
+      <span class="student-doc-badge student-doc-badge--{{ doc.status }}">{{ doc.status_label }}</span>
+    </div>
+    <div class="student-doc-card__actions">
+      {% if doc.can_view %}
+      <button
+        type="button"
+        class="file-preview-btn"
+        data-preview-url="{{ doc.view_url }}"
+        data-preview-name="{{ doc.title }}"
+        aria-label="Preview {{ doc.title }}"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      {% else %}
+      <span class="file-preview-btn file-preview-btn--disabled" aria-hidden="true" title="Not available yet">
+        <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </span>
+      {% endif %}
+
+      {% if doc.can_download %}
+      <a
+        href="{{ doc.download_url }}"
+        class="student-doc-btn student-doc-btn--download"
+        aria-label="Download {{ doc.title }}"
+      >
+        <i class="bi bi-download" aria-hidden="true"></i>
+      </a>
+      {% else %}
+      <span class="student-doc-btn student-doc-btn--download student-doc-btn--disabled" aria-hidden="true" title="Not available yet">
+        <i class="bi bi-download"></i>
+      </span>
+      {% endif %}
+    </div>
+  </article>
+  {% empty %}
+  <section class="student-panel student-doc-card">
+    <p class="student-schedule-box mb-0">No documents are available yet. Complete enrollment to generate your documents.</p>
+  </section>
+  {% endfor %}
+</div>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { initFilePreviewTriggers } from "{% static 'js/file-upload-preview.js' %}";
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initFilePreviewTriggers(document);
+  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
+{% endblock %}

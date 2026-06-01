@@ -1,0 +1,50 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+
+<header class="registrar-page-header">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <button type="button" id="close-fiscal-year-btn" class="btn btn-vtiac btn-primary btn-sm px-3 fw-semibold flex-shrink-0">
+    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Close Fiscal Year <span id="fiscal-year-label">2026</span>
+  </button>
+</header>
+
+<div id="reports-root" class="d-flex flex-column gap-3">
+  <div id="reports-tabs" class="registrar-tabs" role="tablist" aria-label="Report periods"></div>
+  <div id="reports-content"></div>
+</div>
+
+<div id="close-fiscal-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h3 class="modal-title h5 fw-semibold">Close fiscal year?</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-2">
+        <p id="close-fiscal-modal-body" class="text-muted mb-0"></p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="close-fiscal-confirm" class="btn btn-vtiac btn-primary px-4">Close &amp; Archive</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-reports.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+{% endblock %}

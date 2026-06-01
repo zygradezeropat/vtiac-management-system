@@ -1,0 +1,168 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/admin/layout_start.html" %}
+{% include "components/admin/page_header.html" %}
+
+<section class="admin-users" aria-label="User management">
+  <div class="admin-users-toolbar">
+    <div class="admin-users-toolbar__filters">
+      <input
+        type="search"
+        id="userSearchInput"
+        class="form-control admin-form-input admin-users-search"
+        placeholder="Search by name or email..."
+        autocomplete="off"
+      />
+      <select id="userAccountTypeFilter" class="form-select admin-form-input admin-users-filter">
+        <option value="">All account types</option>
+        <option value="staff">Staff</option>
+        <option value="student">Student</option>
+      </select>
+      <select id="userRoleFilter" class="form-select admin-form-input admin-users-filter">
+        <option value="">All staff roles</option>
+        <option value="admin">Admin</option>
+        <option value="registrar">Registrar</option>
+        <option value="cashier">Cashier</option>
+        <option value="trainer">Trainer</option>
+      </select>
+    </div>
+    <button type="button" class="btn admin-save-button" id="addUserButton">
+      <i class="bi bi-person-plus" aria-hidden="true"></i>
+      Add User
+    </button>
+  </div>
+
+  <p class="admin-users-summary text-muted small mb-2" id="usersResultSummary"></p>
+
+  <div class="admin-table-card">
+    <div class="admin-table-container">
+      <table class="admin-egace-table admin-users-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Account</th>
+            <th>Role</th>
+            <th class="text-center">Status</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="usersTableBody">
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">Loading users...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <nav class="admin-users-pagination hidden" id="usersPagination" aria-label="User list pages"></nav>
+
+  <div id="usersEmptyState" class="admin-empty-state hidden">
+    <i class="bi bi-people admin-empty-icon" aria-hidden="true"></i>
+    <p class="admin-empty-title">No users found</p>
+    <p class="admin-empty-subtitle">Try adjusting your search or filters, or add a new user.</p>
+  </div>
+</section>
+
+<div class="modal fade" id="userFormModal" tabindex="-1" aria-labelledby="userFormModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h2 class="modal-title h5 fw-semibold" id="userFormModalLabel">Add User</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="userFormError" class="alert alert-danger d-none mb-3" role="alert"></p>
+        <form id="userForm" novalidate>
+          <input type="hidden" id="userFormId" value="" />
+          <div class="admin-form-grid">
+            <div class="admin-form-field">
+              <label class="admin-form-label" for="userFormFirstName">First Name</label>
+              <input type="text" class="form-control admin-form-input" id="userFormFirstName" required />
+            </div>
+            <div class="admin-form-field">
+              <label class="admin-form-label" for="userFormLastName">Last Name</label>
+              <input type="text" class="form-control admin-form-input" id="userFormLastName" required />
+            </div>
+            <div class="admin-form-field">
+              <label class="admin-form-label" for="userFormEmail">Email</label>
+              <input type="email" class="form-control admin-form-input" id="userFormEmail" required />
+            </div>
+            <div class="admin-form-field" id="userFormAccountTypeWrap">
+              <label class="admin-form-label" for="userFormAccountType">Account Type</label>
+              <select class="form-select admin-form-input" id="userFormAccountType" required>
+                <option value="staff">Staff</option>
+                <option value="student">Student</option>
+              </select>
+            </div>
+            <div class="admin-form-field" id="userFormRoleWrap">
+              <label class="admin-form-label" for="userFormRole">Staff Role</label>
+              <select class="form-select admin-form-input" id="userFormRole">
+                <option value="admin">Admin</option>
+                <option value="registrar">Registrar</option>
+                <option value="cashier">Cashier</option>
+                <option value="trainer">Trainer</option>
+              </select>
+            </div>
+            <div class="admin-form-field" id="userFormActiveWrap">
+              <label class="admin-form-label" for="userFormActive">Status</label>
+              <select class="form-select admin-form-input" id="userFormActive">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div class="admin-form-field mb-0" id="userFormPasswordWrap">
+            <label class="admin-form-label" for="userFormPassword">Password</label>
+            <input
+              type="password"
+              class="form-control admin-form-input"
+              id="userFormPassword"
+              placeholder="Required for new users"
+              autocomplete="new-password"
+            />
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn admin-save-button" id="userFormSubmit">Save User</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h2 class="modal-title h5 fw-semibold" id="resetPasswordModalLabel">Reset Password</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3" id="resetPasswordUserLabel"></p>
+        <p id="resetPasswordError" class="alert alert-danger d-none mb-3" role="alert"></p>
+        <div class="admin-form-field mb-0">
+          <label class="admin-form-label" for="resetPasswordInput">New Password</label>
+          <input type="password" class="form-control admin-form-input" id="resetPasswordInput" autocomplete="new-password" />
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn admin-save-button" id="resetPasswordSubmit">Update Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/admin/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/admin/scripts_common.html" %}
+<script type="module" src="{% static 'js/admin-user-management.js' %}"></script>
+{% endblock %}

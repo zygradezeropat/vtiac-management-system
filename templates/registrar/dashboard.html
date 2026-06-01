@@ -1,0 +1,56 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+{{ registrar_dashboard_stats|json_script:"registrar-dashboard-stats" }}
+
+<header class="registrar-page-header">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <div class="registrar-clock text-end">
+    <p id="clock-date" class="registrar-clock-date mb-0"></p>
+    <p id="clock-time" class="registrar-clock-time mb-0"></p>
+  </div>
+</header>
+
+<section class="registrar-panel mb-4">
+  <div class="registrar-panel__head flex-wrap gap-3">
+    <div>
+      <h2 class="registrar-panel__title">Monthly enrollment trends</h2>
+      <p class="registrar-panel__subtitle">Students enrolled per month </p>
+    </div>
+    <span class="registrar-pill registrar-pill--primary" id="dashboard-year-pill">{{ registrar_dashboard_stats.year|default:"2026" }}</span>
+  </div>
+  <div class="registrar-chart mb-0" id="monthly-enrollment-chart">
+    <div class="registrar-chart__plot">
+      <div class="registrar-chart__yaxis" aria-hidden="true"></div>
+      <div class="registrar-chart__bars registrar-chart__bars--year" aria-label="Monthly enrollment Jan–Dec"></div>
+    </div>
+    <p class="registrar-chart__legend mb-0"><span class="registrar-chart__dot"></span> Students enrolled</p>
+  </div>
+</section>
+
+<article class="registrar-panel mb-4">
+  <h2 class="registrar-panel__title mb-4">Enrollment by Program</h2>
+  <div class="registrar-pie-wrap" id="enrollment-pie-chart">
+    <svg class="registrar-pie-svg" viewBox="0 0 200 200" role="img" aria-label="Enrollment by program"></svg>
+  </div>
+  <ul class="registrar-chart-legend registrar-chart-legend--pie list-unstyled mb-0" id="enrollment-pie-legend"></ul>
+  <p id="enrollment-pie-empty" class="text-muted small text-center mb-0 d-none">No enrolled students yet — program breakdown will appear after registrar approval.</p>
+</article>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-dashboard.js' %}"></script>
+<script type="module">
+  import { initStaffHeader, initLiveClock } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+  initLiveClock("clock-date", "clock-time");
+</script>
+{% endblock %}

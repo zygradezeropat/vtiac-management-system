@@ -1,0 +1,108 @@
+{% extends "trainer/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/trainer/layout_start.html" %}
+{% include "components/trainer/page_header.html" %}
+
+<section class="trainer-stats-grid" aria-label="Dashboard statistics">
+  <a href="{% url 'trainer_module' module='students' %}" class="trainer-stat-card">
+    <div class="trainer-stat-header">
+      <span class="trainer-stat-title">Total Students</span>
+      <span class="trainer-stat-icon trainer-stat-icon--blue"><i class="bi bi-people-fill" aria-hidden="true"></i></span>
+    </div>
+    <p class="trainer-stat-value" id="total-students">{{ total_students }}</p>
+    <p class="trainer-stat-label">Assigned students</p>
+  </a>
+  <a href="{% url 'trainer_module' module='sheets' %}" class="trainer-stat-card">
+    <div class="trainer-stat-header">
+      <span class="trainer-stat-title">Competent</span>
+      <span class="trainer-stat-icon trainer-stat-icon--emerald"><i class="bi bi-check-lg" aria-hidden="true"></i></span>
+    </div>
+    <p class="trainer-stat-value" id="competent-count">{{ competent_count }}</p>
+    <p class="trainer-stat-label">Students graded C</p>
+  </a>
+  <a href="{% url 'trainer_module' module='sheets' %}" class="trainer-stat-card">
+    <div class="trainer-stat-header">
+      <span class="trainer-stat-title">Not Yet Competent</span>
+      <span class="trainer-stat-icon trainer-stat-icon--amber"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></span>
+    </div>
+    <p class="trainer-stat-value" id="nyc-count">{{ nyc_count }}</p>
+    <p class="trainer-stat-label">Students graded NYC</p>
+  </a>
+  <div class="trainer-stat-card">
+    <div class="trainer-stat-header">
+      <span class="trainer-stat-title">Average Attendance</span>
+      <span class="trainer-stat-icon trainer-stat-icon--purple"><i class="bi bi-calendar3" aria-hidden="true"></i></span>
+    </div>
+    <p class="trainer-stat-value" id="avg-attendance">{{ avg_attendance }}</p>
+    <p class="trainer-stat-label">Class attendance rate</p>
+  </div>
+</section>
+
+<article class="trainer-panel">
+  <div class="trainer-panel__head">
+    <h2 class="trainer-panel__title"><i class="bi bi-calendar-week" aria-hidden="true"></i> My Class Schedule</h2>
+  </div>
+  <div class="trainer-panel__body">
+    {% if has_assigned_classes %}
+    <div class="trainer-schedule-list">
+      {% for batch in assigned_batches %}
+      <div class="trainer-schedule-assigned">
+        <p class="trainer-schedule-assigned__lead mb-3">
+          <i class="bi bi-check-circle-fill text-success me-1" aria-hidden="true"></i>
+          <strong>{{ batch.batch_label }}</strong> — {{ batch.course_name }}
+          {% if batch.finalized_at_display %}
+          <span class="trainer-schedule-assigned__meta">(finalized {{ batch.finalized_at_display }})</span>
+          {% endif %}
+        </p>
+        <ul class="list-unstyled trainer-schedule-assigned__list mb-0">
+          {% if batch.label %}
+          <li><i class="bi bi-journal-bookmark me-2 text-success" aria-hidden="true"></i>{{ batch.label }}</li>
+          {% endif %}
+          <li><i class="bi bi-clock me-2 text-success" aria-hidden="true"></i>{{ batch.schedule_display }}</li>
+          {% if batch.start_date_display or batch.end_date_display %}
+          <li><i class="bi bi-calendar-range me-2 text-success" aria-hidden="true"></i>{{ batch.start_date_display|default:"—" }} to {{ batch.end_date_display|default:"—" }}</li>
+          {% endif %}
+          <li><i class="bi bi-people me-2 text-success" aria-hidden="true"></i>{{ batch.student_count }} student{{ batch.student_count|pluralize }} in this batch</li>
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="trainer-schedule-empty mb-0">
+      No finalized class has been assigned to you yet. Once the registrar finalizes a batch with you as trainer in Batching &amp; Scheduling, your schedule and student count will appear here.
+    </p>
+    {% endif %}
+  </div>
+</article>
+
+<article class="trainer-panel">
+  <div class="trainer-panel__head">
+    <h2 class="trainer-panel__title">Quick Actions</h2>
+  </div>
+  <div class="trainer-panel__body">
+    <div class="trainer-quick-actions">
+      <a href="{% url 'trainer_module' module='students' %}" class="trainer-action-btn">
+        <i class="bi bi-people-fill" aria-hidden="true"></i>
+        <span>View Students</span>
+      </a>
+      <a href="{% url 'trainer_module' module='sheets' %}" class="trainer-action-btn">
+        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+        <span>Record Sheets</span>
+      </a>
+      <a href="{% url 'trainer_module' module='reports' %}" class="trainer-action-btn">
+        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+        <span>Generate Reports</span>
+      </a>
+    </div>
+  </div>
+</article>
+
+{% include "components/trainer/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/trainer/scripts_common.html" with show_clock=True %}
+{% endblock %}

@@ -1,0 +1,237 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header">
+  <div>
+    <h1 class="student-page-title">{{ page_title }}</h1>
+    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
+</header>
+
+<div class="row g-3">
+  <div class="col-lg-8 d-flex flex-column gap-3">
+    <section class="student-panel">
+      <div class="student-panel__head">
+        <h2 class="student-panel__title"><i class="bi bi-journal-bookmark" aria-hidden="true"></i>Enrollment Progress</h2>
+      </div>
+      <div class="student-progress-layout">
+        <div class="student-progress-ring" role="img" aria-label="{{ progress_percent }}% complete">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="student-progress-ring__track" cx="60" cy="60" r="54"></circle>
+            <circle
+              class="student-progress-ring__fill"
+              cx="60"
+              cy="60"
+              r="54"
+              stroke-dasharray="{{ progress_ring_circumference }}"
+              stroke-dashoffset="{{ progress_ring_offset }}"
+            ></circle>
+          </svg>
+          <div class="student-progress-ring__label">
+            <span class="student-progress-ring__pct">{{ progress_percent }}%</span>
+            <span class="student-progress-ring__caption">Complete</span>
+          </div>
+        </div>
+        <div class="student-progress-details">
+          <p class="student-progress-status-label">
+            Application Status
+            <i class="bi bi-info-circle ms-1" aria-hidden="true" title="Current enrollment application status"></i>
+          </p>
+          <p class="student-progress-status-value">{{ application_status }}</p>
+          <div class="student-program-card">
+            <p class="student-program-card__label">Program</p>
+            <p class="student-program-card__name">{{ program_name }}</p>
+            <p class="student-program-card__type">{{ program_type_label }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="student-panel">
+      <div class="student-split-panel">
+        <div>
+          <div class="student-panel__head">
+            <h2 class="student-panel__title"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Requirements Status</h2>
+          </div>
+          <ul class="student-checklist">
+            {% for req in requirements %}
+            <li class="student-checklist__item{% if req.optional %} student-checklist__item--optional{% endif %}">
+              <span class="student-checklist__icon {% if req.done %}student-checklist__icon--done{% else %}student-checklist__icon--pending{% endif %}" aria-hidden="true">
+                {% if req.done %}<i class="bi bi-check-lg"></i>{% else %}<i class="bi bi-clock"></i>{% endif %}
+              </span>
+              <span>{{ req.label }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% if show_upload_requirements_button %}
+          <a href="{% url 'student_enrollment_requirements' %}" class="student-upload-btn">
+            <i class="bi bi-upload" aria-hidden="true"></i>
+            Upload Requirements
+          </a>
+          {% endif %}
+        </div>
+        <div>
+          <div class="student-panel__head">
+            <h2 class="student-panel__title"><i class="bi bi-list-check" aria-hidden="true"></i>Enrollment Steps</h2>
+          </div>
+          <ul class="student-checklist student-checklist--pipeline mb-0">
+            {% for step in enrollment_steps %}
+            <li class="student-checklist__item student-checklist__item--{{ step.status }}">
+              <span class="student-checklist__icon student-checklist__icon--{{ step.status }}" aria-hidden="true">
+                {% if step.status == "done" %}
+                <i class="bi bi-check-lg"></i>
+                {% elif step.status == "current" %}
+                <i class="bi {{ step.icon }}"></i>
+                {% else %}
+                <i class="bi bi-circle"></i>
+                {% endif %}
+              </span>
+              <span>
+                {{ step.label }}
+                {% if step.status == "current" %}<span class="student-step-current-badge">In progress</span>{% endif %}
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-lg-4 d-flex flex-column gap-3">
+    <section class="student-panel student-stat-card student-stat-card--readonly" aria-label="Payment overview (read-only)">
+      <div class="student-stat-card__head">
+        <i class="bi bi-credit-card" aria-hidden="true"></i>
+        <h3>View Payments</h3>
+        <span class="student-readonly-tag">Read-only</span>
+      </div>
+      <p class="student-stat-card__value">{{ payment_status }}</p>
+      <p class="student-stat-card__meta">{{ payment_balance }} balance</p>
+      <span class="student-badge {{ payment_badge_class }}">{{ payment_badge }}</span>
+      <p class="student-stat-card__hint mb-0">Payment details are for viewing only. Contact the cashier for transactions.</p>
+    </section>
+
+  
+
+    <section class="student-panel student-schedule-panel">
+      <div class="student-panel__head">
+        <h2 class="student-panel__title"><i class="bi bi-calendar-week" aria-hidden="true"></i>Class Schedule</h2>
+      </div>
+
+      {% if schedule_selected %}
+      <div class="student-schedule-assigned mb-0">
+        <p class="student-schedule-saved mb-3">
+          <i class="bi bi-check-circle-fill text-success me-1" aria-hidden="true"></i>
+          <strong>Your class schedule</strong> (assigned by the registrar)
+        </p>
+        <ul class="list-unstyled student-schedule-assigned__list mb-0">
+          <li><i class="bi bi-journal-bookmark me-2 text-success" aria-hidden="true"></i><strong>{{ selected_schedule.batch_label|default:"Batch 1" }}</strong> — {{ selected_schedule.course_name|default:program_name }}</li>
+          <li><i class="bi bi-clock me-2 text-success" aria-hidden="true"></i>{{ selected_schedule_display }}</li>
+          {% if selected_schedule.start_date or selected_schedule.end_date %}
+          <li><i class="bi bi-calendar-range me-2 text-success" aria-hidden="true"></i>{% if selected_schedule.start_date_display %}{{ selected_schedule.start_date_display }}{% else %}—{% endif %} to {% if selected_schedule.end_date_display %}{{ selected_schedule.end_date_display }}{% else %}—{% endif %}</li>
+          {% endif %}
+          {% if selected_schedule.trainer %}
+          <li><i class="bi bi-person-badge me-2 text-success" aria-hidden="true"></i>Trainer: {{ selected_schedule.trainer }}</li>
+          {% endif %}
+        </ul>
+      </div>
+
+      {% elif has_schedule_options %}
+      <p class="student-schedule-intro mb-3">
+        Choose your preferred schedule from the options assigned by the registrar.
+      </p>
+
+      <form method="post" action="{% url 'student_dashboard' %}" class="student-schedule-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="select_schedule" />
+        <fieldset class="student-schedule-options">
+          <legend class="visually-hidden">Assigned schedule options</legend>
+          {% for opt in schedule_options %}
+          <label class="student-schedule-option{% if opt.selected %} student-schedule-option--selected{% endif %}">
+            <input
+              type="radio"
+              name="schedule_option_id"
+              value="{{ opt.id }}"
+              class="student-schedule-option__input"
+              {% if opt.selected %}checked{% endif %}
+              required
+            />
+            <span class="student-schedule-option__body">
+              <span class="student-schedule-option__label">{{ opt.label }}</span>
+              <span class="student-schedule-option__detail">{{ opt.display }}</span>
+              {% if opt.batch_label or opt.trainer %}
+              <span class="student-schedule-option__meta">
+                {% if opt.batch_label %}{{ opt.batch_label }}{% endif %}
+                {% if opt.batch_label and opt.trainer %} · {% endif %}
+                {% if opt.trainer %}Trainer: {{ opt.trainer }}{% endif %}
+              </span>
+              {% endif %}
+            </span>
+          </label>
+          {% endfor %}
+        </fieldset>
+        <button type="submit" class="student-schedule-save-btn">
+          Save schedule preference
+        </button>
+      </form>
+      {% else %}
+      <p class="student-schedule-box mb-0">
+        You haven't been assigned to a class yet. Your class schedule will appear here once the registrar assigns options in Batching &amp; Scheduling.
+      </p>
+      {% endif %}
+    </section>
+
+    <section class="student-panel">
+      <div class="student-panel__head">
+        <h2 class="student-panel__title"><i class="bi bi-megaphone" aria-hidden="true"></i>Announcements</h2>
+      </div>
+      <ul class="student-announcements">
+        {% for item in announcements %}
+        <li class="student-announcement">
+          <p class="student-announcement__title">{{ item.title }}</p>
+          <p class="student-announcement__body">{{ item.body }}</p>
+          <p class="student-announcement__date">{{ item.date }}</p>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</div>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "cashier/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/cashier/layout_start.html" %}
+{% include "components/cashier/page_header.html" %}
+
+<article class="cashier-panel">
+  <div class="cashier-panel__body">
+    <div class="cashier-history-toolbar" id="historyFilters">
+      <div class="cashier-history-filters">
+        <div class="cashier-history-filter">
+          <label class="cashier-history-filter__label" for="historyFilterDate">Date</label>
+          <input type="date" class="form-control form-control-sm" id="historyFilterDate" />
+        </div>
+        <div class="cashier-history-filter">
+          <label class="cashier-history-filter__label" for="historyFilterType">Transaction type</label>
+          <select class="form-select form-select-sm" id="historyFilterType">
+            <option value="">All types</option>
+            <option value="OR">Invoice</option>
+            <option value="AR">Acknowledgement Receipt (AR)</option>
+          </select>
+        </div>
+        <div class="cashier-history-filter cashier-history-filter--grow">
+          <label class="cashier-history-filter__label" for="historyFilterName">Student name</label>
+          <input
+            type="search"
+            class="form-control form-control-sm"
+            id="historyFilterName"
+            placeholder="Search by name..."
+            autocomplete="off"
+          />
+        </div>
+        <div class="cashier-history-filter">
+          <label class="cashier-history-filter__label" for="historyFilterStatus">Status</label>
+          <select class="form-select form-select-sm" id="historyFilterStatus">
+            <option value="">All statuses</option>
+            <option value="Full Payment">Full Payment</option>
+            <option value="Partial Payment">Partial Payment</option>
+            <option value="Unpaid">Unpaid</option>
+          </select>
+        </div>
+        <div class="cashier-history-filter cashier-history-filter--grow">
+          <label class="cashier-history-filter__label" for="historyFilterRef">Control / OR number</label>
+          <input
+            type="search"
+            class="form-control form-control-sm"
+            id="historyFilterRef"
+            placeholder="CN-0001 or OR number..."
+            autocomplete="off"
+          />
+        </div>
+        <div class="cashier-history-filter cashier-history-filter--actions">
+          <button type="button" class="btn btn-sm cashier-btn-outline" id="historyClearFiltersBtn">Clear</button>
+        </div>
+      </div>
+      <p class="cashier-history-summary mb-0" id="historyResultSummary" aria-live="polite"></p>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table cashier-table mb-0">
+        <thead>
+          <tr>
+            <th>Control Number</th>
+            <th>OR Number</th>
+            <th>Type</th>
+            <th>Student</th>
+            <th>Particulars</th>
+            <th>Amount Paid</th>
+            <th>Status</th>
+            <th>Balance</th>
+            <th>Date &amp; Time</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody"></tbody>
+      </table>
+    </div>
+
+    <nav class="cashier-pagination hidden" id="historyPagination" aria-label="Transaction history pages"></nav>
+  </div>
+</article>
+
+{% include "components/cashier/payment_modal.html" %}
+{% include "components/cashier/receipt_modal.html" %}
+{% include "components/cashier/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/cashier/scripts_common.html" %}
+<script type="module">
+  import { initCashierHistory } from "{% static 'js/cashier-history.js' %}";
+  initCashierHistory();
+</script>
+{% endblock %}

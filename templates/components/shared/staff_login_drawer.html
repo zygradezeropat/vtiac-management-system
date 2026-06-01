@@ -1,0 +1,24 @@
+<nav class="offcanvas offcanvas-end staff-login-offcanvas" tabindex="-1" id="staffMenuOffcanvas" aria-labelledby="staffMenuOffcanvasLabel">
+  <div class="offcanvas-header staff-login-header">
+    <div class="pe-2">
+      <h2 class="staff-login-title mb-2" id="staffMenuOffcanvasLabel">Staff Login</h2>
+      <p class="staff-login-subtitle mb-0">Select your role to access the staff portal</p>
+    </div>
+    <button type="button" class="btn-close staff-login-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+
+  <div class="offcanvas-body staff-login-body">
+    <div class="staff-role-list" role="list">
+      {% for item in staff_login_roles %}
+      <a
+        href="{% url 'login' role=item.slug %}"
+        class="staff-role-item{% if active_staff_role == item.slug %} active{% endif %}"
+        role="listitem"
+      >
+        <span class="staff-role-icon" aria-hidden="true">{{ item.icon|safe }}</span>
+        <span class="staff-role-label">{{ item.label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</nav>

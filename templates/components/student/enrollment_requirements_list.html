@@ -1,0 +1,106 @@
+{% for row in requirements_rows %}
+<section
+  class="student-panel student-enroll-card student-req-card"
+  data-required="{% if row.required %}1{% else %}0{% endif %}"
+  data-uploaded="{% if row.uploaded %}1{% else %}0{% endif %}"
+>
+  {% if can_edit_requirements %}
+  <form
+    method="post"
+    action="{% url 'student_enrollment_requirements' %}"
+    enctype="multipart/form-data"
+    class="student-req-upload-form"
+    id="form-{{ row.key }}"
+    {% if row.has_id_type %}data-requires-id-type="1"{% endif %}
+  >
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload" />
+    <input type="hidden" name="document_type" value="{{ row.key }}" />
+  {% endif %}
+
+  <div class="student-req-card__head">
+    <div class="student-req-card__info">
+      <span class="student-req-card__icon"><i class="bi {{ row.icon_bi }}" aria-hidden="true"></i></span>
+      <div>
+        <p class="student-req-card__title mb-0">
+          {{ row.title }}{% if row.required %} <span class="student-enroll-required">*</span>{% endif %}
+        </p>
+        <p class="student-req-card__hint mb-0">{{ row.hint }}</p>
+      </div>
+    </div>
+    {% if can_edit_requirements %}
+    <div class="student-req-card__actions">
+      <input
+        type="file"
+        name="file"
+        id="file-{{ row.key }}"
+        class="student-req-file-input"
+        accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf"
+        aria-label="Upload {{ row.title }}"
+        {% if row.has_id_type and not row.id_type %}disabled{% endif %}
+      />
+      <label
+        for="file-{{ row.key }}"
+        id="upload-label-{{ row.key }}"
+        class="student-req-upload-btn{% if row.has_id_type and not row.id_type %} student-req-upload-btn--disabled{% endif %}"
+        {% if row.has_id_type and not row.id_type %}aria-disabled="true"{% endif %}
+      >
+        <i class="bi bi-upload" aria-hidden="true"></i>
+        {% if row.uploaded %}Change{% else %}Upload{% endif %}
+      </label>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if row.has_id_type %}
+  <div class="mt-3">
+    <label class="student-enroll-label" for="id-type-{{ row.key }}">ID Type <span class="student-enroll-required">*</span></label>
+    {% if can_edit_requirements %}
+    <select id="id-type-{{ row.key }}" name="id_type" class="student-enroll-input student-enroll-select" required>
+      <option value="">Select ID type</option>
+      {% for value, label in id_type_choices %}
+      <option value="{{ value }}"{% if row.id_type == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% elif row.id_type %}
+    <p class="mb-0">
+      {% for value, label in id_type_choices %}{% if row.id_type == value %}<strong>{{ label }}</strong>{% endif %}{% endfor %}
+    </p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if row.uploaded %}
+  <div class="student-req-card__status">
+    <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+    <span class="student-req-card__filename">{{ row.filename }}</span>
+    {% if row.file_url %}
+    <button
+      type="button"
+      class="file-preview-btn ms-auto"
+      data-preview-url="{{ row.file_url }}"
+      data-preview-name="{{ row.filename }}"
+      aria-label="Preview {{ row.title }}"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if can_edit_requirements %}
+  <div class="student-req-pending d-none" data-req-pending>
+    <span class="student-req-pending__name" data-req-pending-name></span>
+    <button type="button" class="file-preview-btn" data-req-pending-view hidden aria-label="Preview selected file">
+      <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button type="button" class="student-req-pending__confirm btn btn-success btn-sm fw-semibold">Upload file</button>
+    <button type="button" class="student-req-pending__cancel btn btn-outline-secondary btn-sm">Cancel</button>
+  </div>
+  {% endif %}
+
+  {% if can_edit_requirements %}
+  </form>
+  {% endif %}
+</section>
+{% endfor %}

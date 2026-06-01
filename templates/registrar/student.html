@@ -1,0 +1,80 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+{{ registrar_students_data|json_script:"registrar-students-data" }}
+
+<header class="registrar-page-header">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" id="open-add-student" class="btn btn-vtiac btn-primary btn-sm px-3 fw-semibold">
+      <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add Student
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-sm px-3" aria-label="Export students">
+      <i class="bi bi-download" aria-hidden="true"></i>
+    </button>
+  </div>
+</header>
+
+<div id="registrar-students-root" class="d-flex flex-column gap-3">
+  <div id="module-tabs" class="registrar-tabs" role="group"></div>
+  <div class="registrar-panel">
+    <div class="registrar-panel__body">
+      <div class="registrar-student-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 mb-3">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <h3 id="module-title" class="registrar-panel__title registrar-student-toolbar__title mb-0"></h3>
+          <span id="module-badge" class="registrar-pill registrar-pill--primary flex-shrink-0"></span>
+        </div>
+        <div class="d-flex flex-nowrap align-items-center gap-2 registrar-student-filters flex-shrink-0">
+          <input type="text" id="student-search" placeholder="Search student..." class="form-control form-control-sm registrar-student-search" />
+          <select id="program-filter" class="form-select form-select-sm registrar-student-program-filter" style="min-width:18rem"></select>
+        </div>
+      </div>
+      <div id="student-table-container"></div>
+      <div id="pagination-container" class="d-flex justify-content-end gap-2 mt-3 d-none"></div>
+    </div>
+  </div>
+</div>
+
+{% include "components/registrar/partials/student_view_modal.html" %}
+
+<div id="add-student-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h3 class="modal-title h4 fw-semibold">Add New Student</h3>
+          <p class="text-muted small mb-0">Enter student information to register a new student</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="add-student-form" class="modal-body pt-2">
+        <div class="mb-3"><label class="form-label fw-medium">Full Name *</label><input name="fullName" required placeholder="Enter full name" class="form-control form-control-vtiac" /></div>
+        <div class="mb-3"><label class="form-label fw-medium">Email Address *</label><input name="email" type="email" required placeholder="Enter email address" class="form-control form-control-vtiac" /></div>
+        <div class="mb-3"><label class="form-label fw-medium">Phone Number *</label><input name="phone" required placeholder="Enter phone number" class="form-control form-control-vtiac" /></div>
+        <div class="mb-3"><label class="form-label fw-medium">Course *</label><select name="course" required class="form-select form-select-vtiac"><option value="">Select a course</option><option>Automotive Servicing NC I</option><option>Automotive Servicing (Engine Repair) NC II</option><option>Driving NC II</option><option>Driving NC III (Passenger Bus / Straight Truck)</option><option>Rice Machinery Operations NC II</option></select></div>
+        <div class="mb-3"><label class="form-label fw-medium">Enrollment Type *</label><select name="enrollmentType" required class="form-select form-select-vtiac"><option>Training with Assessment</option><option>Assessment Only</option></select></div>
+        <div class="row g-2">
+          <div class="col-6"><button type="button" class="btn btn-outline-secondary w-100" data-bs-dismiss="modal">Cancel</button></div>
+          <div class="col-6"><button type="submit" class="btn btn-success w-100 fw-semibold">Add Student</button></div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-student.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+{% endblock %}

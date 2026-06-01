@@ -1,0 +1,88 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+
+<header class="registrar-page-header">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <span class="registrar-pill registrar-pill--success flex-shrink-0">
+    <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
+    <span id="finalized-count">0</span> finalized
+  </span>
+</header>
+
+{% csrf_token %}
+<div id="finalized-stats" class="row g-3 mb-4"></div>
+
+<div class="registrar-panel mb-0">
+  <div class="registrar-panel__body">
+    <div class="registrar-finalized-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <p class="text-muted small mb-0">
+        Every schedule you <strong>save</strong> in Batching &amp; Scheduling appears here as a <strong>Draft</strong>.
+        Review, edit, then <strong>Finalize</strong> to lock it as final.
+      </p>
+      <div class="d-flex flex-wrap gap-2">
+        <input
+          type="search"
+          id="finalized-search"
+          class="form-control form-control-sm registrar-verification-search"
+          placeholder="Search course, batch, trainer..."
+          autocomplete="off"
+        />
+        <select id="finalized-status-filter" class="form-select form-select-sm" style="min-width:10rem">
+          <option value="">All statuses</option>
+          <option value="draft">Draft only</option>
+          <option value="finalized">Finalized only</option>
+        </select>
+        <select id="finalized-course-filter" class="form-select form-select-sm" style="min-width:12rem">
+          <option value="">All courses</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="finalized-list"></div>
+
+    <div id="finalized-empty" class="registrar-finalized-empty text-center py-5 d-none">
+      <i class="bi bi-trophy display-4 text-secondary opacity-50" aria-hidden="true"></i>
+      <p class="fw-semibold mt-3 mb-1">No finalized batches yet</p>
+      <p class="text-muted small mb-3">When you finalize a batch in Batching &amp; Scheduling, it will be moved here automatically.</p>
+      <a href="{% url 'registrar_module' module='batching-scheduling' %}" class="btn btn-success btn-sm fw-semibold">Go to Batching &amp; Scheduling</a>
+    </div>
+  </div>
+</div>
+
+{% include "components/registrar/finalize_batch_confirm_modal.html" %}
+
+<div id="finalized-detail-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <div class="min-w-0 flex-grow-1 pe-2">
+          <h3 id="finalized-detail-title" class="modal-title h4 fw-semibold mb-1 text-truncate"></h3>
+          <p id="finalized-detail-meta" class="text-muted small mb-0"></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div id="finalized-detail-body" class="modal-body pt-2 pb-3"></div>
+      <div id="finalized-detail-footer" class="modal-footer border-0 pt-0 flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-finalized-batches.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+{% endblock %}

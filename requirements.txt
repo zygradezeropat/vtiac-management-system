@@ -1,0 +1,4 @@
+# VTIAC Management System — Python 3.12+, PostgreSQL database
+Django>=6.0,<7
+django-cors-headers>=4.6,<5
+psycopg2-binary>=2.9,<3   # PostgreSQL adapter (required)

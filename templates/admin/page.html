@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/admin/layout_start.html" %}
+{% include "components/admin/page_header.html" %}
+
+<article class="admin-panel">
+  <div class="admin-panel__body text-center py-5">
+    <p class="text-muted mb-0">This section is ready for implementation. Use the sidebar to move between admin modules.</p>
+  </div>
+</article>
+
+{% include "components/admin/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/admin/scripts_common.html" %}
+{% endblock %}

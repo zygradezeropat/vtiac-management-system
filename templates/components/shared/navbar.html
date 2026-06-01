@@ -1,0 +1,19 @@
+{% load static %}
+<nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top vtiac-navbar vtiac-page-pad">
+  <div class="container-fluid p-0 min-w-0 w-100">
+    {% url 'landing' as landing_url %}
+    {% include "components/shared/vtiac_brand.html" with link_url=landing_url wrapper_class="navbar-brand py-0 me-auto min-w-0" name_class="fw-bold text-uppercase lh-sm text-dark" %}
+    <button
+      type="button"
+      class="btn btn-light border-0 p-2"
+      data-bs-toggle="offcanvas"
+      data-bs-target="#staffMenuOffcanvas"
+      aria-controls="staffMenuOffcanvas"
+      aria-label="Open staff menu"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="text-secondary" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+      </svg>
+    </button>
+  </div>
+</nav>

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block body %}
+<div class="d-flex flex-column min-vh-100 overflow-x-hidden">
+  {% include "components/shared/navbar.html" %}
+
+  <main class="flex-grow-1 overflow-x-hidden">
+    <section class="hero-gradient vtiac-page-pad">
+      <div class="row g-4 g-lg-5 align-items-start">
+        <div class="col-12 col-lg-7 vtiac-hero-copy">
+          <span class="vtiac-hero-badge d-inline-block mb-3">Industry-Leading Education</span>
+          <h1 class="vtiac-hero-title mb-4">
+            Transform Your <br class="d-none d-sm-inline" />
+            <span class="muted">Future</span>
+          </h1>
+          <p class="vtiac-hero-lead mb-4">
+            Join thousands of successful graduates who started their careers with industry-leading technical and vocational education.
+          </p>
+          <div class="vtiac-hero-actions d-grid d-sm-flex flex-sm-wrap gap-3 mt-2">
+            <a href="{% url 'register' %}?program_type=training_with_assessment" class="btn btn-vtiac-primary">Register Now</a>
+            <a href="{% url 'login' role='student' %}" class="btn btn-vtiac-outline">Student Login</a>
+          </div>
+          <p class="vtiac-hero-assessment-link small text-secondary mb-0 mt-3">
+            Assessment-Only Client?
+            <a href="{% url 'register' %}?program_type=assessment_only" class="fw-semibold text-vtiac text-decoration-none">Click here</a>
+          </p>
+        </div>
+
+        <div class="col-12 col-lg-5 col-xl-4 ms-lg-auto vtiac-hero-stats">
+          <div class="stats-card-gradient">
+            <div class="stats-card-inner d-flex flex-column gap-3">
+              <div class="vtiac-stat-row green">
+                <div class="vtiac-stat-icon green">
+                  <i class="bi bi-mortarboard"></i>
+                </div>
+                <div>
+                  <div class="vtiac-stat-value">5,000+</div>
+                  <div class="vtiac-stat-label">Graduates</div>
+                </div>
+              </div>
+              <div class="vtiac-stat-row blue">
+                <div class="vtiac-stat-icon blue">
+                  <i class="bi bi-award"></i>
+                </div>
+                <div>
+                  <div class="vtiac-stat-value">20+</div>
+                  <div class="vtiac-stat-label">Certification Programs</div>
+                </div>
+              </div>
+              <div class="vtiac-stat-row purple">
+                <div class="vtiac-stat-icon violet">
+                  <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div>
+                  <div class="vtiac-stat-value">95%</div>
+                  <div class="vtiac-stat-label">Employment Rate</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-5 bg-white vtiac-page-pad vtiac-section-pad">
+      <div class="text-center mx-auto mb-5 vtiac-section-intro">
+        <h2 class="vtiac-section-title mb-4">Why Choose Valiant?</h2>
+        <p class="fs-5 text-secondary fw-medium mb-0">We provide comprehensive technical and vocational training designed to prepare you for success</p>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="vtiac-feature-card bg-green-tint shadow-sm">
+            <div class="vtiac-stat-icon green">
+              <i class="bi bi-mortarboard"></i>
+            </div>
+            <h3>Expert Training</h3>
+            <p>Learn from industry professionals with hands-on experience and cutting-edge curriculum</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="vtiac-feature-card bg-blue-tint shadow-sm">
+            <div class="vtiac-stat-icon blue">
+              <i class="bi bi-award"></i>
+            </div>
+            <h3>Certifications</h3>
+            <p>Earn recognized NC2 certifications that open doors to career opportunities</p>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="vtiac-feature-card bg-purple-tint shadow-sm h-100">
+            <div class="vtiac-stat-icon violet">
+              <i class="bi bi-people"></i>
+            </div>
+            <h3>Career Support</h3>
+            <p>Get job placement assistance and connect with our network of employer partners</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="vtiac-page-pad pb-5 vtiac-cta-section">
+      <div class="cta-gradient text-center text-white">
+        <h2 class="mb-3">Ready to Start Your Journey?</h2>
+        <p class="mb-4 mx-auto opacity-90 vtiac-cta-lead">Join our next batch of students and take the first step toward a successful career in your chosen field.</p>
+        <a href="{% url 'register' %}?program_type=training_with_assessment" class="btn btn-cta-white">Get Started Today</a>
+      </div>
+    </section>
+  </main>
+
+  {% include "components/shared/footer.html" %}
+</div>
+
+{% include "components/shared/staff_login_drawer.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/staff-login-drawer.js' %}"></script>
+{% endblock %}

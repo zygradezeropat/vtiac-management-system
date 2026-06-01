@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VTIAC</title>
+  <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="32x32" />
+  <link rel="icon" href="{% static 'img/favicon-32.png' %}" type="image/png" sizes="32x32" />
+  <link rel="icon" href="{% static 'img/valient-logo.svg' %}" type="image/svg+xml" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1.5rem; color: #0f172a; }
+    h1 { font-size: 1.35rem; text-align: center; letter-spacing: 0.03em; margin-bottom: 0.5rem; }
+    .org { text-align: center; font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin-bottom: 2rem; }
+    th, td { text-align: left; padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+    th { width: 42%; color: #475569; font-weight: 600; }
+    .sig { margin-top: 2.5rem; text-align: center; font-size: 0.8125rem; color: #64748b; }
+    .ref { font-size: 0.75rem; color: #94a3b8; text-align: center; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Confirmation Slip</h1>
+  <p class="org">Valiant Technical Institute and Assessment Center</p>
+  <table>
+    <tr><th>Student name</th><td>{{ profile.first_name }} {{ profile.middle_name }} {{ profile.last_name }}</td></tr>
+    <tr><th>Program</th><td>{{ profile.selected_program }}</td></tr>
+    <tr><th>Program type</th><td>{{ profile.get_program_type_display }}</td></tr>
+    <tr><th>TSMIS / Ref.</th><td>{{ profile.tsmis|default:"—" }}</td></tr>
+    <tr><th>Date confirmed</th><td>{{ date_display }}</td></tr>
+  </table>
+  <p class="sig">This slip confirms enrollment approval and class assignment eligibility.</p>
+  <p class="ref">VTIAC-CONF-{{ profile.pk }}-{{ year }}</p>
+</body>
+</html>

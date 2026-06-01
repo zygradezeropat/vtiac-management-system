@@ -1,0 +1,80 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/admin/layout_start.html" %}
+{% include "components/admin/page_header.html" with show_clock=True show_fiscal_year=True %}
+{{ admin_dashboard_stats|json_script:"admin-dashboard-stats" }}
+
+<section class="admin-pending-summary" aria-label="System pending counts">
+  <div class="admin-section-header">
+    <h2 class="admin-section-title">Needs Attention</h2>
+    <p class="admin-section-subtitle">Cross-portal items awaiting action</p>
+  </div>
+  <div class="admin-pending-grid" id="pendingCountsGrid"></div>
+</section>
+
+<section class="admin-nc-programs" aria-label="NC Programs">
+  <div class="admin-section-header">
+    <h2 class="admin-section-title">NC Programs</h2>
+  </div>
+
+  <div class="admin-tabs-container">
+    <nav class="admin-tabs-nav" aria-label="NC program levels">
+      <button type="button" class="admin-tab-button is-active" data-tab="all">
+        All NC Programs
+        <span class="admin-tab-indicator"></span>
+      </button>
+      <button type="button" class="admin-tab-button" data-tab="nc1">
+        NC I
+        <span class="admin-tab-indicator"></span>
+      </button>
+      <button type="button" class="admin-tab-button" data-tab="nc2">
+        NC II
+        <span class="admin-tab-indicator"></span>
+      </button>
+      <button type="button" class="admin-tab-button" data-tab="nc3">
+        NC III
+        <span class="admin-tab-indicator"></span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="admin-program-cards-grid" id="programCardsGrid"></div>
+
+  <div class="admin-empty-state hidden" id="emptyState">
+    <i class="bi bi-bar-chart admin-empty-icon" aria-hidden="true"></i>
+    <p class="admin-empty-title">No programs found</p>
+    <p class="admin-empty-subtitle">There are no programs in this category</p>
+  </div>
+</section>
+
+<section class="admin-egace-summary" aria-label="E.G.A.C.E Summary">
+  <h2 class="admin-section-title">E.G.A.C.E Summary</h2>
+  <div class="admin-table-card">
+    <div class="admin-table-container">
+      <table class="admin-egace-table">
+        <thead>
+          <tr>
+            <th>Course / Qualification</th>
+            <th class="text-center">Enrolled</th>
+            <th class="text-center">Graduated</th>
+            <th class="text-center">Assessed</th>
+            <th class="text-center">Certified</th>
+            <th class="text-center">Employed</th>
+          </tr>
+        </thead>
+        <tbody id="egaceSummaryTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% include "components/admin/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/admin/scripts_common.html" with show_clock=True %}
+<script type="module" src="{% static 'js/admin-dashboard.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "cashier/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/cashier/layout_start.html" %}
+{% include "components/cashier/page_header.html" %}
+
+<article class="cashier-panel">
+  <div class="cashier-panel__body">
+    <div class="cashier-filter-row">
+      <div class="cashier-search-box">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text" class="form-control" id="studentSearch" placeholder="Search students by name..." />
+      </div>
+      <select class="form-select" id="studentSort" style="max-width: 12rem;">
+        <option value="asc">Name (A-Z)</option>
+        <option value="desc">Name (Z-A)</option>
+      </select>
+    </div>
+    <div class="table-responsive">
+      <table class="table cashier-table mb-0">
+        <thead>
+          <tr>
+            <th>Student Name</th>
+            <th>Course</th>
+            <th>Balance</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="studentsTableBody"></tbody>
+      </table>
+    </div>
+    <div class="cashier-pagination d-none" id="studentsPagination" aria-label="Students list pagination"></div>
+  </div>
+</article>
+
+{% include "components/cashier/payment_modal.html" %}
+{% include "components/cashier/receipt_modal.html" %}
+{% include "components/cashier/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/cashier/scripts_common.html" %}
+<script type="module">
+  import { findCachedCashierStudent, initCashierStudents } from "{% static 'js/cashier-students.js' %}";
+  import { initPaymentModal, openPaymentModal, selectStudentForPayment } from "{% static 'js/cashier-payment.js' %}";
+  initPaymentModal();
+  initCashierStudents();
+  document.getElementById("studentsTableBody")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-student-pay");
+    if (!btn) return;
+    openPaymentModal();
+    const student = findCachedCashierStudent(btn.dataset.registrationId || "");
+    if (student) selectStudentForPayment(student);
+  });
+</script>
+{% endblock %}

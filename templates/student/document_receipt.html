@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VTIAC</title>
+  <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="32x32" />
+  <link rel="icon" href="{% static 'img/favicon-32.png' %}" type="image/png" sizes="32x32" />
+  <link rel="icon" href="{% static 'img/valient-logo.svg' %}" type="image/svg+xml" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.25rem; }
+    .muted { color: #64748b; font-size: 0.875rem; }
+    .amount { font-size: 1.5rem; font-weight: 700; margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Official Receipt</h1>
+  <p class="muted">Valiant Technical Institute and Assessment Center</p>
+  <p><strong>{{ profile.first_name }} {{ profile.last_name }}</strong><br />{{ profile.selected_program }}</p>
+  <p class="amount">{{ total_display }}</p>
+  <p class="muted">Reference: OR-{{ profile.pk }}-{{ year }}<br />Date: {{ date_display }}</p>
+</body>
+</html>

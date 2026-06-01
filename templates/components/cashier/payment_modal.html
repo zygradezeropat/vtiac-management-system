@@ -1,0 +1,128 @@
+<div class="cashier-modal" id="paymentModal" aria-hidden="true">
+  <div class="cashier-modal__overlay" id="paymentModalBackdrop"></div>
+  <div class="cashier-modal__dialog cashier-modal__dialog--payment" role="dialog" aria-labelledby="paymentModalTitle">
+    <div class="cashier-modal__header">
+      <div>
+        <h3 class="cashier-modal__title" id="paymentModalTitle">Process Payment</h3>
+        <p class="cashier-modal__subtitle">Enter payment details to generate receipt</p>
+      </div>
+      <button type="button" class="btn btn-sm btn-light" id="paymentModalCloseBtn" aria-label="Close">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="cashier-modal__body">
+      <form id="paymentForm">
+        {% csrf_token %}
+        <div class="cashier-form-group">
+          <label class="cashier-form-label">Document Type</label>
+          <div class="cashier-receipt-type-options">
+            <label class="cashier-receipt-type-card">
+              <input type="radio" name="receiptType" value="OR" checked />
+              <div class="cashier-receipt-type-content">
+                <div class="cashier-receipt-type-header">
+                  <div class="cashier-action-icon cashier-action-icon--emerald"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></div>
+                  <h4>Invoice</h4>
+                </div>
+                <p>For billing or payment requests (replaces Official Receipt)</p>
+              </div>
+            </label>
+            <label class="cashier-receipt-type-card">
+              <input type="radio" name="receiptType" value="AR" />
+              <div class="cashier-receipt-type-content">
+                <div class="cashier-receipt-type-header">
+                  <div class="cashier-action-icon cashier-action-icon--blue"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></div>
+                  <h4>Acknowledgement Receipt (AR)</h4>
+                </div>
+                <p>For contributions or non-income transactions</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="controlNumber">Control Number (System Tracking)</label>
+          <div class="cashier-control-number-group">
+            <input type="text" class="form-control" id="controlNumber" placeholder="Enter or auto-generate" />
+            <button type="button" class="btn cashier-btn-outline" id="generateControlNumberBtn">Auto Generate</button>
+          </div>
+          <p class="cashier-field-hint">System-generated number for tracking purposes</p>
+        </div>
+
+        <div class="cashier-form-group" id="orNumberGroup">
+          <label class="cashier-form-label" for="orNumber">OR Number (Optional)</label>
+          <input type="text" class="form-control" id="orNumber" placeholder="Enter OR number from physical receipt paper" />
+          <p class="cashier-field-hint">Manually written/printed number from physical receipt paper</p>
+        </div>
+
+        <div class="cashier-form-group position-relative">
+          <label class="cashier-form-label" for="studentSearchInput">Student Name</label>
+          <div class="cashier-search-box">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="text" class="form-control" id="studentSearchInput" placeholder="Search student by name..." autocomplete="off" />
+          </div>
+          <p class="cashier-field-hint">Search any pending or enrolled student (paid or unpaid).</p>
+          <input type="hidden" id="selectedStudentId" />
+          <input type="hidden" id="selectedRegistrationId" />
+          <div class="cashier-student-dropdown hidden" id="studentDropdown" role="listbox"></div>
+        </div>
+
+        <div class="cashier-form-group hidden" id="cashierBalanceSummaryWrap">
+          <div class="cashier-balance-summary" id="cashierBalanceSummary" role="status"></div>
+        </div>
+
+        <div class="cashier-form-group hidden" id="cashierPaymentListWrap">
+          <label class="cashier-form-label">Fee schedule (assessed)</label>
+          <ul class="cashier-payment-list list-unstyled mb-0" id="cashierPaymentList"></ul>
+          <p class="cashier-field-hint mb-0">Remaining balances are loaded into particulars below. Partial payments are allowed.</p>
+        </div>
+
+        <div class="cashier-form-group">
+          <label class="cashier-form-label">Particulars</label>
+          <div class="cashier-particulars-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th width="50"></th>
+                </tr>
+              </thead>
+              <tbody id="particularsBody">
+                <tr class="particular-row">
+                  <td><input type="text" class="form-control particular-desc" placeholder="Enter particular" /></td>
+                  <td><input type="number" class="form-control particular-amt" placeholder="0.00" step="0.01" min="0" value="0" /></td>
+                  <td><button type="button" class="btn btn-sm btn-outline-secondary btn-remove-particular" style="visibility:hidden" aria-label="Remove row"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>
+                </tr>
+              </tbody>
+            </table>
+            <button type="button" class="btn btn-sm cashier-btn-outline w-100 mt-2" id="addParticularRowBtn">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i> Add Another Particular
+            </button>
+          </div>
+        </div>
+
+        <div class="cashier-payment-computation">
+          <div class="cashier-computation-row">
+            <span>Total Payable:</span>
+            <span id="totalPayable">₱0.00</span>
+          </div>
+          <div class="cashier-computation-row">
+            <span>Paid Amount:</span>
+            <input type="number" class="form-control cashier-amount-input" id="paidAmount" placeholder="0.00" step="0.01" min="0" value="0" />
+          </div>
+          <div class="cashier-computation-row cashier-computation-row--total">
+            <span>Remaining Balance:</span>
+            <span id="remainingBalance">₱0.00</span>
+          </div>
+          <div class="text-center mt-2">
+            <span id="paymentStatusBadge" class="badge cashier-badge-full">Full Payment</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn cashier-btn-primary w-100 mt-3">
+          <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Generate Receipt
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

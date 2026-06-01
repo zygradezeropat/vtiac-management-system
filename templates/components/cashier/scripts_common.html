@@ -1,0 +1,8 @@
+{% load static %}
+<script type="module">
+  import { initStaffHeader, initLiveClock } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Cashier", "{{ portal_display_name|default:'Cashier User' }}");
+  {% if show_clock %}
+  initLiveClock("clock-date", "clock-time");
+  {% endif %}
+</script>

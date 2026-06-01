@@ -1,0 +1,10 @@
+{% extends "cashier/base.html" %}
+{% load static %}
+
+{# Legacy route — open payment on dashboard as a modal #}
+{% block body %}
+<script>
+  window.location.replace("{% url 'cashier_dashboard' %}?payment=1");
+</script>
+<p class="p-4">Redirecting to cashier dashboard… <a href="{% url 'cashier_dashboard' %}?payment=1">Continue</a></p>
+{% endblock %}

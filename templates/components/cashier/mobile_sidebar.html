@@ -1,0 +1,26 @@
+<div
+  class="offcanvas offcanvas-start cashier-offcanvas d-lg-none"
+  tabindex="-1"
+  id="mobileCashierSidebar"
+  aria-labelledby="mobileCashierSidebarLabel"
+>
+  <div class="offcanvas-header border-0 pb-0">
+    {% include "components/shared/vtiac_brand.html" with logo_wrap_class="cashier-brand-logo" logo_size=36 name_class="offcanvas-title mb-0 fw-bold" brand_id="mobileCashierSidebarLabel" %}
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body d-flex flex-column pt-2">
+    <nav class="cashier-nav flex-column flex-grow-1" aria-label="Cashier navigation">
+      {% for item in sidebar_menu %}
+      <a
+        href="{{ item.route }}"
+        class="cashier-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+        data-bs-dismiss="offcanvas"
+      >
+        <span class="cashier-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+        <span class="cashier-nav-label">{{ item.label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+    <a href="{% url 'logout' %}" class="cashier-logout mt-3" data-bs-dismiss="offcanvas">Logout</a>
+  </div>
+</div>

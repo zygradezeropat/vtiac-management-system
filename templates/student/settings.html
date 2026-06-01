@@ -1,0 +1,158 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header">
+  <div>
+    <h1 class="student-page-title">{{ page_title }}</h1>
+    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
+</header>
+
+<div class="row g-3 student-settings-row">
+  <div class="col-lg-6 d-flex">
+    <article class="student-panel student-settings-panel flex-grow-1 mb-0">
+      <div class="student-panel__head border-0 pb-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="student-settings-icon"><i class="bi bi-person-vcard" aria-hidden="true"></i></span>
+          <div>
+            <h2 class="student-panel__title mb-0">Profile Information</h2>
+            <p class="student-page-subtitle mb-0">Update your personal details</p>
+          </div>
+        </div>
+      </div>
+      <form id="profile-form" class="student-settings-form d-flex flex-column" data-static-base="{% static '' %}">
+        <script id="settings-address-seed" type="application/json">{{ settings_address_json|default:"{}"|safe }}</script>
+        <div class="row g-2 mb-2">
+          <div class="col-sm-6">
+            <label class="form-label fw-medium small" for="profile-first-name">First Name</label>
+            <input type="text" id="profile-first-name" name="firstName" class="form-control form-control-sm form-control-vtiac" value="{{ settings_profile.first_name }}" autocomplete="given-name" required />
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-medium small" for="profile-last-name">Last Name</label>
+            <input type="text" id="profile-last-name" name="lastName" class="form-control form-control-sm form-control-vtiac" value="{{ settings_profile.last_name }}" autocomplete="family-name" required />
+          </div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-sm-6">
+            <label class="form-label fw-medium small" for="profile-email">Email Address</label>
+            <input type="email" id="profile-email" name="email" class="form-control form-control-sm form-control-vtiac" value="{{ settings_profile.email }}" autocomplete="email" required />
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-medium small" for="profile-phone">Contact Number</label>
+            <input type="tel" id="profile-phone" name="phone" class="form-control form-control-sm form-control-vtiac" value="{{ settings_profile.phone }}" autocomplete="tel" required />
+          </div>
+        </div>
+        <div class="mb-2">
+          <p class="form-label fw-medium small mb-2">Complete Address</p>
+          <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label fw-medium small" for="profile-region">Region <span class="text-danger">*</span></label>
+              <select id="profile-region" name="region" class="form-select form-select-sm form-select-vtiac" required></select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-medium small" for="profile-province">Province <span class="text-danger">*</span></label>
+              <select id="profile-province" name="province" class="form-select form-select-sm form-select-vtiac" disabled required></select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-medium small" for="profile-city">City/Municipality <span class="text-danger">*</span></label>
+              <select id="profile-city" name="cityMunicipality" class="form-select form-select-sm form-select-vtiac" disabled required></select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-medium small" for="profile-barangay">Barangay <span class="text-danger">*</span></label>
+              <select id="profile-barangay" name="barangay" class="form-select form-select-sm form-select-vtiac" disabled required></select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-medium small" for="profile-street">Street / House No.</label>
+              <input type="text" id="profile-street" name="streetHouse" class="form-control form-control-sm form-control-vtiac" value="{{ settings_profile.address.streetHouse }}" placeholder="House no., street name" autocomplete="address-line1" />
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-vtiac btn-primary w-100 mt-auto fw-semibold">Save Changes</button>
+      </form>
+    </article>
+  </div>
+
+  <div class="col-lg-6 d-flex">
+    <article class="student-panel student-settings-panel flex-grow-1 mb-0">
+      <div class="student-panel__head border-0 pb-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="student-settings-icon"><i class="bi bi-lock-fill" aria-hidden="true"></i></span>
+          <div>
+            <h2 class="student-panel__title mb-0">Change Password</h2>
+            <p class="student-page-subtitle mb-0">Update your account password</p>
+          </div>
+        </div>
+      </div>
+      <form id="password-form" class="student-settings-form d-flex flex-column">
+        <div class="mb-2">
+          <label class="form-label fw-medium small" for="password-current">Current Password <span class="text-danger">*</span></label>
+          <div class="input-group input-group-sm">
+            <input type="password" id="password-current" name="currentPassword" class="form-control form-control-vtiac" placeholder="Enter current password" autocomplete="current-password" required />
+            <button type="button" class="btn btn-outline-secondary student-password-toggle" data-target="password-current" aria-label="Show current password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-medium small" for="password-new">New Password <span class="text-danger">*</span></label>
+          <div class="input-group input-group-sm">
+            <input type="password" id="password-new" name="newPassword" class="form-control form-control-vtiac" placeholder="Enter new password" autocomplete="new-password" minlength="8" required />
+            <button type="button" class="btn btn-outline-secondary student-password-toggle" data-target="password-new" aria-label="Show new password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+          <p class="form-text small mb-0">Minimum of 8 characters</p>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-medium small" for="password-confirm">Confirm New Password <span class="text-danger">*</span></label>
+          <div class="input-group input-group-sm">
+            <input type="password" id="password-confirm" name="confirmPassword" class="form-control form-control-vtiac" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required />
+            <button type="button" class="btn btn-outline-secondary student-password-toggle" data-target="password-confirm" aria-label="Show confirm password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-vtiac btn-primary w-100 mt-auto fw-semibold">Update Password</button>
+      </form>
+    </article>
+  </div>
+</div>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/student-settings.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
+{% endblock %}

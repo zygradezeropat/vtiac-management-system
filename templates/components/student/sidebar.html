@@ -1,0 +1,23 @@
+{% load static %}
+<aside class="student-sidebar d-none d-lg-flex flex-column flex-shrink-0">
+  <a href="{% url 'student_dashboard' %}" class="student-brand text-decoration-none">
+    {% include "components/shared/vtiac_brand.html" with name_class="student-brand-name" logo_wrap_class="student-brand-logo" %}
+  </a>
+
+  <nav class="student-nav flex-column flex-grow-1" aria-label="Student navigation">
+    {% for item in sidebar_menu %}
+    <a
+      href="{{ item.route }}"
+      class="student-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+    >
+      <span class="student-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+      <span class="student-nav-label">{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <a href="{% url 'logout' %}" class="student-logout">
+    <i class="bi bi-box-arrow-left" aria-hidden="true"></i>
+    <span>Logout</span>
+  </a>
+</aside>

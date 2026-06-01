@@ -1,0 +1,87 @@
+{% extends "cashier/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/cashier/layout_start.html" %}
+{% include "components/cashier/page_header.html" with show_clock=True %}
+
+<section class="cashier-quick-actions" aria-label="Quick actions">
+  <button type="button" class="cashier-action-card" id="newPaymentBtn">
+    <div class="cashier-action-icon cashier-action-icon--emerald"><i class="bi bi-plus-lg" aria-hidden="true"></i></div>
+    <h3>New Payment</h3>
+    <p>Process student payment</p>
+  </button>
+  <a href="{% url 'cashier_module' module='reports' %}" class="cashier-action-card">
+    <div class="cashier-action-icon cashier-action-icon--blue"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></div>
+    <h3>Generate Report</h3>
+    <p>View collection reports</p>
+  </a>
+  <a href="{% url 'cashier_module' module='history' %}" class="cashier-action-card">
+    <div class="cashier-action-icon cashier-action-icon--purple"><i class="bi bi-printer" aria-hidden="true"></i></div>
+    <h3>Print Receipt</h3>
+    <p>Reprint official receipts</p>
+  </a>
+</section>
+
+<section class="cashier-stats-grid" aria-label="Dashboard statistics">
+  <a href="{% url 'cashier_module' module='history' %}" class="cashier-stat-card">
+    <div class="cashier-stat-header">
+      <i class="bi bi-currency-dollar cashier-stat-icon" aria-hidden="true"></i>
+      <span class="cashier-stat-title">Total Collections</span>
+    </div>
+    <p class="cashier-stat-value" id="totalCollections">₱0</p>
+    <p class="cashier-stat-label">Total amount collected</p>
+  </a>
+  <a href="{% url 'cashier_module' module='history' %}" class="cashier-stat-card">
+    <div class="cashier-stat-header">
+      <i class="bi bi-receipt cashier-stat-icon" aria-hidden="true"></i>
+      <span class="cashier-stat-title">Today's Transactions</span>
+    </div>
+    <p class="cashier-stat-value" id="todayTransactions">0</p>
+    <p class="cashier-stat-label">Payments processed today</p>
+  </a>
+  <a href="{% url 'cashier_module' module='students' %}" class="cashier-stat-card">
+    <div class="cashier-stat-header">
+      <i class="bi bi-people cashier-stat-icon" aria-hidden="true"></i>
+      <span class="cashier-stat-title">Active Students</span>
+    </div>
+    <p class="cashier-stat-value" id="activeStudents">0</p>
+    <p class="cashier-stat-label">Students with balances</p>
+  </a>
+  <a href="{% url 'cashier_module' module='history' %}" class="cashier-stat-card">
+    <div class="cashier-stat-header">
+      <i class="bi bi-graph-up-arrow cashier-stat-icon" aria-hidden="true"></i>
+      <span class="cashier-stat-title">This Week</span>
+    </div>
+    <p class="cashier-stat-value" id="weeklyTotal">₱0</p>
+    <p class="cashier-stat-label">Weekly collections</p>
+  </a>
+</section>
+
+<article class="cashier-panel">
+  <div class="cashier-panel__head">
+    <h2 class="cashier-panel__title">Recent Transactions</h2>
+    <a href="{% url 'cashier_module' module='history' %}" class="cashier-btn-ghost btn btn-sm">View All</a>
+  </div>
+  <div class="cashier-panel__body">
+    <div class="cashier-txn-list" id="recentTransactions"></div>
+  </div>
+</article>
+
+{% include "components/cashier/payment_modal.html" %}
+{% include "components/cashier/receipt_modal.html" %}
+{% include "components/cashier/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/cashier/scripts_common.html" with show_clock=True %}
+<script type="module">
+  import { initCashierDashboard } from "{% static 'js/cashier-dashboard.js' %}";
+  initCashierDashboard();
+  if (new URLSearchParams(window.location.search).get("payment") === "1") {
+    document.getElementById("newPaymentBtn")?.click();
+    history.replaceState({}, "", "{% url 'cashier_dashboard' %}");
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vtiac
+      POSTGRES_PASSWORD: vtiac
+      POSTGRES_DB: vtiac
+    ports:
+      - "5432:5432"
+    volumes:
+      - vtiac_pgdata:/var/lib/postgresql/data
+
+volumes:
+  vtiac_pgdata:

@@ -1,0 +1,304 @@
+{% extends "trainer/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/trainer/layout_start.html" %}
+
+<div class="trainer-sheets-page">
+  <header class="trainer-page-header trainer-page-header--sheets">
+    <div>
+      <h1 class="trainer-page-title" id="page-title">{{ page_title }}</h1>
+      {% if page_subtitle %}
+      <p class="trainer-page-subtitle">{{ page_subtitle }}</p>
+      {% endif %}
+    </div>
+    <div class="trainer-sheets-header-actions">
+      <a href="{% url 'trainer_module' 'reports' %}" class="btn trainer-btn-sheet-action">
+        <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+        Class Record
+      </a>
+      <a href="{% url 'trainer_module' 'reports' %}" class="btn trainer-btn-sheet-action">
+        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+        Progress Report
+      </a>
+    </div>
+  </header>
+
+  <div class="trainer-sheets-workflow" role="note">
+    <div class="trainer-sheets-workflow__track">
+      <span class="trainer-sheets-workflow__badge">1</span>
+      <span class="trainer-sheets-workflow__step">Sheet 1</span>
+      <span class="trainer-sheets-workflow__desc">Enter &amp; save assessment scores</span>
+      <i class="bi bi-arrow-right trainer-sheets-workflow__arrow" aria-hidden="true"></i>
+      <span class="trainer-sheets-workflow__badge trainer-sheets-workflow__badge--muted">3</span>
+      <span class="trainer-sheets-workflow__step">Sheet 3</span>
+      <span class="trainer-sheets-workflow__desc">Auto-reflects results</span>
+    </div>
+    <span class="trainer-sheets-workflow__sep">AND SEPARATELY:</span>
+    <div class="trainer-sheets-workflow__track">
+      <span class="trainer-sheets-workflow__badge">2</span>
+      <span class="trainer-sheets-workflow__step">Sheet 2</span>
+      <span class="trainer-sheets-workflow__desc">Tick Learning Outcomes</span>
+      <i class="bi bi-arrow-right trainer-sheets-workflow__arrow" aria-hidden="true"></i>
+      <span class="trainer-sheets-workflow__step">Progress Chart</span>
+      <span class="trainer-sheets-workflow__desc">Auto-updates &amp; feeds Reports</span>
+    </div>
+  </div>
+
+  <div class="trainer-sheets-shell">
+    <ul class="nav nav-tabs trainer-sheet-tabs" id="trainerSheetTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link active"
+          id="record-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#record-sheet"
+          type="button"
+          role="tab"
+          aria-controls="record-sheet"
+          aria-selected="true"
+        >
+          <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+          Trainer's Record Sheet
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="encodable-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#encodable-sheet"
+          type="button"
+          role="tab"
+          aria-controls="encodable-sheet"
+          aria-selected="false"
+        >
+          <i class="bi bi-pencil-square" aria-hidden="true"></i>
+          Encodable Sheet
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="non-encodable-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#non-encodable-sheet"
+          type="button"
+          role="tab"
+          aria-controls="non-encodable-sheet"
+          aria-selected="false"
+        >
+          <i class="bi bi-file-earmark" aria-hidden="true"></i>
+          Non-Encodable Sheet
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="progress-chart-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#progress-chart-sheet"
+          type="button"
+          role="tab"
+          aria-controls="progress-chart-sheet"
+          aria-selected="false"
+        >
+          <i class="bi bi-graph-up" aria-hidden="true"></i>
+          Progress Chart
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content trainer-sheet-tab-content" id="trainerSheetTabContent">
+      <div class="tab-pane fade show active" id="record-sheet" role="tabpanel" aria-labelledby="record-tab">
+        <section class="trainer-sheets-panel">
+          <div class="trainer-sheets-panel__head">
+            <div>
+              <h2 class="trainer-sheets-panel__title">Trainer's Record Sheet</h2>
+              <p class="trainer-sheets-panel__subtitle mb-0" id="record-sheet-program-label">
+                Institutional Assessment — Written Score / Demonstration / Interview
+              </p>
+            </div>
+            <div class="trainer-header-actions trainer-sheets-toolbar">
+              <label class="trainer-search-wrap">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input
+                  type="search"
+                  class="form-control trainer-search-input"
+                  id="record-sheet-search"
+                  placeholder="Search..."
+                  aria-label="Search record sheet"
+                />
+              </label>
+              <select class="form-select trainer-filter-select" id="record-sheet-status" aria-label="Filter by status">
+                <option value="">All Status</option>
+                <option value="competent">Competent</option>
+                <option value="conditional">Conditional</option>
+                <option value="failed">Failed</option>
+                <option value="incomplete">Incomplete</option>
+              </select>
+              <button type="button" class="btn trainer-btn-sheet-action" id="record-sheet-print">
+                <i class="bi bi-printer" aria-hidden="true"></i>
+                Print
+              </button>
+            </div>
+          </div>
+          <div class="trainer-sheets-panel__body">
+            <div class="trainer-sheets-legend" aria-label="Score legend">
+              <span><span class="trainer-sheets-legend__dot trainer-sheets-legend__dot--written"></span> Written — exam score</span>
+              <span><span class="trainer-sheets-legend__dot trainer-sheets-legend__dot--demo"></span> Demo — practical</span>
+              <span><span class="trainer-sheets-legend__dot trainer-sheets-legend__dot--interview"></span> Interview — oral</span>
+              <span class="trainer-sheets-legend__thresholds">
+                <strong>Thresholds:</strong>
+                <span class="trainer-result-badge trainer-result-badge--competent">≥ 75</span> Competent
+                <span class="trainer-result-badge trainer-result-badge--conditional">73–75</span> Conditional
+                <span class="trainer-result-badge trainer-result-badge--failed">1–72</span> Failed
+                <span class="trainer-result-badge trainer-result-badge--incomplete">0</span> Incomplete
+              </span>
+            </div>
+            <div id="record-sheet-content"></div>
+            <p class="trainer-sheets-save-hint text-muted small mb-0 mt-2" id="record-sheet-save-hint" hidden>
+              Scores save automatically when you leave a field.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-pane fade" id="encodable-sheet" role="tabpanel" aria-labelledby="encodable-tab">
+        <section class="trainer-sheets-panel">
+          <div class="trainer-sheets-panel__head">
+            <div>
+              <h2 class="trainer-sheets-panel__title">Trainer's Encodable Sheet</h2>
+              <p class="trainer-sheets-panel__subtitle mb-0">
+                Achievement Chart — Check Learning Outcomes per Unit Competency, then save to update Progress Chart.
+              </p>
+            </div>
+            <div class="trainer-header-actions trainer-sheets-toolbar">
+              <label class="trainer-search-wrap">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input
+                  type="search"
+                  class="form-control trainer-search-input"
+                  id="encodable-sheet-search"
+                  placeholder="Search..."
+                  aria-label="Search encodable sheet"
+                />
+              </label>
+              <select class="form-select trainer-filter-select" id="encodable-sheet-status" aria-label="Filter by status">
+                <option value="">All Status</option>
+                <option value="complete">All LOs checked</option>
+                <option value="in-progress">In progress</option>
+                <option value="not-started">Not started</option>
+              </select>
+              <button type="button" class="btn trainer-btn-sheet-action" id="encodable-expand-all">Expand All</button>
+              <button type="button" class="btn trainer-btn-sheet-action" id="encodable-sheet-print">
+                <i class="bi bi-printer" aria-hidden="true"></i>
+                Print
+              </button>
+            </div>
+          </div>
+          <div class="trainer-sheets-panel__body">
+            <div id="encodable-sheet-content"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-pane fade" id="non-encodable-sheet" role="tabpanel" aria-labelledby="non-encodable-tab">
+        <section class="trainer-sheets-panel">
+          <div class="trainer-sheets-panel__head">
+            <div>
+              <h2 class="trainer-sheets-panel__title">Trainer's Non-Encodable Sheet</h2>
+              <p class="trainer-sheets-panel__subtitle mb-0">
+                Competency results — auto-reflected from saved Record Sheet scores
+              </p>
+            </div>
+            <div class="trainer-header-actions trainer-sheets-toolbar">
+              <label class="trainer-search-wrap">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input
+                  type="search"
+                  class="form-control trainer-search-input"
+                  id="non-encodable-search"
+                  placeholder="Search..."
+                  aria-label="Search non-encodable sheet"
+                />
+              </label>
+              <select class="form-select trainer-filter-select" id="non-encodable-status" aria-label="Filter by status">
+                <option value="">All Status</option>
+                <option value="competent">Competent</option>
+                <option value="conditional">Conditional</option>
+                <option value="failed">Failed</option>
+                <option value="incomplete">Incomplete</option>
+              </select>
+              <button type="button" class="btn trainer-btn-sheet-action" id="non-encodable-print">
+                <i class="bi bi-printer" aria-hidden="true"></i>
+                Print
+              </button>
+            </div>
+          </div>
+          <div class="trainer-sheets-panel__body">
+            <div class="trainer-non-encodable-alert" role="note">
+              <i class="bi bi-info-circle" aria-hidden="true"></i>
+              <span>
+                Results are automatically reflected from saved scores in the
+                <strong>Trainer's Record Sheet</strong>. This view is read-only.
+              </span>
+            </div>
+            <div id="non-encodable-sheet-content"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-pane fade" id="progress-chart-sheet" role="tabpanel" aria-labelledby="progress-chart-tab">
+        <section class="trainer-sheets-panel">
+          <div class="trainer-sheets-panel__head">
+            <div>
+              <h2 class="trainer-sheets-panel__title">Progress Chart</h2>
+              <p class="trainer-sheets-panel__subtitle mb-0">
+                LO completion progress — auto-updated from Encodable Sheet · feeds Progress Report download.
+              </p>
+            </div>
+            <div class="trainer-header-actions trainer-sheets-toolbar">
+              <label class="trainer-search-wrap">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input
+                  type="search"
+                  class="form-control trainer-search-input"
+                  id="progress-chart-search"
+                  placeholder="Search..."
+                  aria-label="Search progress chart"
+                />
+              </label>
+              <select class="form-select trainer-filter-select" id="progress-chart-status" aria-label="Filter by status">
+                <option value="">All Status</option>
+                <option value="complete">All LOs complete</option>
+                <option value="in-progress">In progress</option>
+                <option value="not-started">Not started</option>
+              </select>
+              <button type="button" class="btn trainer-btn-sheet-action" id="progress-chart-print">
+                <i class="bi bi-printer" aria-hidden="true"></i>
+                Print
+              </button>
+            </div>
+          </div>
+          <div class="trainer-sheets-panel__body">
+            <div id="progress-chart-content">
+              <p class="text-muted mb-0">Loading progress data…</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/trainer/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% csrf_token %}
+{% include "components/trainer/scripts_common.html" %}
+<script id="sheets-config" type="application/json">{{ sheets_config_json|default:"{}"|safe }}</script>
+<script type="module" src="{% static 'js/trainer-sheets.js' %}"></script>
+{% endblock %}

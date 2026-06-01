@@ -1,0 +1,28 @@
+{% load static %}
+<div
+  class="cashier-modal"
+  id="receiptModal"
+  aria-hidden="true"
+  data-valient-logo="{% static 'img/valient-logo.svg' %}"
+  data-tesda-logo="{% static 'img/TESDA Logo official.png' %}"
+>
+  <div class="cashier-modal__overlay" id="receiptModalBackdrop"></div>
+  <div class="cashier-modal__dialog cashier-modal__dialog--invoice" role="dialog" aria-labelledby="receiptTitle">
+    <div class="cashier-modal__header cashier-modal__header--receipt">
+      <div>
+        <h3 class="cashier-modal__title" id="receiptTitle">Invoice</h3>
+        <p class="cashier-modal__subtitle">Payment document generated successfully</p>
+      </div>
+    </div>
+    <div class="cashier-modal__body cashier-modal__body--receipt">
+      <div class="cashier-receipt" id="receiptContent"></div>
+    </div>
+    <div class="cashier-modal__footer">
+      <button type="button" class="btn cashier-btn-outline" id="receiptModalClose">Close</button>
+      <button type="button" class="btn cashier-btn-primary" id="receiptPrintBtn">
+        <i class="bi bi-printer" aria-hidden="true"></i>
+        Print Invoice
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,20 @@
+{% load static %}
+<script type="module">
+  import { initStaffHeader, initLiveClock } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("{{ portal_role_label|default:'Administrator' }}", "{{ portal_display_name|default:'Admin User' }}");
+  {% if show_clock %}
+  initLiveClock("currentDate", "");
+  const adminTimeEl = document.getElementById("currentTime");
+  if (adminTimeEl) {
+    const tickAdminTime = () => {
+      adminTimeEl.textContent = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    };
+    tickAdminTime();
+    setInterval(tickAdminTime, 1000);
+  }
+  {% endif %}
+</script>

@@ -1,0 +1,137 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header">
+  <div>
+    <h1 class="student-page-title">{{ page_title }}</h1>
+    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
+</header>
+
+<div class="student-enroll-progress mb-4" aria-label="Enrollment progress {{ progress_percent }} percent">
+  <div class="student-enroll-progress__label">
+    <span>Progress: <strong>{{ progress_percent }}%</strong></span>
+  </div>
+  <div class="student-enroll-progress__track" role="progressbar" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+    <div class="student-enroll-progress__fill" style="width: {{ progress_percent }}%"></div>
+  </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2 class="student-enroll-step-title">
+  <i class="bi {{ enrollment_step_icon|default:'bi-cloud-upload' }}" aria-hidden="true"></i>
+  {{ enrollment_step_label }}
+</h2>
+<p class="student-req-intro mb-3">
+  Upload all required documents (PDF, JPEG, or PNG format, Max 5MB each).
+</p>
+
+{% if enrollment_under_review %}
+<div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="status">
+  <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
+  <span>Pending registrar approval — you can still replace documents here if something was uploaded incorrectly.</span>
+</div>
+{% elif requirements_submitted %}
+<section class="student-panel student-enroll-card mb-3">
+  <p class="mb-0 text-success fw-bold">
+    <i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
+    Requirements submitted for approval. You will be notified once reviewed.
+  </p>
+</section>
+{% endif %}
+
+<div class="student-enroll-list" id="requirements-list">
+  {% include "components/student/enrollment_requirements_list.html" %}
+</div>
+
+{% if enrollment_under_review %}
+<section class="student-panel student-enroll-card student-enroll-actions-card mt-0">
+  <div class="student-pending-card__actions student-pending-card__actions--inline">
+    <a href="{% url 'student_enrollment' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
+      <i class="bi bi-pencil-square" aria-hidden="true"></i>
+      Edit {% if is_assessment_only %}application form{% else %}learner profile{% endif %}
+    </a>
+    <a href="{% url 'student_enrollment_pending' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
+      Back to pending status
+    </a>
+  </div>
+</section>
+{% elif not requirements_submitted %}
+<section class="student-panel student-enroll-card student-enroll-actions-card mt-0">
+  <button type="button" class="student-enroll-submit" id="requirements-submit-btn" data-bs-toggle="modal" data-bs-target="#submitConfirmModal">
+    Submit for Approval
+    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+  </button>
+  <div id="requirements-form-alert" class="student-enroll-alert{% if not show_requirements_warning %} d-none{% endif %}" role="alert">
+    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+    <span>Please upload all required documents before submitting.</span>
+  </div>
+</section>
+{% endif %}
+
+<div class="modal fade" id="submitConfirmModal" tabindex="-1" aria-labelledby="submitConfirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content student-confirm-modal">
+      <div class="modal-body p-4">
+        <h3 class="h5 fw-bold mb-2" id="submitConfirmModalLabel">Are you sure you want to submit?</h3>
+        <p class="text-secondary mb-4">
+          Please make sure all information and uploaded requirements are complete before proceeding.
+        </p>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary flex-grow-1 fw-bold" data-bs-dismiss="modal">Cancel</button>
+          <form method="post" action="{% url 'student_enrollment_requirements' %}" class="flex-grow-1 mb-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit" />
+            <button type="submit" class="btn btn-success w-100 fw-bold" style="background:#00a859;border-color:#00a859">Yes, Submit</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/student-enrollment-requirements.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
+{% endblock %}

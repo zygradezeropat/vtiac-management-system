@@ -1,0 +1,26 @@
+{% load static %}
+<div class="cashier-layout">
+  {% include "components/cashier/sidebar.html" %}
+  <div class="cashier-layout__content">
+    <header class="cashier-topbar">
+      <button
+        type="button"
+        class="btn btn-light cashier-menu-btn"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#mobileCashierSidebar"
+        aria-label="Open menu"
+      >
+        <i class="bi bi-list fs-4" aria-hidden="true"></i>
+      </button>
+      <div class="cashier-topbar-actions">
+        {% include "components/shared/portal_notifications_bell.html" with icon_btn_class="cashier-icon-btn" %}
+        <div class="cashier-user-chip">
+          <div id="staff-initials" class="cashier-user-avatar">{{ portal_initials|default:"C" }}</div>
+          <div class="cashier-user-details">
+            <p id="staff-display-name" class="cashier-user-name mb-0">{{ portal_display_name|default:"Cashier" }}</p>
+            <p id="staff-role-label" class="cashier-user-role mb-0">Cashier</p>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="cashier-main">

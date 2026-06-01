@@ -1,0 +1,1960 @@
+/* Student portal — templates/student/, components/student/ */
+
+.student-layout {
+  --student-sidebar-w: 15.5rem;
+  --student-surface: #ffffff;
+  --student-border: #e8ecf1;
+  --student-muted: #64748b;
+  --student-text: #0f3d2e;
+  --student-primary: #00a859;
+  --student-primary-soft: rgba(0, 168, 89, 0.12);
+  --student-highlight: #e8f5ef;
+  background: #f1f5f3;
+  font-family: "Inter", "Poppins", system-ui, sans-serif;
+}
+
+.student-sidebar {
+  width: var(--student-sidebar-w);
+  background: var(--student-surface);
+  border-right: 1px solid var(--student-border);
+  padding: 1.25rem 1rem;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 40;
+}
+
+.student-offcanvas {
+  z-index: 1045;
+}
+
+.student-offcanvas:not(.show):not(.showing) {
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.student-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+  padding: 0.25rem 0.5rem;
+  color: inherit;
+}
+
+.student-brand-logo {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+}
+
+.student-brand-name {
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--student-text);
+}
+
+.student-nav {
+  gap: 0.25rem;
+}
+
+.student-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  color: #334155;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.student-nav-link:hover {
+  background: #f1f5f9;
+  color: var(--student-text);
+}
+
+.student-nav-link.is-active {
+  background: var(--student-highlight);
+  border: 1px solid rgba(0, 168, 89, 0.35);
+  color: #047857;
+  font-weight: 600;
+}
+
+.student-nav-icon {
+  width: 1.25rem;
+  display: inline-flex;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.05rem;
+}
+
+.student-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.75rem;
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+
+.student-logout:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.student-topbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4rem;
+  padding: 0 1.25rem;
+  background: var(--student-surface);
+  border-bottom: 1px solid var(--student-border);
+}
+
+.student-menu-btn {
+  border-radius: 0.625rem;
+}
+
+.student-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.student-icon-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.student-icon-btn:hover {
+  background: #f1f5f9;
+  color: var(--student-text);
+}
+
+.student-notify-badge {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.125rem;
+  text-align: center;
+  color: #fff;
+  background: #ef4444;
+  border: 2px solid #fff;
+  border-radius: 999px;
+}
+
+.student-user-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.student-user-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00a859, #059669);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.student-user-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--student-text);
+}
+
+.student-user-role {
+  font-size: 0.6875rem;
+  color: var(--student-muted);
+}
+
+.student-main {
+  padding: 1.25rem clamp(1rem, 3vw, 1.75rem) 2rem;
+}
+
+.student-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.student-page-title {
+  font-size: clamp(1.375rem, 3vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--student-text);
+  margin: 0 0 0.25rem;
+}
+
+.student-page-subtitle {
+  font-size: 0.9375rem;
+  color: var(--student-muted);
+  margin: 0;
+}
+
+.student-clock {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--student-muted);
+  text-align: right;
+  max-width: 22rem;
+  line-height: 1.4;
+}
+
+.student-panel {
+  background: var(--student-surface);
+  border: 1px solid var(--student-border);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  padding: 1.25rem;
+  height: 100%;
+}
+
+.student-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.student-panel__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--student-text);
+  margin: 0;
+}
+
+.student-panel__title .bi {
+  color: var(--student-primary);
+  margin-right: 0.35rem;
+}
+
+/* Enrollment progress */
+.student-progress-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.student-progress-ring {
+  position: relative;
+  width: 8.5rem;
+  height: 8.5rem;
+  flex-shrink: 0;
+}
+
+.student-progress-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.student-progress-ring__track {
+  fill: none;
+  stroke: #e8ecf1;
+  stroke-width: 10;
+}
+
+.student-progress-ring__fill {
+  fill: none;
+  stroke: var(--student-primary);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.35s ease;
+}
+
+.student-progress-ring__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.student-progress-ring__pct {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: var(--student-text);
+}
+
+.student-progress-ring__caption {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--student-muted);
+}
+
+.student-progress-details {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.student-progress-status-label {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+  margin: 0 0 0.25rem;
+}
+
+.student-progress-status-value {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--student-text);
+  margin: 0 0 1rem;
+}
+
+.student-program-card {
+  background: var(--student-highlight);
+  border-radius: 0.75rem;
+  padding: 1rem 1.125rem;
+}
+
+.student-program-card__label {
+  font-size: 0.75rem;
+  color: var(--student-muted);
+  margin: 0 0 0.25rem;
+}
+
+.student-program-card__name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--student-text);
+  margin: 0 0 0.15rem;
+}
+
+.student-program-card__type {
+  font-size: 0.8125rem;
+  color: #047857;
+  margin: 0;
+}
+
+/* Requirements & steps */
+.student-split-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .student-split-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.student-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+}
+
+.student-checklist__item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0;
+  font-size: 0.9375rem;
+  color: #334155;
+}
+
+.student-checklist__item--optional {
+  color: var(--student-muted);
+}
+
+.student-checklist__icon {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
+.student-checklist__icon--done {
+  background: #dcfce7;
+  color: #059669;
+}
+
+.student-checklist__icon--current {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.student-checklist__icon--pending {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.student-step-current-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #ea580c;
+  vertical-align: middle;
+}
+
+.student-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: var(--student-primary);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+
+.student-upload-btn:hover {
+  background: #008f4c;
+  color: #fff;
+}
+
+/* Side stat cards */
+.student-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  height: 100%;
+}
+
+.student-stat-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.student-stat-card__head .bi {
+  color: var(--student-primary);
+  font-size: 1.1rem;
+}
+
+.student-stat-card__head h3 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--student-text);
+  margin: 0;
+}
+
+.student-stat-card__value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--student-text);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.student-stat-card__meta {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+  margin: 0;
+}
+
+.student-badge {
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  margin-top: 0.25rem;
+}
+
+.student-badge--unpaid {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.student-badge--paid {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.student-badge--progress {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.student-schedule-assigned {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+}
+
+.student-schedule-assigned__list li {
+  margin-bottom: 0.5rem;
+  font-size: 0.9375rem;
+  color: #334155;
+}
+
+.student-schedule-assigned__list li:last-child {
+  margin-bottom: 0;
+}
+
+.student-schedule-box {
+  background: #f8fafc;
+  border: 1px solid var(--student-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: var(--student-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.student-schedule-panel {
+  height: auto;
+}
+
+.student-schedule-intro {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+  margin: 0;
+}
+
+.student-schedule-saved {
+  font-size: 0.8125rem;
+  color: var(--student-text);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.student-schedule-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.student-schedule-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem;
+  border: 1px solid var(--student-border);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  margin: 0;
+}
+
+.student-schedule-option:hover {
+  border-color: var(--student-primary);
+  background: #f8fafc;
+}
+
+.student-schedule-option--selected,
+.student-schedule-option:has(.student-schedule-option__input:checked) {
+  border-color: var(--student-primary);
+  background: #ecfdf5;
+}
+
+.student-schedule-option__input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  accent-color: var(--student-primary);
+}
+
+.student-schedule-option__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.student-schedule-option__label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--student-text);
+}
+
+.student-schedule-option__detail {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+}
+
+.student-schedule-option__meta {
+  font-size: 0.75rem;
+  color: var(--student-muted);
+}
+
+.student-schedule-save-btn {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border: none;
+  border-radius: 0.625rem;
+  background: var(--student-primary);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background-color 0.15s;
+}
+
+.student-schedule-save-btn:hover {
+  background: #008f4c;
+}
+
+/* Read-only payment overview */
+.student-stat-card--readonly {
+  pointer-events: none;
+  user-select: none;
+}
+
+.student-stat-card--readonly .student-stat-card__head {
+  flex-wrap: wrap;
+}
+
+.student-readonly-tag {
+  margin-left: auto;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--student-muted);
+  background: #f1f5f9;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+.student-stat-card__hint {
+  font-size: 0.6875rem;
+  color: var(--student-muted);
+  line-height: 1.4;
+  margin-top: 0.35rem;
+}
+
+/* Announcements */
+.student-announcements {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.student-announcement {
+  position: relative;
+  padding-left: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--student-border);
+  margin-bottom: 1rem;
+}
+
+.student-announcement:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.student-announcement::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background: var(--student-primary);
+}
+
+.student-announcement__title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--student-text);
+  margin: 0 0 0.25rem;
+}
+
+.student-announcement__body {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+  margin: 0 0 0.35rem;
+  line-height: 1.45;
+}
+
+.student-announcement__date {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.student-offcanvas .student-nav-link {
+  margin-bottom: 0.125rem;
+}
+
+/* —— Enrollment (TESDA learner profile) —— */
+
+.student-enroll-progress__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--student-text);
+  margin-bottom: 0.5rem;
+}
+
+.student-enroll-progress__track {
+  height: 0.5rem;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.student-enroll-progress__fill {
+  height: 100%;
+  background: #0f172a;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.student-enroll-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.student-enroll-card {
+  padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
+  margin-bottom: 0;
+}
+
+.student-enroll-card--staff-only {
+  background: rgba(248, 249, 250, 0.85);
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+}
+
+.student-enroll-card--staff-only .student-enroll-section__title {
+  color: var(--student-muted);
+}
+
+.student-enroll-input[readonly] {
+  background-color: rgba(248, 249, 250, 0.95);
+  cursor: not-allowed;
+}
+
+.student-enroll-signature-row .student-enroll-file {
+  padding: 0.5rem 0.75rem;
+}
+
+.student-enroll-step-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--student-text);
+  margin: 0 0 1rem;
+}
+
+.student-enroll-section__title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--student-text);
+  margin: 0 0 1rem;
+}
+
+.student-enroll-section__hint {
+  font-size: 0.875rem;
+  color: var(--student-muted);
+  margin: -0.5rem 0 1rem;
+}
+
+.student-enroll-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--student-text);
+  margin-bottom: 0.35rem;
+}
+
+.student-enroll-required {
+  color: #dc2626;
+}
+
+.student-enroll-input,
+.student-enroll-select {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+  color: var(--student-text);
+  background: #f1f5f9;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.student-enroll-input:focus,
+.student-enroll-select:focus {
+  outline: none;
+  background: #fff;
+  border-color: rgba(0, 168, 89, 0.45);
+  box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.12);
+}
+
+.student-enroll-input.is-invalid,
+.student-enroll-select.is-invalid {
+  border-color: #f87171;
+  background: #fff5f5;
+}
+
+.student-enroll-input[readonly] {
+  color: var(--student-muted);
+  cursor: default;
+}
+
+.student-enroll-input--locked {
+  background: #e2e8f0 !important;
+  color: #64748b !important;
+  border-color: #e2e8f0 !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+.student-program-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.student-program-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  border-radius: 0.5rem;
+  min-height: auto;
+  box-shadow: none;
+  transform: none;
+}
+
+.student-program-edit-btn:hover,
+.student-program-edit-btn:focus {
+  transform: none;
+  box-shadow: none;
+}
+
+.student-program-edit-btn--primary {
+  background: var(--student-primary);
+  border: 1px solid var(--student-primary);
+  color: #fff;
+}
+
+.student-program-edit-btn--primary:hover,
+.student-program-edit-btn--primary:focus {
+  background: #008f4c;
+  border-color: #008f4c;
+  color: #fff;
+}
+
+.student-program-edit-btn--secondary {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.student-program-edit-btn--secondary:hover,
+.student-program-edit-btn--secondary:focus {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.student-enroll-select:disabled {
+  opacity: 0.65;
+}
+
+.student-enroll-input:disabled {
+  background-color: #f8fafc;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.student-enroll-file {
+  padding: 0.5rem 0.75rem;
+}
+
+.student-enroll-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--student-muted);
+  margin-top: 0.25rem;
+}
+
+.student-enroll-check .form-check-input {
+  border-radius: 0.25rem;
+  border-color: #cbd5e1;
+}
+
+.student-enroll-check .form-check-input:checked {
+  background-color: var(--student-primary);
+  border-color: var(--student-primary);
+}
+
+.student-enroll-check .form-check-label {
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.student-enroll-classifications .form-check {
+  min-height: 2rem;
+}
+
+.student-enroll-classifications--invalid {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #f87171;
+  background: #fff5f5;
+}
+
+.student-enroll-consent {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.75rem;
+  padding: 1rem 1.125rem;
+}
+
+.student-enroll-actions-card {
+  padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
+}
+
+.student-enroll-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: var(--student-primary);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: background-color 0.15s;
+}
+
+.student-enroll-submit:hover {
+  background: #008f4c;
+  color: #fff;
+}
+
+.student-enroll-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-top: 1rem;
+  padding: 0.875rem 1rem;
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #854d0e;
+}
+
+.student-enroll-alert .bi {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+/* —— Step 2: Upload requirements —— */
+
+.student-req-intro {
+  font-size: 0.9375rem;
+  color: var(--student-muted);
+  margin: 0;
+}
+
+.student-enroll-step-title .bi {
+  color: var(--student-primary);
+  margin-right: 0.35rem;
+}
+
+.student-req-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.student-req-card__info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 12rem;
+}
+
+.student-req-card__icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  background: var(--student-highlight);
+  color: var(--student-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+.student-req-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--student-text);
+}
+
+.student-req-card__hint {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+}
+
+.student-req-card__actions {
+  flex-shrink: 0;
+}
+
+.student-req-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.student-req-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--student-border);
+  border-radius: 0.5rem;
+  background: #fff;
+  color: var(--student-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.student-req-upload-btn:hover:not(.student-req-upload-btn--disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.student-req-upload-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f1f5f9;
+  color: var(--student-muted);
+}
+
+.student-req-card__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--student-border);
+}
+
+.student-req-card__status .student-doc-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.student-req-pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.student-req-pending__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #047857;
+  word-break: break-all;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.student-req-pending__confirm {
+  background: #00a859 !important;
+  border-color: #00a859 !important;
+}
+
+.student-file-upload-row {
+  display: block;
+}
+
+.student-file-upload-row__input-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.student-file-upload-row__input-wrap:focus-within {
+  border-color: var(--student-primary);
+  box-shadow: 0 0 0 0.15rem rgba(0, 168, 89, 0.15);
+}
+
+.student-file-upload-row__input-wrap .student-enroll-file {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.9375rem;
+}
+
+
+.student-req-card__filename {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #047857;
+  word-break: break-all;
+}
+
+.student-confirm-modal {
+  border-radius: 1rem;
+  border: none;
+  box-shadow: 0 1.25rem 3rem rgba(15, 61, 46, 0.18);
+}
+
+.student-program-change-modal__icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #d97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+@media (min-width: 576px) {
+  .student-program-change-modal__icon {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+.student-program-change-modal__current {
+  padding: 0.75rem 1rem;
+  background: #f0fdf4;
+  border: 1px solid rgba(0, 168, 89, 0.25);
+  border-radius: 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.student-program-change-modal__current strong {
+  color: #047857;
+}
+
+/* —— Pending approval —— */
+
+.student-panel.student-pending-card {
+  height: auto;
+  width: 100%;
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.75rem clamp(1.25rem, 4vw, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.student-pending-card__icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: #ffedd5;
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.student-pending-card__title {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: var(--student-text);
+  margin: 0 0 0.75rem;
+}
+
+.student-pending-card__text {
+  font-size: 0.9375rem;
+  color: var(--student-muted);
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+  max-width: 22rem;
+}
+
+.student-pending-card .student-enroll-submit {
+  width: auto;
+  max-width: 100%;
+  min-width: 12rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.student-pending-card__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.student-pending-card__actions--inline {
+  max-width: none;
+  align-items: flex-start;
+}
+
+.student-pending-card__actions .student-program-edit-btn {
+  justify-content: center;
+}
+
+/* —— Payments —— */
+
+.student-pay-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.student-pay-card__title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--student-text);
+}
+
+.student-pay-card__subtitle {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+}
+
+.student-pay-section-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--student-text);
+  margin: 0 0 0.75rem;
+}
+
+.student-pay-fee-list__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem 0;
+  border-bottom: 1px solid var(--student-border);
+  font-size: 0.9375rem;
+  color: #334155;
+}
+
+.student-pay-fee-list__item:last-child {
+  border-bottom: none;
+}
+
+.student-pay-fee-list__amount {
+  font-weight: 600;
+}
+
+.student-pay-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid var(--student-border);
+}
+
+.student-pay-balance__label {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--student-text);
+}
+
+.student-pay-balance__amount {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #dc2626;
+}
+
+.student-pay-qr-wrap {
+  background: #f8fafc;
+  border: 1px solid var(--student-border);
+  border-radius: 0.75rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.student-pay-qr-box {
+  display: inline-block;
+  width: 10rem;
+  height: 10rem;
+  border: 2px solid rgba(0, 168, 89, 0.45);
+  border-radius: 0.5rem;
+  background: var(--student-highlight);
+  padding: 1rem 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.student-pay-qr-box__org {
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--student-text);
+  line-height: 1.3;
+}
+
+.student-pay-qr-box__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--student-primary);
+}
+
+.student-pay-qr-box__hint {
+  font-size: 0.625rem;
+  color: var(--student-muted);
+}
+
+.student-pay-qr-caption {
+  font-size: 0.875rem;
+  color: var(--student-text);
+  line-height: 1.4;
+}
+
+.student-pay-info-banner {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  background: var(--student-highlight);
+  border: 1px solid rgba(0, 168, 89, 0.35);
+  border-radius: 0.75rem;
+  padding: 1rem 1.125rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.student-pay-info-banner .bi {
+  color: var(--student-primary);
+  font-size: 1.125rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.student-pay-info-banner__title {
+  font-weight: 700;
+  color: #047857;
+}
+
+.student-pay-responsibilities {
+  font-size: 0.875rem;
+  color: #334155;
+  margin-bottom: 1.25rem;
+}
+
+.student-pay-responsibilities ul {
+  padding-left: 1.25rem;
+}
+
+.student-pay-disclaimer {
+  font-size: 0.75rem;
+  color: var(--student-muted);
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--student-border);
+}
+
+.student-payments-panel .student-panel {
+  height: auto;
+}
+
+.student-pay-status-badge {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.student-pay-status-badge--success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.student-pay-status-badge--warning {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.student-pay-enroll-summary {
+  background: #f8fafc;
+  border: 1px solid var(--student-border);
+  border-radius: 0.625rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.student-pay-link-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--student-primary);
+  text-decoration: none;
+}
+
+.student-pay-link-btn:hover {
+  text-decoration: underline;
+}
+
+.student-pay-locked-msg {
+  font-size: 0.875rem;
+  color: var(--student-muted);
+}
+
+.student-pay-locked-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  background: #f8fafc;
+  border: 1px dashed var(--student-border);
+  border-radius: 0.625rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  color: var(--student-muted);
+}
+
+.student-pay-locked-banner .bi {
+  color: #94a3b8;
+  margin-top: 0.1rem;
+}
+
+.student-pay-proof-hint {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+}
+
+.student-pay-proof-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.student-pay-proof-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--student-border);
+}
+
+.student-pay-proof-list__item:last-child {
+  border-bottom: none;
+}
+
+.student-pay-proof-list__info {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  flex: 1;
+}
+
+.student-pay-proof-list__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--student-text);
+}
+
+.student-pay-proof-list__meta {
+  font-size: 0.75rem;
+  color: var(--student-muted);
+}
+
+/* —— My Documents —— */
+
+.student-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 52rem;
+}
+
+.student-doc-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  height: auto;
+}
+
+.student-doc-card__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.student-doc-card__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.625rem;
+  background: #ecfdf5;
+  color: var(--student-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+.student-doc-card__info {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.student-doc-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--student-text);
+  margin: 0 0 0.2rem;
+}
+
+.student-doc-card__meta {
+  font-size: 0.8125rem;
+  color: var(--student-muted);
+  margin: 0;
+}
+
+.student-doc-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.student-doc-badge--ready {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.student-doc-badge--pending_payment {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.student-doc-badge--processing {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.student-doc-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.student-doc-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--student-border);
+  background: #fff;
+  color: var(--student-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.student-doc-btn:hover:not(.student-doc-btn--disabled) {
+  border-color: var(--student-primary);
+  color: var(--student-primary);
+  background: #f8fafc;
+}
+
+.student-doc-btn--disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@media (max-width: 575.98px) {
+  .student-doc-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .student-doc-card__actions {
+    justify-content: flex-end;
+  }
+}
+
+/* —— Settings (mirrors registrar settings) —— */
+
+.student-settings-row {
+  align-items: stretch;
+}
+
+.student-settings-panel {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
+}
+
+.student-settings-form {
+  min-height: 0;
+  flex: 1;
+}
+
+.student-settings-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  background: var(--student-primary-soft);
+  color: var(--student-primary);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.student-settings-panel .input-group-sm .student-password-toggle {
+  border-color: var(--student-border);
+}
+
+.student-settings-panel .input-group-sm .student-password-toggle:hover {
+  background: #f8fafc;
+}
+
+@media (max-width: 991.98px) {
+  .student-settings-row .col-lg-6 + .col-lg-6 {
+    margin-top: 0;
+  }
+}
+
+/* —— TESDA Application Form (assessment-only Step 1) —— */
+.tesda-app-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tesda-app-form__header {
+  background: #fff;
+  border: 2px solid #1e3a5f;
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.tesda-app-form__header-meta {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #475569;
+  margin-bottom: 0.5rem;
+}
+
+.tesda-app-form__agency-en {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  text-align: center;
+}
+
+.tesda-app-form__agency-fil {
+  font-size: 0.75rem;
+  color: #475569;
+  text-align: center;
+}
+
+.tesda-app-form__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1d4ed8;
+  text-align: center;
+  letter-spacing: 0.06em;
+  margin: 0.75rem 0 1rem;
+}
+
+.tesda-app-form__header-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr minmax(10rem, 12rem);
+  gap: 1rem;
+  align-items: start;
+}
+
+.tesda-app-form__ref-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.35rem;
+}
+
+.tesda-ref-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.tesda-ref-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.5rem;
+  padding: 0 0.2rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.2rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: #0f172a;
+}
+
+.tesda-ref-box--y { background: #fef9c3; }
+.tesda-ref-box--g { background: #dcfce7; }
+.tesda-ref-box--o { background: #ffedd5; }
+.tesda-ref-box--b { background: #dbeafe; }
+.tesda-ref-box--p { background: #f3e8ff; }
+.tesda-ref-box--muted { background: #f1f5f9; color: #94a3b8; }
+
+.tesda-app-form__photo-block {
+  border: 2px dashed #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  min-height: 8rem;
+}
+
+.tesda-app-form__photo-hint {
+  font-size: 0.75rem;
+  color: var(--student-muted);
+}
+
+.tesda-app-form__section {
+  background: #fff;
+  border: 1px solid var(--student-border);
+  border-radius: 0.75rem;
+  padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
+}
+
+.tesda-app-form__section-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1d4ed8;
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #bfdbfe;
+}
+
+.tesda-app-form__subsection {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 0.75rem;
+}
+
+.tesda-app-form__checks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tesda-app-form__inline-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.tesda-app-form__footnote {
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--student-muted);
+  margin: 0.5rem 0 0;
+}
+
+.tesda-app-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.tesda-app-table th,
+.tesda-app-table td {
+  border: 1px solid #cbd5e1;
+  padding: 0.35rem;
+  vertical-align: top;
+}
+
+.tesda-app-table th {
+  background: #eff6ff;
+  color: #1e3a5f;
+  font-weight: 700;
+  text-align: left;
+}
+
+.tesda-app-table__input {
+  width: 100%;
+  min-width: 4rem;
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--student-text);
+}
+
+.tesda-app-table__input:focus {
+  outline: 2px solid rgba(0, 168, 89, 0.35);
+  background: #fff;
+  border-radius: 0.2rem;
+}
+
+.tesda-app-table__input--month {
+  min-width: 9.5rem;
+  cursor: pointer;
+}
+
+.tesda-app-table__input--month::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.tesda-app-table__actions-col {
+  width: 2.75rem;
+}
+
+.tesda-app-table__actions-cell {
+  vertical-align: middle;
+}
+
+.tesda-app-table__toolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
+.tesda-add-row-btn {
+  font-weight: 600;
+  border-radius: 0.5rem;
+}
+
+.tesda-remove-row-btn.invisible {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tesda-admission-slip {
+  border: 2px solid #93c5fd;
+  background: linear-gradient(180deg, #eff6ff 0%, #fff 35%);
+}
+
+.tesda-admission-slip__title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #1e40af;
+  text-align: center;
+  letter-spacing: 0.08em;
+  margin: 0 0 1rem;
+  padding: 0.5rem;
+  background: #bfdbfe;
+  border-radius: 0.35rem;
+}
+
+.tesda-admission-slip__note {
+  font-size: 0.875rem;
+  color: #1d4ed8;
+}
+
+@media (max-width: 991.98px) {
+  .tesda-app-form__header-grid {
+    grid-template-columns: 1fr;
+  }
+}

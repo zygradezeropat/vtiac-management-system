@@ -1,0 +1,23 @@
+{% load static %}
+<aside class="cashier-sidebar d-none d-lg-flex flex-column flex-shrink-0">
+  <a href="{% url 'cashier_dashboard' %}" class="cashier-brand text-decoration-none">
+    {% include "components/shared/vtiac_brand.html" with name_class="cashier-brand-name" logo_wrap_class="cashier-brand-logo" %}
+  </a>
+
+  <nav class="cashier-nav flex-column flex-grow-1" aria-label="Cashier navigation">
+    {% for item in sidebar_menu %}
+    <a
+      href="{{ item.route }}"
+      class="cashier-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+    >
+      <span class="cashier-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+      <span class="cashier-nav-label">{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <a href="{% url 'logout' %}" class="cashier-logout">
+    <i class="bi bi-box-arrow-left" aria-hidden="true"></i>
+    <span>Logout</span>
+  </a>
+</aside>

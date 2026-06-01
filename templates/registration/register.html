@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block body %}
+<form id="registration-post-form" method="post" action="{% url 'register' %}" class="d-none">
+  {% csrf_token %}
+</form>
+{{ registration_config|json_script:"registration-config" }}
+<main id="register-wizard" class="register-page min-vh-100 bg-vtiac-light py-4 py-md-5 overflow-x-hidden" data-static-base="{% static '' %}" data-show-confirmation="{% if show_confirmation %}1{% else %}0{% endif %}" data-check-email-url="{% url 'register_check_email' %}">
+  <div class="container-xl">
+    {% if not enrollment_open %}
+    <div class="alert alert-warning rounded-4 mb-4" role="alert">
+      New student registration is currently closed. Please check back later or contact the registrar.
+    </div>
+    {% endif %}
+    <header class="register-page-header d-flex align-items-center gap-3 border-bottom pb-4 mb-4">
+      <a href="/" class="btn btn-light rounded-circle flex-shrink-0" aria-label="Back to landing page">←</a>
+      <div class="vtiac-logo-wrap register-header-logo flex-shrink-0" aria-hidden="true">
+        <img src="{% static 'img/valient-logo.svg' %}" alt="" class="navbar-logo-img" />
+      </div>
+      <div class="min-w-0">
+        <h1 class="h4 h-md-3 fw-bold mb-0 text-truncate">Student Registration</h1>
+        <p class="text-muted small fw-bold text-uppercase mb-1">VTIAC</p>
+        <div id="register-path-banner" class="register-path-banner" hidden>
+          <span class="register-path-banner__prefix">Registering for</span>
+          <span id="register-path-value" class="register-path-banner__value"></span>
+        </div>
+      </div>
+    </header>
+
+    <div class="register-stepper d-flex align-items-center justify-content-center gap-2 gap-md-3 mb-4 mb-md-5 flex-wrap">
+      <div data-stepper-step="1" class="d-flex align-items-center gap-2">
+        <span data-step-circle class="step-circle inactive">1</span>
+        <span data-step-label class="d-none d-sm-inline fw-semibold text-muted small">Personal Info</span>
+      </div>
+      <div data-step-connector class="step-bar inactive d-none d-sm-block"></div>
+      <div data-stepper-step="2" class="d-flex align-items-center gap-2">
+        <span data-step-circle class="step-circle inactive">2</span>
+        <span data-step-label class="d-none d-sm-inline fw-semibold text-muted small">Choose Program</span>
+      </div>
+      <div data-step-connector class="step-bar inactive d-none d-sm-block"></div>
+      <div data-stepper-step="3" class="d-flex align-items-center gap-2">
+        <span data-step-circle class="step-circle inactive">3</span>
+        <span data-step-label class="d-none d-sm-inline fw-semibold text-muted small">Preferred Schedule</span>
+      </div>
+      <div data-step-connector class="step-bar inactive d-none d-sm-block"></div>
+      <div data-stepper-step="4" class="d-flex align-items-center gap-2">
+        <span data-step-circle class="step-circle inactive">4</span>
+        <span data-step-label class="d-none d-sm-inline fw-semibold text-muted small">Confirmation</span>
+      </div>
+    </div>
+
+    <div id="register-step-1" class="card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4 p-md-5">
+        <div class="border-bottom pb-4 mb-4">
+          <h2 class="h4 fw-bold">Student Registration Form</h2>
+          <p class="text-secondary mb-2">Please fill out all required information completely.</p>
+          <div id="register-path-banner-inline" class="register-path-banner register-path-banner--inline" hidden>
+            <span class="register-path-banner__prefix">Registering for</span>
+            <span id="register-path-value-inline" class="register-path-banner__value"></span>
+          </div>
+        </div>
+        <section class="mb-5">
+          <h3 class="h5 fw-bold border-bottom pb-3 mb-4">Basic Information</h3>
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label fw-bold">First Name <span class="text-danger">*</span></label><input id="field-firstName" class="form-control form-control-vtiac" placeholder="Juan" /><span data-error-for="field-firstName" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold" for="field-middleName">Middle Name</label>
+              <input id="field-middleName" class="form-control form-control-vtiac" placeholder="Santos" />
+              <div class="form-check mt-1">
+                <input class="form-check-input" type="checkbox" id="field-no-middle-name" />
+                <label class="form-check-label small" for="field-no-middle-name">I don't have a middle name</label>
+              </div>
+            </div>
+            <div class="col-md-4"><label class="form-label fw-bold">Last Name <span class="text-danger">*</span></label><input id="field-lastName" class="form-control form-control-vtiac" placeholder="Dela Cruz" /><span data-error-for="field-lastName" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Email Address <span class="text-danger">*</span></label><input id="field-email" type="email" class="form-control form-control-vtiac" placeholder="example@email.com" /><span data-error-for="field-email" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Phone Number <span class="text-danger">*</span></label>
+              <input id="field-phone" type="tel" inputmode="numeric" maxlength="11" value="09" class="form-control form-control-vtiac" placeholder="09171234567" autocomplete="tel" aria-describedby="field-phone-hint" />
+              <span data-error-for="field-phone" class="text-danger small fw-bold d-none"></span>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="field-password">Password <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input id="field-password" type="password" autocomplete="new-password" minlength="8" class="form-control form-control-vtiac" placeholder="At least 8 characters" />
+                <button type="button" class="btn btn-outline-secondary register-password-toggle" data-target="field-password" aria-label="Show password">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
+              </div>
+              <span data-error-for="field-password" class="text-danger small fw-bold d-none"></span>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold" for="field-passwordConfirm">Confirm Password <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input id="field-passwordConfirm" type="password" autocomplete="new-password" minlength="8" class="form-control form-control-vtiac" placeholder="Re-enter password" />
+                <button type="button" class="btn btn-outline-secondary register-password-toggle" data-target="field-passwordConfirm" aria-label="Show confirm password">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
+              </div>
+              <span data-error-for="field-passwordConfirm" class="text-danger small fw-bold d-none"></span>
+            </div>
+          </div>
+        </section>
+        <section class="mb-5">
+          <h3 class="h5 fw-bold border-bottom pb-3 mb-4">Complete Address</h3>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label fw-bold">Region <span class="text-danger">*</span></label><select id="field-region" class="form-select form-select-vtiac"></select><span data-error-for="field-region" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Province <span class="text-danger">*</span></label><select id="field-province" disabled class="form-select form-select-vtiac"></select><span data-error-for="field-province" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-6"><label class="form-label fw-bold">City/Municipality <span class="text-danger">*</span></label><select id="field-city" disabled class="form-select form-select-vtiac"></select><span data-error-for="field-city" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Barangay <span class="text-danger">*</span></label><select id="field-barangay" disabled class="form-select form-select-vtiac"></select><span data-error-for="field-barangay" class="text-danger small fw-bold d-none"></span></div>
+          </div>
+        </section>
+        <section class="mb-4">
+          <h3 class="h5 fw-bold border-bottom pb-3 mb-4">Additional Information</h3>
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label fw-bold">Birth Date <span class="text-danger">*</span></label><input id="field-birthDate" type="date" class="form-control form-control-vtiac" /><span data-error-for="field-birthDate" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-4"><label class="form-label fw-bold">Gender <span class="text-danger">*</span></label><select id="field-gender" class="form-select form-select-vtiac"><option value="">Select gender</option><option value="male">Male</option><option value="female">Female</option><option value="rather_not_say">Rather not to say</option></select><span data-error-for="field-gender" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-4"><label class="form-label fw-bold">Civil Status <span class="text-danger">*</span></label><select id="field-civilStatus" class="form-select form-select-vtiac"><option value="">Select civil status</option><option value="single">Single</option><option value="married">Married</option><option value="widowed">Widow/er</option><option value="separated">Separated / Divorced / Annulled</option><option value="common_law">Common Law / Live-in</option></select><span data-error-for="field-civilStatus" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-6"><label class="form-label fw-bold">Emergency Contact Name <span class="text-danger">*</span></label><input id="field-emergencyName" class="form-control form-control-vtiac" placeholder="Guardian Name" /><span data-error-for="field-emergencyName" class="text-danger small fw-bold d-none"></span></div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">Emergency Contact Phone <span class="text-danger">*</span></label>
+              <input id="field-emergencyPhone" type="tel" inputmode="numeric" maxlength="11" value="09" class="form-control form-control-vtiac" placeholder="09171234567" autocomplete="tel" aria-describedby="field-emergencyPhone-hint" />
+              <span data-error-for="field-emergencyPhone" class="text-danger small fw-bold d-none"></span>
+            </div>
+          </div>
+        </section>
+        <div class="text-end">
+          <button type="button" id="step1-continue" disabled class="btn btn-vtiac btn-primary btn-lg rounded-3 px-4">Continue to Program Selection</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="register-step-2" class="hidden-step card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4 p-md-5">
+        <div class="border-bottom pb-4 mb-4">
+          <h2 class="h4 fw-bold">Choose Your Program</h2>
+          <p class="text-secondary mb-0">Select your preferred training option and program</p>
+        </div>
+        <div id="register-submit-error" class="alert alert-danger d-none" role="alert"></div>
+        <section id="program-type-section" class="mb-4">
+          <h3 class="h5 fw-bold mb-3">Program Type</h3>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <button type="button" data-program-type="training_with_assessment" class="program-type-card btn w-100 h-100 text-start p-4 border-2 rounded-4">
+                <div class="d-flex gap-3"><span class="badge bg-success-subtle text-success fs-6">T/A</span><div class="flex-grow-1"><h4 class="h6 fw-bold">Training with Assessment</h4><p class="text-secondary small mb-0">Complete technical training program followed by competency assessment and certification.</p></div><span data-check class="text-vtiac fw-bold fs-5 d-none">✔</span></div>
+              </button>
+            </div>
+            <div class="col-md-6">
+              <button type="button" data-program-type="assessment_only" class="program-type-card btn w-100 h-100 text-start p-4 border-2 rounded-4">
+                <div class="d-flex gap-3"><span class="badge bg-primary-subtle text-primary fs-6">AO</span><div class="flex-grow-1"><h4 class="h6 fw-bold">Assessment Only</h4><p class="text-secondary small mb-0">Competency assessment for those with prior experience or training.</p></div><span data-check class="text-vtiac fw-bold fs-5 d-none">✔</span></div>
+              </button>
+            </div>
+          </div>
+        </section>
+        <section id="program-list-section" class="hidden-step mb-4">
+          <h3 class="h5 fw-bold mb-3">Select Program</h3>
+          <div id="program-list" class="d-flex flex-column gap-2"></div>
+        </section>
+        <div class="d-flex flex-wrap justify-content-between gap-3 pt-4 border-top">
+          <button type="button" id="step2-back" class="btn btn-outline-secondary btn-lg rounded-3">← Back to Personal Info</button>
+          <button type="button" id="step2-continue" disabled class="btn btn-vtiac btn-primary btn-lg rounded-3 px-4">Continue to Schedule</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="register-step-3" class="hidden-step card border-0 shadow-sm rounded-4">
+      <div class="card-body p-4 p-md-5">
+        <div class="border-bottom pb-4 mb-4">
+          <h2 class="h4 fw-bold">Choose Preferred Schedule</h2>
+          <p class="text-secondary mb-0">Select the class schedule that works best for you</p>
+        </div>
+        <div class="alert alert-info d-flex align-items-start gap-2 mb-4" role="status">
+          <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
+          <span><strong>Disclaimer:</strong> Your preferred schedule is not final. The registrar will assign your actual class schedule based on availability—please do not expect your selected option to be guaranteed.</span>
+        </div>
+        <div id="register-submit-error-step3" class="alert alert-danger d-none" role="alert"></div>
+        <section class="mb-4">
+          <h3 class="h5 fw-bold mb-3">Available Schedules</h3>
+          <div id="schedule-list" class="d-flex flex-column gap-2"></div>
+        </section>
+        <div class="d-flex flex-wrap justify-content-between gap-3 pt-4 border-top">
+          <button type="button" id="step3-back" class="btn btn-outline-secondary btn-lg rounded-3">← Back to Program</button>
+          <button type="button" id="step3-submit" disabled class="btn btn-vtiac btn-primary btn-lg rounded-3 px-4">Submit Registration</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="register-step-4" class="hidden-step card border-0 shadow-lg rounded-4 text-center">
+      <div class="card-body p-4 p-md-5">
+        <div class="bg-success-subtle text-vtiac rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width:6rem;height:6rem"><span class="display-4 fw-bold">✔</span></div>
+        <h2 class="display-6 fw-bold mb-3">Registration Submitted Successfully!</h2>
+        <p class="fs-5 text-secondary mb-4 mx-auto" style="max-width:36rem">Your student account has been created. Your application is pending registrar review—you can sign in now to check your status.</p>
+        <div class="card bg-vtiac-light border-success-subtle text-start mb-4 mx-auto" style="max-width:48rem">
+          <div class="card-body">
+            <h3 class="h5 fw-bold border-bottom border-success-subtle pb-2 mb-3">Next Steps:</h3>
+            <ol class="list-unstyled d-flex flex-column gap-3 mb-0">
+              <li class="d-flex align-items-center gap-3"><span class="bg-vtiac text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold" style="width:2rem;height:2rem">1</span><span>Sign in with the email and password you just created</span></li>
+              <li class="d-flex align-items-center gap-3"><span class="bg-vtiac text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold" style="width:2rem;height:2rem">2</span><span>Wait for registrar verification (2-3 business days)</span></li>
+              <li class="d-flex align-items-center gap-3"><span class="bg-vtiac text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 fw-bold" style="width:2rem;height:2rem">3</span><span>Complete enrollment once your application is approved</span></li>
+            </ol>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap justify-content-center gap-3">
+          <a href="/login/student/" class="btn btn-vtiac btn-primary btn-lg rounded-3 px-5">Login to Student Portal</a>
+          <a href="/" class="btn btn-outline-secondary btn-lg rounded-3 px-4">Return to Home</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/register-wizard.js' %}"></script>
+{% endblock %}

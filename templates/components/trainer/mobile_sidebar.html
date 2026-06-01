@@ -1,0 +1,32 @@
+{% load static %}
+<div
+  class="offcanvas offcanvas-start trainer-offcanvas d-lg-none"
+  tabindex="-1"
+  id="mobileTrainerSidebar"
+  aria-labelledby="mobileTrainerSidebarLabel"
+>
+  <div class="offcanvas-header border-0 pb-0">
+    <div class="d-flex align-items-center gap-2">
+      {% include "components/shared/vtiac_brand.html" with logo_wrap_class="trainer-brand-logo" logo_size=36 name_class="offcanvas-title mb-0 fw-bold" brand_id="mobileTrainerSidebarLabel" subtitle="Trainer Portal" subtitle_class="trainer-brand-sub mb-0 small" stacked_subtitle=True %}
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body d-flex flex-column pt-2">
+    <nav class="trainer-nav flex-column flex-grow-1" aria-label="Trainer navigation">
+      {% for item in sidebar_menu %}
+      <a
+        href="{{ item.route }}"
+        class="trainer-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+        data-bs-dismiss="offcanvas"
+      >
+        <span class="trainer-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+        <span class="trainer-nav-label">{{ item.label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+    <a href="{% url 'logout' %}" class="trainer-logout mt-3" data-bs-dismiss="offcanvas">
+      <i class="bi bi-box-arrow-left" aria-hidden="true"></i>
+      <span>Logout</span>
+    </a>
+  </div>
+</div>

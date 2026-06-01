@@ -1,0 +1,9 @@
+{% load static %}
+<script type="module">
+  import { initStaffHeader, initLiveClock, initAllPortalOffcanvases } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Trainer", "{{ portal_display_name|default:'Trainer User' }}");
+  initAllPortalOffcanvases();
+  {% if show_clock %}
+  initLiveClock(null, "current-time");
+  {% endif %}
+</script>

@@ -1,0 +1,58 @@
+{% extends "trainer/base.html" %}
+
+
+{% block body %}
+{% include "components/trainer/layout_start.html" %}
+{% include "components/trainer/page_header.html" %}
+
+<article class="trainer-panel">
+  <div class="trainer-panel__head">
+    <h2 class="trainer-panel__title">Generate Reports</h2>
+  </div>
+  <div class="trainer-panel__body">
+    <div class="trainer-reports-grid">
+      <div class="trainer-report-card">
+        <div class="trainer-report-icon">
+          <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+        </div>
+        <h3>Class Record Report</h3>
+        <p>Download complete class record with grades and attendance</p>
+        <button type="button" class="btn trainer-btn-primary w-100" id="downloadClassRecordBtn">
+          <i class="bi bi-download" aria-hidden="true"></i>
+          Download Report
+        </button>
+      </div>
+
+      <div class="trainer-report-card">
+        <div class="trainer-report-icon">
+          <i class="bi bi-bar-chart" aria-hidden="true"></i>
+        </div>
+        <h3>Progress Report</h3>
+        <p>Student progress and achievement summary</p>
+        <button type="button" class="btn trainer-btn-primary w-100" id="downloadProgressReportBtn">
+          <i class="bi bi-download" aria-hidden="true"></i>
+          Download Report
+        </button>
+      </div>
+
+      <div class="trainer-report-card">
+        <div class="trainer-report-icon">
+          <i class="bi bi-activity" aria-hidden="true"></i>
+        </div>
+        <h3>Performance Analytics</h3>
+        <p>Detailed performance metrics and trends</p>
+        <button type="button" class="btn trainer-btn-primary w-100" id="downloadAnalyticsBtn">
+          <i class="bi bi-download" aria-hidden="true"></i>
+          Download Report
+        </button>
+      </div>
+    </div>
+  </div>
+</article>
+
+{% include "components/trainer/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/trainer/scripts_common.html" %}
+{% endblock %}

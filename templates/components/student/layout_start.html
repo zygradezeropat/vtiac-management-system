@@ -1,0 +1,26 @@
+{% load static %}
+<div class="d-flex vh-100 student-layout">
+  {% include "components/student/sidebar.html" %}
+  <div class="d-flex flex-column flex-grow-1 min-w-0">
+    <header class="student-topbar">
+      <button
+        type="button"
+        class="btn btn-light student-menu-btn d-lg-none"
+        data-bs-toggle="offcanvas"
+        data-bs-target="#mobileStudentSidebar"
+        aria-label="Open menu"
+      >
+        <i class="bi bi-list fs-4" aria-hidden="true"></i>
+      </button>
+      <div class="student-topbar-actions ms-auto">
+        {% include "components/shared/portal_notifications_bell.html" with icon_btn_class="student-icon-btn" %}
+        <div class="student-user-chip">
+          <div id="staff-initials" class="student-user-avatar">{{ portal_initials|default:"S" }}</div>
+          <div class="lh-1 d-none d-sm-block">
+            <p id="staff-display-name" class="student-user-name mb-0">{{ portal_display_name|default:"Student" }}</p>
+            <p id="staff-role-label" class="student-user-role mb-0">Student</p>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="student-main flex-grow-1 overflow-auto">

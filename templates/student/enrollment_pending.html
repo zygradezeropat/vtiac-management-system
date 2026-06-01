@@ -1,0 +1,114 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header">
+  <div>
+    <h1 class="student-page-title">{{ page_title }}</h1>
+    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
+</header>
+
+<div class="student-enroll-progress mb-4" aria-label="Enrollment progress {{ progress_percent }} percent">
+  <div class="student-enroll-progress__label">
+    <span>Progress: <strong>{{ progress_percent }}%</strong></span>
+  </div>
+  <div class="student-enroll-progress__track" role="progressbar" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+    <div class="student-enroll-progress__fill" style="width: {{ progress_percent }}%"></div>
+  </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<section class="student-panel student-enroll-card student-pending-card text-center">
+  <div class="student-pending-card__icon" aria-hidden="true">
+    {% if awaiting_registrar %}
+    <i class="bi bi-clock-history"></i>
+    {% elif documents_approved_can_pay %}
+    <i class="bi bi-credit-card"></i>
+    {% else %}
+    <i class="bi bi-hourglass-split"></i>
+    {% endif %}
+  </div>
+  {% if awaiting_registrar %}
+  <h2 class="student-pending-card__title">Pending Approval</h2>
+  <p class="student-pending-card__text">
+    Your payment proof is on file. The registrar is reviewing your enrollment. You may still update your forms if you need to correct any mistakes.
+  </p>
+  <div class="student-pending-card__actions">
+    <a href="{% url 'student_payments' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
+      <i class="bi bi-receipt" aria-hidden="true"></i>
+      View payment details
+    </a>
+  {% elif documents_approved_can_pay %}
+  <h2 class="student-pending-card__title">Documents Approved</h2>
+  <p class="student-pending-card__text">
+    Your documents are approved. You can now proceed to the payment section.
+  </p>
+  <div class="student-pending-card__actions">
+    <a href="{% url 'student_payments' %}" class="student-enroll-submit text-decoration-none d-inline-flex">
+      Proceed to Payment
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </a>
+  {% else %}
+  <h2 class="student-pending-card__title">Requirements Submitted</h2>
+  <p class="student-pending-card__text">
+    Please wait for the registrar to review and approve your uploaded documents. You will be able to proceed to payment once all documents are approved.
+  </p>
+  <div class="student-pending-card__actions">
+  {% endif %}
+    {% if can_edit_enrollment %}
+    <a href="{% url 'student_enrollment' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
+      <i class="bi bi-pencil-square" aria-hidden="true"></i>
+      {{ edit_profile_label }}
+    </a>
+    <a href="{% url 'student_enrollment_requirements' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
+      <i class="bi bi-folder2-open" aria-hidden="true"></i>
+      {{ edit_requirements_label }}
+    </a>
+    {% endif %}
+  </div>
+</section>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
+{% endblock %}

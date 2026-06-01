@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extra_head %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/modules/registrar.css' %}" />
+{% endblock %}
+
+{% block body %}
+{% include "components/admin/layout_start.html" %}
+{% include "components/admin/page_header.html" %}
+
+<div class="registrar-panel mb-0">
+  <div class="registrar-panel__body">
+    {% csrf_token %}
+    {{ trainer_approval_items|json_script:"trainer-approval-data" }}
+    <div class="registrar-enrollment-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <p class="text-muted small mb-0">Review trainer applications and approve or reject account activation.</p>
+      <input
+        type="search"
+        id="trainer-approval-search"
+        class="form-control form-control-sm registrar-verification-search"
+        placeholder="Search by name, email, or specialization..."
+        autocomplete="off"
+      />
+    </div>
+    <div
+      id="trainer-approval-list"
+      class="registrar-enrollment-list d-flex flex-column gap-3"
+      data-approve-url="{% url 'admin_trainer_approval_approve' %}"
+      data-reject-url="{% url 'admin_trainer_approval_reject' %}"
+    ></div>
+    <div id="trainer-approval-empty" class="registrar-verification-empty text-center py-5 d-none">
+      <i class="bi bi-check-circle display-4 text-success opacity-75" aria-hidden="true"></i>
+      <p class="fw-semibold mt-3 mb-1">No pending trainer accounts</p>
+      <p class="text-muted small mb-0">All trainer applications have been processed.</p>
+    </div>
+  </div>
+</div>
+
+{% include "components/registrar/partials/trainer_approval_view_modal.html" %}
+
+<div id="trainer-approval-confirm-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h3 id="trainer-approval-confirm-title" class="modal-title h5 fw-semibold"></h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-2">
+        <p id="trainer-approval-confirm-body" class="text-muted mb-0"></p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="trainer-approval-confirm-action" class="btn px-4"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/admin/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-trainer-approval.js' %}"></script>
+{% include "components/admin/scripts_common.html" %}
+{% endblock %}

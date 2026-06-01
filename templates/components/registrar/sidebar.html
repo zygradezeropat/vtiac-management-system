@@ -1,0 +1,24 @@
+{% load static %}
+<aside class="registrar-sidebar d-none d-lg-flex flex-column flex-shrink-0">
+  <a href="{% url 'registrar_module' module='dashboard' %}" class="registrar-brand text-decoration-none">
+    {% include "components/shared/vtiac_brand.html" with name_class="registrar-brand-name" logo_wrap_class="registrar-brand-logo" subtitle="Registrar Portal" subtitle_class="registrar-brand-role" stacked_subtitle=True %}
+  </a>
+
+  <nav class="registrar-nav flex-column flex-grow-1" aria-label="Registrar navigation">
+    {% for item in sidebar_menu %}
+    <a
+      href="{{ item.route }}"
+      class="registrar-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+    >
+      <span class="registrar-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+      <span class="registrar-nav-label">{{ item.label }}</span>
+      {% if item.badge %}<span class="registrar-nav-badge {{ item.badge_class|default:'' }}">{{ item.badge }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </nav>
+
+  <a href="{% url 'logout' %}" class="registrar-logout">
+    <i class="bi bi-box-arrow-left" aria-hidden="true"></i>
+    <span>Logout</span>
+  </a>
+</aside>

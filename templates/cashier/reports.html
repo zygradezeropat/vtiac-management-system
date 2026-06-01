@@ -1,0 +1,128 @@
+{% extends "cashier/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/cashier/layout_start.html" %}
+{% include "components/cashier/page_header.html" %}
+
+<article class="cashier-panel">
+  <div class="cashier-panel__head cashier-panel__head--stack">
+    <h2 class="cashier-panel__title">Gross Income Reports</h2>
+    <p class="cashier-panel__subtitle">View income by period</p>
+  </div>
+  <div class="cashier-panel__body">
+    <div class="cashier-income-grid">
+      <div class="cashier-income-card">
+        <div class="cashier-income-icon cashier-action-icon--emerald"><i class="bi bi-calendar3" aria-hidden="true"></i></div>
+        <p class="cashier-income-label">Monthly Gross Income</p>
+        <p class="cashier-income-value" id="monthlyIncome">₱0.00</p>
+        <p class="cashier-income-period">Current Month</p>
+      </div>
+      <div class="cashier-income-card">
+        <div class="cashier-income-icon cashier-action-icon--blue"><i class="bi bi-calendar-week" aria-hidden="true"></i></div>
+        <p class="cashier-income-label">Weekly Gross Income</p>
+        <p class="cashier-income-value" id="weeklyIncome">₱0.00</p>
+        <p class="cashier-income-period">Current Week</p>
+      </div>
+      <div class="cashier-income-card">
+        <div class="cashier-income-icon cashier-action-icon--purple"><i class="bi bi-calendar-range" aria-hidden="true"></i></div>
+        <p class="cashier-income-label">Annual Gross Income</p>
+        <p class="cashier-income-value" id="annualIncome">₱0.00</p>
+        <p class="cashier-income-period">Current Year</p>
+      </div>
+      <div class="cashier-income-card">
+        <div class="cashier-income-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-currency-dollar" aria-hidden="true"></i></div>
+        <p class="cashier-income-label">Total Gross Income</p>
+        <p class="cashier-income-value" id="totalIncome">₱0.00</p>
+        <p class="cashier-income-period">All Time</p>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="cashier-panel">
+  <div class="cashier-panel__head cashier-panel__head--stack">
+    <h2 class="cashier-panel__title">Custom Date Range Report</h2>
+    <p class="cashier-panel__subtitle">Filter by specific date range</p>
+  </div>
+  <div class="cashier-panel__body">
+    <div class="cashier-date-range-form">
+      <div class="cashier-form-group">
+        <label class="cashier-form-label" for="startDate">Start Date</label>
+        <input type="date" class="form-control" id="startDate" />
+      </div>
+      <div class="cashier-form-group">
+        <label class="cashier-form-label" for="endDate">End Date</label>
+        <input type="date" class="form-control" id="endDate" />
+      </div>
+      <button type="button" class="btn cashier-btn-primary" id="filterByDateRangeBtn">
+        <i class="bi bi-search" aria-hidden="true"></i> Filter
+      </button>
+    </div>
+    <div class="cashier-range-result" id="customRangeResult">
+      <div class="cashier-result-row">
+        <span>Income for Selected Period:</span>
+        <span id="customRangeIncome">₱0.00</span>
+      </div>
+      <div class="cashier-result-row">
+        <span>Total Transactions:</span>
+        <span id="customRangeCount">0</span>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="cashier-panel">
+  <div class="cashier-panel__head cashier-panel__head--stack">
+    <h2 class="cashier-panel__title">Payment Status Summary</h2>
+    <p class="cashier-panel__subtitle">Breakdown of partial vs full payments</p>
+  </div>
+  <div class="cashier-panel__body">
+    <div class="cashier-status-grid">
+      <button type="button" class="cashier-status-card border-0 bg-white" id="showFullPaymentsBtn">
+        <div class="cashier-income-icon cashier-action-icon--emerald"><i class="bi bi-check-circle" aria-hidden="true"></i></div>
+        <p class="cashier-income-label">Full Payments</p>
+        <p class="cashier-income-value" id="fullPaymentCount">0</p>
+        <p class="cashier-income-period" id="fullPaymentAmount">₱0 total</p>
+      </button>
+      <button type="button" class="cashier-status-card border-0 bg-white" id="showPartialPaymentsBtn">
+        <div class="cashier-income-icon" style="background:#fef3c7;color:#d97706;"><i class="bi bi-clock" aria-hidden="true"></i></div>
+        <p class="cashier-income-label">Partial Payments</p>
+        <p class="cashier-income-value" id="partialPaymentCount">0</p>
+        <p class="cashier-income-period" id="partialPaymentAmount">₱0 collected</p>
+      </button>
+      <div class="cashier-status-card">
+        <div class="cashier-income-icon" style="background:#f3f4f6;color:#4b5563;"><i class="bi bi-currency-dollar" aria-hidden="true"></i></div>
+        <p class="cashier-income-label">Total Revenue</p>
+        <p class="cashier-income-value" id="totalRevenue">₱0</p>
+        <p class="cashier-income-period">All payments</p>
+      </div>
+    </div>
+    <div class="cashier-status-details hidden" id="fullPaymentDetails">
+      <div class="cashier-status-details__head">
+        <h4>Full Payment Students</h4>
+        <button type="button" class="btn btn-sm cashier-btn-ghost" id="hideFullPaymentDetailsBtn">Close</button>
+      </div>
+      <div id="fullPaymentList"></div>
+    </div>
+    <div class="cashier-status-details hidden" id="partialPaymentDetails">
+      <div class="cashier-status-details__head">
+        <h4>Partial Payment Students</h4>
+        <button type="button" class="btn btn-sm cashier-btn-ghost" id="hidePartialPaymentDetailsBtn">Close</button>
+      </div>
+      <div id="partialPaymentList"></div>
+    </div>
+  </div>
+</article>
+
+{% include "components/cashier/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/cashier/scripts_common.html" %}
+<script type="module">
+  import { initCashierReports } from "{% static 'js/cashier-reports.js' %}";
+  initCashierReports();
+</script>
+{% endblock %}

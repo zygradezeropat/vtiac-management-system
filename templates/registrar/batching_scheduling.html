@@ -1,0 +1,145 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+{% if enrollment_pipeline_json %}{{ enrollment_pipeline_json|json_script:"enrollment-pipeline-config" }}{% endif %}
+{% if batching_trainers %}{{ batching_trainers|json_script:"batching-trainers-data" }}{% endif %}
+{% if batching_courses %}{{ batching_courses|json_script:"batching-courses-data" }}{% endif %}
+{% if batching_templates %}{{ batching_templates|json_script:"batching-templates-data" }}{% endif %}
+
+<header class="registrar-page-header">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+</header>
+
+{% csrf_token %}
+<div id="batching-category-tabs" class="registrar-batch-tabs mb-3" role="tablist" aria-label="Program category"></div>
+<div id="batching-courses" class="row g-3 mb-4"></div>
+<div id="batching-courses-empty" class="registrar-batching-category-empty d-none text-center py-5">
+  <p class="text-muted mb-0">No programs in this category yet.</p>
+</div>
+
+<div id="batching-placeholder" class="registrar-panel registrar-batching-placeholder text-center py-5">
+  <i class="bi bi-calendar-week display-4 text-secondary opacity-50" aria-hidden="true"></i>
+  <p class="text-muted mt-3 mb-0">Only course cards with at least 3 unassigned students can be opened for scheduling and batch finalization.</p>
+</div>
+
+<div id="batching-detail" class="registrar-panel d-none">
+  <div class="registrar-panel__body">
+    <div class="registrar-batching-detail__head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-4">
+      <div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <h2 id="batching-detail-title" class="registrar-panel__title mb-0"></h2>
+          <span id="batching-duration-badge" class="registrar-pill registrar-pill--primary d-none"></span>
+        </div>
+        <p class="registrar-panel__subtitle mb-0">Create recurring schedule templates for this program</p>
+      </div>
+      <button type="button" id="batching-detail-close" class="btn btn-outline-secondary btn-sm">Close</button>
+    </div>
+
+    <form id="schedule-template-form" class="registrar-schedule-template-form panel-light rounded-3 p-3 p-md-4 mb-4" novalidate>
+      <p class="registrar-schedule-template-form__eyebrow mb-4">New schedule template</p>
+
+      <div class="mb-4">
+        <span class="form-label fw-semibold d-block mb-2">Schedule type</span>
+        <div id="schedule-type-pills" class="registrar-schedule-pills" role="group" aria-label="Schedule type">
+          <button type="button" class="registrar-schedule-pill registrar-schedule-pill--type" data-schedule-type="weekdays">Weekdays</button>
+          <button type="button" class="registrar-schedule-pill registrar-schedule-pill--type" data-schedule-type="weekends">Weekends</button>
+          <button type="button" class="registrar-schedule-pill registrar-schedule-pill--type" data-schedule-type="custom">Custom</button>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <span class="form-label fw-semibold d-block mb-2">Days of the week <span class="text-danger">*</span></span>
+        <div id="day-pills" class="registrar-schedule-pills" role="group" aria-label="Days of the week"></div>
+        <span id="template-days-error" class="text-danger small fw-semibold d-none"></span>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold" for="template-time-from">Time from <span class="text-danger">*</span></label>
+          <input type="time" id="template-time-from" class="form-control form-control-vtiac" value="08:00" required />
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold" for="template-time-to">Time to <span class="text-danger">*</span></label>
+          <input type="time" id="template-time-to" class="form-control form-control-vtiac" value="12:00" required />
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold" for="template-daily-hours">Daily hours</label>
+        <input type="text" id="template-daily-hours" class="form-control form-control-vtiac" readonly tabindex="-1" aria-readonly="true" />
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold" for="template-available-from">Start Date</label>
+          <input type="date" id="template-available-from" class="form-control form-control-vtiac" />
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold" for="template-available-until">End Date</span></label>
+          <input type="date" id="template-available-until" class="form-control form-control-vtiac" />
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold" for="template-trainer">Assigned Trainer <span class="text-danger">*</span></label>
+        <select id="template-trainer" class="form-select form-select-vtiac" required>
+          <option value="">Select trainer</option>
+        </select>
+        <small id="template-trainer-hint" class="text-muted d-block mt-1"></small>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold" for="template-assessment-at">Assessment Date &amp; Time <span class="text-danger">*</span></label>
+          <input type="datetime-local" id="template-assessment-at" class="form-control form-control-vtiac" required />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold" for="template-examiner-name">Examiner <span class="text-danger">*</span></label>
+          <input type="text" id="template-examiner-name" class="form-control form-control-vtiac" placeholder="Type examiner name" required />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold" for="template-examination-course">Examination <span class="text-danger">*</span></label>
+          <select id="template-examination-course" class="form-select form-select-vtiac" required>
+            <option value="">Select examination</option>
+            <option value="Driving NC II">Driving NC II</option>
+            <option value="Driving NC III (Passenger Bus / Straight Truck)">Driving NC III (Passenger Bus / Straight Truck)</option>
+            <option value="Automotive Servicing NC I">Automotive Servicing NC I</option>
+            <option value="Automotive Servicing (Engine Repair) NC II">Automotive Servicing (Engine Repair) NC II</option>
+            <option value="Rice Machinery Operations NC II">Rice Machinery Operations NC II</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-end gap-2 pt-2">
+        <button type="button" id="schedule-template-cancel" class="btn btn-outline-secondary px-4">Cancel</button>
+        <button type="submit" id="schedule-template-save" class="btn btn-outline-dark px-4 fw-semibold">Save template</button>
+      </div>
+    </form>
+
+    <section id="schedule-templates-section" class="registrar-schedule-templates-list">
+      <h3 class="h6 fw-semibold mb-3">Saved templates</h3>
+      <div id="schedule-templates-list" class="d-flex flex-column gap-2"></div>
+      <p id="schedule-templates-empty" class="text-muted small mb-0 d-none">No templates yet. Create one above.</p>
+    </section>
+  </div>
+</div>
+
+{% include "components/registrar/finalize_batch_confirm_modal.html" %}
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-batching.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+{% endblock %}
+  

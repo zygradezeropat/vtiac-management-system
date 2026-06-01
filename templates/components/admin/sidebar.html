@@ -1,0 +1,45 @@
+{% load static %}
+<aside class="admin-sidebar d-none d-lg-flex flex-column flex-shrink-0">
+  <a href="{% url 'admin_dashboard' %}" class="admin-brand text-decoration-none">
+    {% include "components/shared/vtiac_brand.html" with name_class="admin-brand-name" logo_wrap_class="admin-brand-logo" logo_id="sidebarLogo" %}
+  </a>
+
+  <nav class="admin-nav flex-column flex-grow-1" aria-label="Admin navigation">
+    {% for item in sidebar_menu %}
+    <a
+      href="{{ item.route }}"
+      class="admin-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+    >
+      <span class="admin-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+      <span class="admin-nav-label">{{ item.label }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <a href="{% url 'logout' %}" class="admin-logout" id="logoutButton">
+    <i class="bi bi-box-arrow-left" aria-hidden="true"></i>
+    <span class="admin-logout-label">Logout</span>
+  </a>
+</aside>
+
+<div class="offcanvas offcanvas-start admin-offcanvas d-lg-none" tabindex="-1" id="mobileAdminSidebar" aria-labelledby="mobileAdminSidebarLabel">
+  <div class="offcanvas-header border-0 pb-0">
+    {% include "components/shared/vtiac_brand.html" with logo_wrap_class="admin-brand-logo" logo_size=36 name_class="offcanvas-title mb-0 fw-bold" brand_id="mobileAdminSidebarLabel" %}
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body d-flex flex-column pt-2">
+    <nav class="admin-nav flex-column flex-grow-1" aria-label="Admin navigation">
+      {% for item in sidebar_menu %}
+      <a
+        href="{{ item.route }}"
+        class="admin-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+        data-bs-dismiss="offcanvas"
+      >
+        <span class="admin-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+        <span class="admin-nav-label">{{ item.label }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+    <a href="{% url 'logout' %}" class="admin-logout mt-3" data-bs-dismiss="offcanvas">Logout</a>
+  </div>
+</div>

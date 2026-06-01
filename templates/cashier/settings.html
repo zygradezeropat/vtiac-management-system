@@ -1,0 +1,78 @@
+{% extends "cashier/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/cashier/layout_start.html" %}
+{% include "components/cashier/page_header.html" %}
+
+<div class="cashier-settings-grid">
+  <article class="cashier-panel mb-0">
+    <div class="cashier-panel__head cashier-panel__head--stack">
+      <h2 class="cashier-panel__title">Profile Information</h2>
+      <p class="cashier-panel__subtitle">Update your personal details</p>
+    </div>
+    <div class="cashier-panel__body">
+      <form id="cashierProfileForm">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <div class="cashier-form-group">
+              <label class="cashier-form-label" for="profileFirstName">First Name</label>
+              <input type="text" class="form-control" id="profileFirstName" value="{{ portal_display_name|default:'Cashier' }}" />
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="cashier-form-group">
+              <label class="cashier-form-label" for="profileLastName">Last Name</label>
+              <input type="text" class="form-control" id="profileLastName" />
+            </div>
+          </div>
+        </div>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="profileEmail">Email</label>
+          <input type="email" class="form-control" id="profileEmail" />
+        </div>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="profilePhone">Phone Number</label>
+          <input type="tel" class="form-control" id="profilePhone" />
+        </div>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="profileAddress">Address</label>
+          <input type="text" class="form-control" id="profileAddress" />
+        </div>
+        <button type="submit" class="btn cashier-btn-primary w-100">Save Changes</button>
+      </form>
+    </div>
+  </article>
+
+  <article class="cashier-panel mb-0">
+    <div class="cashier-panel__head cashier-panel__head--stack">
+      <h2 class="cashier-panel__title">Password Settings</h2>
+      <p class="cashier-panel__subtitle">Change your account password</p>
+    </div>
+    <div class="cashier-panel__body">
+      <form id="cashierPasswordForm">
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="currentPassword">Current Password</label>
+          <input type="password" class="form-control" id="currentPassword" placeholder="Enter current password" />
+        </div>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="newPassword">New Password</label>
+          <input type="password" class="form-control" id="newPassword" placeholder="Enter new password" />
+        </div>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="confirmPassword">Confirm New Password</label>
+          <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm new password" />
+        </div>
+        <button type="submit" class="btn cashier-btn-primary w-100">Update Password</button>
+      </form>
+    </div>
+  </article>
+</div>
+
+{% include "components/cashier/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/cashier/scripts_common.html" %}
+{% endblock %}

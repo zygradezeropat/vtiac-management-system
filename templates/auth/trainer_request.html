@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block body %}
+<main id="trainer-request-page" class="trainer-request-page min-vh-100 bg-vtiac-light py-3 py-md-4 overflow-x-hidden" data-show-confirmation="{% if show_confirmation %}1{% else %}0{% endif %}" data-reference-id="{{ reference_id|default:'' }}">
+  <div class="container-xl trainer-request-container px-3 px-lg-4">
+    <header class="text-center mb-3 mb-md-4">
+      <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+        {% include "components/shared/vtiac_brand.html" with name_class="h3 fw-bold mb-0" %}
+      </div>
+      <p class="text-vtiac fw-bold text-uppercase small mb-0">Trainer Portal – Account Request</p>
+    </header>
+
+    <div id="trainer-request-form-panel" class="card border-0 shadow-sm rounded-4 mx-auto">
+      <div class="card-body p-4 p-md-5">
+        <h2 class="h4 fw-bold mb-2">Trainer Account Request</h2>
+        <p class="text-secondary mb-3">Fill out this form to request a trainer account. The registrar will review and approve your request.</p>
+
+        <form id="trainer-request-form" method="post" action="{% url 'trainer_request' %}" novalidate>
+          {% csrf_token %}
+
+          <section class="mb-0">
+            <h3 class="h6 fw-bold border-bottom pb-2 mb-3">Personal Information</h3>
+            <div class="row g-3">
+              <div class="col-sm-6 col-xl-3">
+                <label class="form-label fw-bold" for="field-firstName">First Name <span class="text-danger">*</span></label>
+                <input type="text" id="field-firstName" name="first_name" required class="form-control form-control-vtiac" placeholder="Juan" />
+                <span data-error-for="field-firstName" class="text-danger small fw-bold d-none"></span>
+              </div>
+              <div class="col-sm-6 col-xl-3">
+                <label class="form-label fw-bold" for="field-middleName">Middle Name <span class="text-secondary fw-normal">(optional)</span></label>
+                <input type="text" id="field-middleName" name="middle_name" class="form-control form-control-vtiac" placeholder="Santos" />
+                <div class="form-check mt-1">
+                  <input class="form-check-input" type="checkbox" id="field-no-middle-name" />
+                  <label class="form-check-label small" for="field-no-middle-name">I don't have a middle name</label>
+                </div>
+              </div>
+              <div class="col-sm-6 col-xl-2">
+                <label class="form-label fw-bold" for="field-lastName">Last Name <span class="text-danger">*</span></label>
+                <input type="text" id="field-lastName" name="last_name" required class="form-control form-control-vtiac" placeholder="Dela Cruz" />
+                <span data-error-for="field-lastName" class="text-danger small fw-bold d-none"></span>
+              </div>
+              <div class="col-sm-6 col-xl-2">
+                <label class="form-label fw-bold" for="field-email">Email Address <span class="text-danger">*</span></label>
+                <input type="email" id="field-email" name="email" required class="form-control form-control-vtiac" placeholder="your.email@vtiac.com" autocomplete="email" />
+                <span data-error-for="field-email" class="text-danger small fw-bold d-none"></span>
+              </div>
+              <div class="col-sm-6 col-xl-2">
+                <label class="form-label fw-bold" for="field-phone">Phone Number <span class="text-danger">*</span></label>
+                <input type="tel" id="field-phone" name="phone_number" inputmode="numeric" maxlength="11" value="09" required class="form-control form-control-vtiac" placeholder="09171234567" autocomplete="tel" />
+                <span data-error-for="field-phone" class="text-danger small fw-bold d-none"></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="mb-0 mt-4">
+            <h3 class="h6 fw-bold border-bottom pb-2 mb-3">Account Credentials</h3>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-bold" for="field-password">Desired Password <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="password" id="field-password" name="password" required minlength="8" autocomplete="new-password" class="form-control form-control-vtiac" placeholder="Minimum 8 characters" />
+                  <button type="button" class="btn btn-light border" data-toggle-password="field-password" aria-label="Show password">👁</button>
+                </div>
+                <span data-error-for="field-password" class="text-danger small fw-bold d-none"></span>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-bold" for="field-passwordConfirm">Confirm Password <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="password" id="field-passwordConfirm" name="password_confirm" required minlength="8" autocomplete="new-password" class="form-control form-control-vtiac" placeholder="Re-enter password" />
+                  <button type="button" class="btn btn-light border" data-toggle-password="field-passwordConfirm" aria-label="Show password">👁</button>
+                </div>
+                <span data-error-for="field-passwordConfirm" class="text-danger small fw-bold d-none"></span>
+              </div>
+            </div>
+          </section>
+
+          <section class="mb-0 mt-4">
+            <h3 class="h6 fw-bold border-bottom pb-2 mb-3">Program / Qualification <span class="text-danger">*</span> <span class="fw-normal text-secondary">(select at least one)</span></h3>
+            <div class="trainer-request-qual-grid mb-3">
+              {% for program in program_qualifications %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="qualifications" value="{{ program }}" id="qual-{{ forloop.counter }}" data-qualification-checkbox />
+                <label class="form-check-label" for="qual-{{ forloop.counter }}">{{ program }}</label>
+              </div>
+              {% endfor %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="qualification_other" id="qual-other" data-qualification-other />
+                <label class="form-check-label" for="qual-other">Other (specify below)</label>
+              </div>
+            </div>
+            <span data-error-for="qualifications-group" class="text-danger small fw-bold d-none d-block mb-2"></span>
+            <div class="row g-3">
+              <div class="col-lg-6">
+                <label class="form-label fw-bold" for="field-otherQual">Highest TESDA Qualification / NC Level <span class="text-danger">*</span></label>
+                <input type="text" id="field-otherQual" name="highest_tesda_nc" required class="form-control form-control-vtiac" placeholder="e.g., NC II, NC III, Assessor" />
+                <span data-error-for="field-otherQual" class="text-danger small fw-bold d-none"></span>
+              </div>
+              <div class="col-lg-6">
+                <label class="form-label fw-bold" for="field-otherSpecify">Other qualification (if selected above)</label>
+                <input type="text" id="field-otherSpecify" name="other_qualification" class="form-control form-control-vtiac" placeholder="Specify other program" disabled />
+              </div>
+            </div>
+          </section>
+
+          <section class="mb-0 mt-4">
+            <h3 class="h6 fw-bold border-bottom pb-2 mb-3">Experience &amp; Remarks</h3>
+            <div class="row g-3">
+              <div class="col-lg-4 col-xl-3">
+                <label class="form-label fw-bold" for="field-experience">Years of Teaching / Training Experience <span class="text-danger">*</span></label>
+                <select id="field-experience" name="years_experience" required class="form-select form-select-vtiac">
+                  <option value="">Select range</option>
+                  <option value="lt_1">Less than 1 year</option>
+                  <option value="1_3">1–3 years</option>
+                  <option value="4_6">4–6 years</option>
+                  <option value="7_10">7–10 years</option>
+                  <option value="gt_10">More than 10 years</option>
+                </select>
+                <span data-error-for="field-experience" class="text-danger small fw-bold d-none"></span>
+              </div>
+              <div class="col-lg-8 col-xl-9">
+                <label class="form-label fw-bold" for="field-remarks">Additional Remarks <span class="text-secondary fw-normal">(optional)</span></label>
+                <textarea id="field-remarks" name="remarks" rows="2" class="form-control form-control-vtiac" placeholder="Briefly describe your background, previous institutions, certifications, etc."></textarea>
+              </div>
+            </div>
+          </section>
+
+          <button type="submit" id="trainer-request-submit" disabled class="btn btn-vtiac btn-primary btn-lg w-100 rounded-3 fw-bold">
+            <i class="bi bi-send me-2" aria-hidden="true"></i>Submit Account Request
+          </button>
+          <p class="text-secondary small text-center mt-3 mb-0">
+            Your request will be reviewed by the VTIAC Registrar. You will be notified via email once your account is approved.
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <div id="trainer-request-success-panel" class="card border-0 shadow-sm rounded-4 mx-auto hidden-step text-center">
+      <div class="card-body p-4 p-md-5">
+        <div class="bg-success-subtle text-vtiac rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width:5rem;height:5rem">
+          <span class="display-5 fw-bold">✔</span>
+        </div>
+        <h2 class="h4 fw-bold mb-3">Request Submitted Successfully</h2>
+        <p data-ref-block class="d-none fw-bold mb-3">Your reference number: <span id="trainer-request-reference" class="font-monospace text-vtiac"></span></p>
+        <p class="text-secondary mb-4">The registrar will review your trainer account request. You will be notified via email once your account is approved.</p>
+        <a href="{% url 'login' role='trainer' %}" class="btn btn-vtiac btn-primary btn-lg rounded-3 px-4">Back to Trainer Login</a>
+      </div>
+    </div>
+
+    <p class="text-center mt-4 mb-0">
+      <a href="{% url 'login' role='trainer' %}" class="text-secondary fw-bold text-decoration-none small">← Back to Login</a>
+    </p>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/trainer-request.js' %}"></script>
+{% endblock %}

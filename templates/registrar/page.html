@@ -1,0 +1,30 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+
+<header class="registrar-page-header">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+</header>
+
+<article class="registrar-panel">
+  <div class="registrar-panel__body text-center py-5">
+    <i class="bi bi-tools display-4 text-secondary opacity-50" aria-hidden="true"></i>
+    <p class="text-muted mt-3 mb-0">This section is ready for implementation.</p>
+  </div>
+</article>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+{% endblock %}

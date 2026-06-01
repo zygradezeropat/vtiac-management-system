@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load static %}
+
+
+{% block body %}
+<div class="portal-login-page min-vh-100 bg-light d-flex flex-column align-items-center justify-content-center p-3 p-sm-4 position-relative overflow-x-hidden">
+  <button
+    type="button"
+    class="btn btn-light border position-absolute top-0 end-0 m-3 d-flex align-items-center justify-content-center"
+    style="width:2.75rem;height:2.75rem"
+    data-bs-toggle="offcanvas"
+    data-bs-target="#staffMenuOffcanvas"
+    aria-controls="staffMenuOffcanvas"
+    aria-label="Open staff menu"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/></svg>
+  </button>
+  <div class="text-center mb-4">
+    <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+      {% include "components/shared/vtiac_brand.html" with logo_wrap_class="" name_class="h3 fw-bold mb-0" %}
+    </div>
+    <p class="text-vtiac fw-bold text-uppercase small tracking-wide mb-0">{{ portal_label }}</p>
+  </div>
+
+  <div class="card border-0 shadow-sm rounded-4 w-100" style="max-width:28rem">
+    <div class="card-body p-4 p-md-5">
+      <h2 class="h4 fw-bold mb-1">{{ card_title }}</h2>
+      <p class="text-secondary mb-4">Please enter your credentials to access the system.</p>
+
+      {% if messages %}
+      {% for message in messages %}
+      {% if 'error' in message.tags %}
+      <div class="alert alert-danger mb-4 py-3 rounded-3" role="alert">{{ message }}</div>
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+
+      {% if not can_login %}
+      <div class="alert alert-warning">
+        <p class="fw-bold mb-2">This portal role is not available.</p>
+        <p class="small mb-0">Choose a valid role from the home page or complete <a href="{% url 'register' %}">student registration</a> first.</p>
+      </div>
+      {% else %}
+      <form id="portal-login-form" method="post" action="{% url 'login' role=role %}">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label fw-bold" for="login-email">Email Address</label>
+          <input type="email" id="login-email" name="email" required placeholder="your.email@example.com" class="form-control form-control-lg rounded-3 bg-light border-0" autocomplete="username" />
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-bold" for="password">Password</label>
+          <div class="input-group">
+            <input type="password" id="password" name="password" required placeholder="••••••••" class="form-control form-control-lg rounded-start-3 bg-light border-0" autocomplete="current-password" />
+            <button type="button" id="toggle-password" class="btn btn-light border-0" aria-label="Show password">👁</button>
+          </div>
+        </div>
+        <button type="submit" id="login-submit" class="btn btn-vtiac btn-primary btn-lg w-100 rounded-3 fw-bold">{{ submit_label }}</button>
+      </form>
+      {% if show_account_request_link %}
+      <p class="portal-login-account-request text-center text-vtiac small mb-0 mt-3">
+        {{ account_request_prompt }}
+        <a href="{% url 'trainer_request' %}" class="text-vtiac fw-semibold text-decoration-underline">{{ account_request_link_label }}</a>
+      </p>
+      {% endif %}
+      {% endif %}
+
+      {% if can_login %}
+      <!-- <div class="alert alert-info mt-4 mb-0 small">
+        <p class="fw-bold text-uppercase mb-2" style="font-size:0.65rem">{{ help_title }}</p>
+        {% if help_link_register %}
+        <p class="mb-0">Use the email and password you set during <a href="{% url 'register' %}">registration</a>. New here? Register first, then return to sign in.</p>
+        {% else %}
+        <p class="mb-2">{{ help_text }}</p>
+        {% if is_staff_role %}
+        <div class="d-flex justify-content-between"><span class="opacity-75">Email:</span><span class="font-monospace fw-bold">{{ role }}@vtiac.local</span></div>
+        <div class="d-flex justify-content-between"><span class="opacity-75">Pass:</span><span class="font-monospace fw-bold">StaffPass123!</span></div>
+        {% endif %}
+        {% endif %}
+      </div> -->
+      {% endif %}
+    </div>
+  </div>
+
+  <a href="{% url 'landing' %}" class="mt-4 text-secondary fw-bold text-decoration-none small">← Back to Home</a>
+</div>
+
+{% include "components/shared/staff_login_drawer.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/staff-login-drawer.js' %}"></script>
+{% if can_login %}
+<script type="module" src="{% static 'js/login.js' %}"></script>
+{% endif %}
+{% endblock %}
