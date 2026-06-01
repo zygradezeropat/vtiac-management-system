@@ -25,7 +25,15 @@
           </div>
         </div>
       </div>
-      <form id="profile-form" class="student-settings-form d-flex flex-column" data-static-base="{% static '' %}">
+      <form
+        id="profile-form"
+        class="student-settings-form d-flex flex-column"
+        data-static-base="{% static '' %}"
+        data-profile-url="{% url 'student_settings_profile_api' %}"
+        method="post"
+        novalidate
+      >
+        {% csrf_token %}
         <script id="settings-address-seed" type="application/json">{{ settings_address_json|default:"{}"|safe }}</script>
         <div class="row g-2 mb-2">
           <div class="col-sm-6">
@@ -88,7 +96,14 @@
           </div>
         </div>
       </div>
-      <form id="password-form" class="student-settings-form d-flex flex-column">
+      <form
+        id="password-form"
+        class="student-settings-form d-flex flex-column"
+        data-password-url="{% url 'student_settings_password_api' %}"
+        method="post"
+        novalidate
+      >
+        {% csrf_token %}
         <div class="mb-2">
           <label class="form-label fw-medium small" for="password-current">Current Password <span class="text-danger">*</span></label>
           <div class="input-group input-group-sm">
@@ -122,6 +137,8 @@
     </article>
   </div>
 </div>
+
+{% include "components/shared/settings_feedback_modal.html" %}
 
 {% include "components/student/layout_end.html" %}
 {% endblock %}

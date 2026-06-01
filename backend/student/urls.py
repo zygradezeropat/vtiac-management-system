@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import document_views, views
+from . import document_views, settings_api, views
 
 urlpatterns = [
     path("register/", views.register, name="register"),
@@ -20,6 +20,16 @@ urlpatterns = [
     path("dashboard/student/payments/", views.payments, name="student_payments"),
     path("dashboard/student/documents/", document_views.documents, name="student_documents"),
     path("dashboard/student/settings/", views.settings, name="student_settings"),
+    path(
+        "dashboard/student/api/settings/profile/",
+        settings_api.settings_profile_api,
+        name="student_settings_profile_api",
+    ),
+    path(
+        "dashboard/student/api/settings/password/",
+        settings_api.settings_password_api,
+        name="student_settings_password_api",
+    ),
     path(
         "dashboard/student/documents/<str:doc_key>/view/",
         document_views.document_view,
