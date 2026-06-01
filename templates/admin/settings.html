@@ -6,119 +6,132 @@
 {% include "components/admin/layout_start.html" %}
 {% include "components/admin/page_header.html" %}
 
-<div class="admin-settings-cards">
-  <article class="admin-settings-card">
-    <div class="admin-settings-card__head">
-      <h2 class="admin-settings-card__title">
-        <i class="bi bi-person admin-settings-card__icon" aria-hidden="true"></i>
-        Profile &amp; Account
-      </h2>
-      <p class="admin-settings-card__description">Update your personal information</p>
-    </div>
-    <div class="admin-settings-card__body">
-      <div class="admin-form-grid">
-        <div class="admin-form-field">
-          <label class="admin-form-label" for="adminProfileName">Full Name</label>
-          <input type="text" class="form-control admin-form-input" id="adminProfileName" value="{{ portal_display_name|default:'Admin User' }}" />
-        </div>
-        <div class="admin-form-field">
-          <label class="admin-form-label" for="adminProfileEmail">Email Address</label>
-          <input type="email" class="form-control admin-form-input" id="adminProfileEmail" value="{{ portal_user_email|default:'admin@vtiac.edu' }}" />
-        </div>
-        <div class="admin-form-field">
-          <label class="admin-form-label" for="adminProfilePhone">Phone Number</label>
-          <input type="tel" class="form-control admin-form-input" id="adminProfilePhone" value="+63 912 345 6789" />
-        </div>
-        <div class="admin-form-field">
-          <label class="admin-form-label" for="adminProfileRole">Role</label>
-          <input type="text" class="form-control admin-form-input" id="adminProfileRole" value="{{ portal_role_label|default:'Administrator' }}" disabled />
-        </div>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <article class="admin-settings-card h-100 mb-0">
+      <div class="admin-settings-card__head">
+        <h2 class="admin-settings-card__title">
+          <i class="bi bi-person admin-settings-card__icon" aria-hidden="true"></i>
+          Profile &amp; Account
+        </h2>
+        <p class="admin-settings-card__description">Update your name, email, and contact details</p>
       </div>
-      <div class="admin-card-footer">
-        <button type="button" class="btn admin-save-button">Save Changes</button>
-      </div>
-    </div>
-  </article>
-
-  <article class="admin-settings-card">
-    <div class="admin-settings-card__head">
-      <h2 class="admin-settings-card__title">
-        <i class="bi bi-lock admin-settings-card__icon" aria-hidden="true"></i>
-        Change Password
-      </h2>
-      <p class="admin-settings-card__description">Update your password to keep your account secure</p>
-    </div>
-    <div class="admin-settings-card__body">
-      <div class="admin-form-field">
-        <label class="admin-form-label" for="adminCurrentPassword">Current Password</label>
-        <input type="password" class="form-control admin-form-input" id="adminCurrentPassword" placeholder="Enter current password" />
-      </div>
-      <div class="admin-form-grid">
-        <div class="admin-form-field">
-          <label class="admin-form-label" for="adminNewPassword">New Password</label>
-          <input type="password" class="form-control admin-form-input" id="adminNewPassword" placeholder="Enter new password" />
-        </div>
-        <div class="admin-form-field">
-          <label class="admin-form-label" for="adminConfirmPassword">Confirm New Password</label>
-          <input type="password" class="form-control admin-form-input" id="adminConfirmPassword" placeholder="Confirm new password" />
-        </div>
-      </div>
-      <div class="admin-card-footer">
-        <button type="button" class="btn admin-save-button">Update Password</button>
-      </div>
-    </div>
-  </article>
-
-  <article class="admin-settings-card">
-    <div class="admin-settings-card__head">
-      <h2 class="admin-settings-card__title">
-        <i class="bi bi-gear admin-settings-card__icon" aria-hidden="true"></i>
-        System Preferences
-      </h2>
-      <p class="admin-settings-card__description">Customize your system preferences</p>
-    </div>
-    <div class="admin-settings-card__body">
-      <div class="admin-form-field">
-        <label class="admin-form-label" for="adminTimezone">Time Zone</label>
-        <select class="form-select admin-form-input" id="adminTimezone">
-          <option value="asia-manila" selected>Asia/Manila (GMT+8)</option>
-          <option value="utc">UTC (GMT+0)</option>
-          <option value="america-new-york">America/New York (GMT-5)</option>
-        </select>
-      </div>
-      <div class="admin-form-field">
-        <label class="admin-form-label" for="adminLanguage">Language</label>
-        <select class="form-select admin-form-input" id="adminLanguage">
-          <option value="english" selected>English</option>
-          <option value="filipino">Filipino</option>
-        </select>
-      </div>
-      <div class="admin-preferences-toggles">
-        <div class="admin-preference-item">
-          <div class="admin-preference-info">
-            <p class="admin-preference-title">Email Notifications</p>
-            <p class="admin-preference-description">Receive email updates for new reports</p>
+      <form
+        id="profile-form"
+        class="admin-settings-card__body"
+        data-static-base="{% static '' %}"
+        data-profile-url="{% url 'staff_settings_profile_api' %}"
+        method="post"
+        novalidate
+      >
+        {% csrf_token %}
+        <script id="settings-address-seed" type="application/json">{{ settings_address_json|default:"{}"|safe }}</script>
+        <div class="admin-form-grid mb-3">
+          <div class="admin-form-field">
+            <label class="admin-form-label" for="profile-first-name">First Name</label>
+            <input type="text" id="profile-first-name" name="firstName" class="form-control admin-form-input" value="{{ settings_profile.first_name }}" autocomplete="given-name" required />
           </div>
-          <input type="checkbox" class="admin-preference-toggle" checked />
-        </div>
-        <div class="admin-preference-item">
-          <div class="admin-preference-info">
-            <p class="admin-preference-title">Desktop Notifications</p>
-            <p class="admin-preference-description">Show desktop alerts for important events</p>
+          <div class="admin-form-field">
+            <label class="admin-form-label" for="profile-last-name">Last Name</label>
+            <input type="text" id="profile-last-name" name="lastName" class="form-control admin-form-input" value="{{ settings_profile.last_name }}" autocomplete="family-name" required />
           </div>
-          <input type="checkbox" class="admin-preference-toggle" checked />
+          <div class="admin-form-field">
+            <label class="admin-form-label" for="profile-email">Email Address</label>
+            <input type="email" id="profile-email" name="email" class="form-control admin-form-input" value="{{ settings_profile.email }}" autocomplete="email" required />
+          </div>
+          <div class="admin-form-field">
+            <label class="admin-form-label" for="profile-phone">Phone Number</label>
+            <input type="tel" id="profile-phone" name="phone" class="form-control admin-form-input" value="{{ settings_profile.phone }}" placeholder="09171234567" autocomplete="tel" required />
+          </div>
         </div>
+        <p class="admin-form-label mb-2">Complete Address</p>
+        <div class="admin-form-field mb-2">
+          <label class="admin-form-label" for="profile-region">Region</label>
+          <select id="profile-region" name="region" class="form-select admin-form-input" required></select>
+        </div>
+        <div class="admin-form-field mb-2">
+          <label class="admin-form-label" for="profile-province">Province</label>
+          <select id="profile-province" name="province" class="form-select admin-form-input" disabled required></select>
+        </div>
+        <div class="admin-form-field mb-2">
+          <label class="admin-form-label" for="profile-city">City/Municipality</label>
+          <select id="profile-city" name="cityMunicipality" class="form-select admin-form-input" disabled required></select>
+        </div>
+        <div class="admin-form-field mb-2">
+          <label class="admin-form-label" for="profile-barangay">Barangay</label>
+          <select id="profile-barangay" name="barangay" class="form-select admin-form-input" disabled required></select>
+        </div>
+        <div class="admin-form-field mb-3">
+          <label class="admin-form-label" for="profile-street">Street / House No.</label>
+          <input type="text" id="profile-street" name="streetHouse" class="form-control admin-form-input" value="{{ settings_profile.address.streetHouse }}" placeholder="House no., street name" autocomplete="address-line1" />
+        </div>
+        <div class="admin-card-footer px-0 pb-0">
+          <button type="submit" class="btn admin-save-button">Save Changes</button>
+        </div>
+      </form>
+    </article>
+  </div>
+
+  <div class="col-lg-6">
+    <article class="admin-settings-card h-100 mb-0">
+      <div class="admin-settings-card__head">
+        <h2 class="admin-settings-card__title">
+          <i class="bi bi-lock admin-settings-card__icon" aria-hidden="true"></i>
+          Change Password
+        </h2>
+        <p class="admin-settings-card__description">Update your password to keep your account secure</p>
       </div>
-      <div class="admin-card-footer">
-        <button type="button" class="btn admin-save-button">Save Preferences</button>
-      </div>
-    </div>
-  </article>
+      <form
+        id="password-form"
+        class="admin-settings-card__body"
+        data-password-url="{% url 'staff_settings_password_api' %}"
+        method="post"
+        novalidate
+      >
+        {% csrf_token %}
+        <div class="admin-form-field">
+          <label class="admin-form-label" for="password-current">Current Password</label>
+          <div class="input-group">
+            <input type="password" id="password-current" name="currentPassword" class="form-control admin-form-input" placeholder="Enter current password" autocomplete="current-password" required />
+            <button type="button" class="btn btn-outline-secondary admin-password-toggle" data-target="password-current" aria-label="Show current password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <div class="admin-form-grid">
+          <div class="admin-form-field">
+            <label class="admin-form-label" for="password-new">New Password</label>
+            <div class="input-group">
+              <input type="password" id="password-new" name="newPassword" class="form-control admin-form-input" placeholder="Enter new password" autocomplete="new-password" minlength="8" required />
+              <button type="button" class="btn btn-outline-secondary admin-password-toggle" data-target="password-new" aria-label="Show new password">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+          <div class="admin-form-field">
+            <label class="admin-form-label" for="password-confirm">Confirm New Password</label>
+            <div class="input-group">
+              <input type="password" id="password-confirm" name="confirmPassword" class="form-control admin-form-input" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required />
+              <button type="button" class="btn btn-outline-secondary admin-password-toggle" data-target="password-confirm" aria-label="Show confirm password">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="admin-card-footer px-0 pb-0">
+          <button type="submit" class="btn admin-save-button">Update Password</button>
+        </div>
+      </form>
+    </article>
+  </div>
 </div>
+
+{% include "components/shared/settings_feedback_modal.html" %}
 
 {% include "components/admin/layout_end.html" %}
 {% endblock %}
 
 {% block scripts %}
 {% include "components/admin/scripts_common.html" %}
+<script type="module" src="{% static 'js/admin-settings.js' %}"></script>
 {% endblock %}

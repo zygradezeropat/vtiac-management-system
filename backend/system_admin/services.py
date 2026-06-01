@@ -94,7 +94,7 @@ def normalize_module(module):
     return module
 
 
-def module_page_context(module):
+def module_page_context(module, request=None):
     module = normalize_module(module)
     meta = ADMIN_MODULES[module]
     ctx = {
@@ -106,6 +106,11 @@ def module_page_context(module):
         "fiscal_year_label": get_fiscal_year_label(),
         "portal_role_label": "Administrator",
     }
+    if module == "settings":
+        from backend.core.staff_settings_views import staff_settings_page_context
+
+        user = getattr(request, "user", None) if request else None
+        ctx.update(staff_settings_page_context(user))
     if module == "training-approval":
         from backend.trainer.approval import (
             pending_trainer_requests_count,

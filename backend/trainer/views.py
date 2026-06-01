@@ -5,14 +5,6 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from backend.accounts.services import require_portal_access
-from backend.core.staff_settings import (
-    change_staff_password,
-    parse_profile_post,
-    update_staff_profile,
-    validate_password_change,
-    validate_profile_data,
-)
-
 from .services import (
     PROGRAM_QUALIFICATIONS,
     TRAINER_ROLE,
@@ -88,71 +80,23 @@ def module_page(request, module):
 @login_required(login_url="/")
 @require_POST
 def settings_profile_api(request):
+    from backend.core.staff_settings_views import settings_profile_api as core_api
+
     denied = require_portal_access(request, TRAINER_ROLE)
     if denied:
         return JsonResponse({"ok": False, "message": "Access denied."}, status=403)
-
-    data = parse_profile_post(request.POST)
-    errors = validate_profile_data(data, request.user)
-    if errors:
-        return JsonResponse({"ok": False, "message": errors[0], "errors": errors}, status=400)
-
-    try:
-        profile = update_staff_profile(request.user, data)
-    except Exception as exc:
-        return JsonResponse(
-            {"ok": False, "message": f"Could not save profile: {exc}"},
-            status=500,
-        )
-
-    display_name = f"{profile['first_name']} {profile['last_name']}".strip()
-    parts = display_name.split()
-    initials = (
-        f"{parts[0][0]}{parts[-1][0]}".upper()
-        if len(parts) >= 2
-        else display_name[:2].upper()
-    )
-
-    return JsonResponse(
-        {
-            "ok": True,
-            "message": "Profile updated successfully.",
-            "display_name": display_name,
-            "initials": initials,
-            "profile": profile,
-        }
-    )
+    return core_api(request)
 
 
 @login_required(login_url="/")
 @require_POST
 def settings_password_api(request):
+    from backend.core.staff_settings_views import settings_password_api as core_api
+
     denied = require_portal_access(request, TRAINER_ROLE)
     if denied:
         return JsonResponse({"ok": False, "message": "Access denied."}, status=403)
-
-    current = request.POST.get("currentPassword", "")
-    new_password = request.POST.get("newPassword", "")
-    confirm = request.POST.get("confirmPassword", "")
-
-    errors = validate_password_change(request.user, current, new_password, confirm)
-    if errors:
-        return JsonResponse({"ok": False, "message": errors[0], "errors": errors}, status=400)
-
-    try:
-        change_staff_password(request.user, new_password)
-    except Exception as exc:
-        return JsonResponse(
-            {"ok": False, "message": f"Could not update password: {exc}"},
-            status=500,
-        )
-
-    return JsonResponse(
-        {
-            "ok": True,
-            "message": "Password updated successfully.",
-        }
-    )
+    return core_api(request)
 
 
 @login_required(login_url="/")

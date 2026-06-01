@@ -170,29 +170,10 @@ def module_meta(module):
 
 
 def settings_profile_defaults(user):
-    """Demo-friendly profile fields for the settings form."""
-    address = {
-        "region": "13",
-        "province": "1339",
-        "cityMunicipality": "133905",
-        "barangay": "133905001",
-        "streetHouse": "789 Registrar St",
-    }
-    if user and user.is_authenticated:
-        return {
-            "first_name": user.first_name or "Maria",
-            "last_name": user.last_name or "Santos",
-            "email": user.email or "maria.santos@valiant.edu",
-            "phone": "+63 912 345 6789",
-            "address": address,
-        }
-    return {
-        "first_name": "Maria",
-        "last_name": "Santos",
-        "email": "maria.santos@valiant.edu",
-        "phone": "+63 912 345 6789",
-        "address": address,
-    }
+    """Profile fields for the settings form (User + StaffAccountProfile)."""
+    from backend.core.staff_settings import staff_settings_profile
+
+    return staff_settings_profile(user)
 
 
 def module_page_context(module, request=None):

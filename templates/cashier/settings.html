@@ -6,73 +6,124 @@
 {% include "components/cashier/layout_start.html" %}
 {% include "components/cashier/page_header.html" %}
 
-<div class="cashier-settings-grid">
-  <article class="cashier-panel mb-0">
-    <div class="cashier-panel__head cashier-panel__head--stack">
-      <h2 class="cashier-panel__title">Profile Information</h2>
-      <p class="cashier-panel__subtitle">Update your personal details</p>
-    </div>
-    <div class="cashier-panel__body">
-      <form id="cashierProfileForm">
-        <div class="row g-2">
-          <div class="col-md-6">
+<div class="row g-3 cashier-settings-grid">
+  <div class="col-lg-6 d-flex">
+    <article class="cashier-panel flex-grow-1 mb-0">
+      <div class="cashier-panel__head cashier-panel__head--stack">
+        <h2 class="cashier-panel__title">Profile Information</h2>
+        <p class="cashier-panel__subtitle">Update your personal details</p>
+      </div>
+      <form
+        id="profile-form"
+        class="cashier-panel__body d-flex flex-column"
+        data-static-base="{% static '' %}"
+        data-profile-url="{% url 'staff_settings_profile_api' %}"
+        method="post"
+        novalidate
+      >
+        {% csrf_token %}
+        <script id="settings-address-seed" type="application/json">{{ settings_address_json|default:"{}"|safe }}</script>
+        <div class="row g-2 mb-2">
+          <div class="col-sm-6">
             <div class="cashier-form-group">
-              <label class="cashier-form-label" for="profileFirstName">First Name</label>
-              <input type="text" class="form-control" id="profileFirstName" value="{{ portal_display_name|default:'Cashier' }}" />
+              <label class="cashier-form-label" for="profile-first-name">First Name</label>
+              <input type="text" id="profile-first-name" name="firstName" class="form-control" value="{{ settings_profile.first_name }}" autocomplete="given-name" required />
             </div>
           </div>
-          <div class="col-md-6">
+          <div class="col-sm-6">
             <div class="cashier-form-group">
-              <label class="cashier-form-label" for="profileLastName">Last Name</label>
-              <input type="text" class="form-control" id="profileLastName" />
+              <label class="cashier-form-label" for="profile-last-name">Last Name</label>
+              <input type="text" id="profile-last-name" name="lastName" class="form-control" value="{{ settings_profile.last_name }}" autocomplete="family-name" required />
             </div>
           </div>
         </div>
         <div class="cashier-form-group">
-          <label class="cashier-form-label" for="profileEmail">Email</label>
-          <input type="email" class="form-control" id="profileEmail" />
+          <label class="cashier-form-label" for="profile-email">Email</label>
+          <input type="email" id="profile-email" name="email" class="form-control" value="{{ settings_profile.email }}" autocomplete="email" required />
         </div>
         <div class="cashier-form-group">
-          <label class="cashier-form-label" for="profilePhone">Phone Number</label>
-          <input type="tel" class="form-control" id="profilePhone" />
+          <label class="cashier-form-label" for="profile-phone">Phone Number</label>
+          <input type="tel" id="profile-phone" name="phone" class="form-control" value="{{ settings_profile.phone }}" placeholder="09171234567" autocomplete="tel" required />
+        </div>
+        <p class="cashier-form-label mb-2">Complete Address</p>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="profile-region">Region</label>
+          <select id="profile-region" name="region" class="form-select" required></select>
         </div>
         <div class="cashier-form-group">
-          <label class="cashier-form-label" for="profileAddress">Address</label>
-          <input type="text" class="form-control" id="profileAddress" />
+          <label class="cashier-form-label" for="profile-province">Province</label>
+          <select id="profile-province" name="province" class="form-select" disabled required></select>
         </div>
-        <button type="submit" class="btn cashier-btn-primary w-100">Save Changes</button>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="profile-city">City/Municipality</label>
+          <select id="profile-city" name="cityMunicipality" class="form-select" disabled required></select>
+        </div>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="profile-barangay">Barangay</label>
+          <select id="profile-barangay" name="barangay" class="form-select" disabled required></select>
+        </div>
+        <div class="cashier-form-group">
+          <label class="cashier-form-label" for="profile-street">Street / House No.</label>
+          <input type="text" id="profile-street" name="streetHouse" class="form-control" value="{{ settings_profile.address.streetHouse }}" placeholder="House no., street name" autocomplete="address-line1" />
+        </div>
+        <button type="submit" class="btn cashier-btn-primary w-100 mt-auto">Save Changes</button>
       </form>
-    </div>
-  </article>
+    </article>
+  </div>
 
-  <article class="cashier-panel mb-0">
-    <div class="cashier-panel__head cashier-panel__head--stack">
-      <h2 class="cashier-panel__title">Password Settings</h2>
-      <p class="cashier-panel__subtitle">Change your account password</p>
-    </div>
-    <div class="cashier-panel__body">
-      <form id="cashierPasswordForm">
+  <div class="col-lg-6 d-flex">
+    <article class="cashier-panel flex-grow-1 mb-0">
+      <div class="cashier-panel__head cashier-panel__head--stack">
+        <h2 class="cashier-panel__title">Password Settings</h2>
+        <p class="cashier-panel__subtitle">Change your account password</p>
+      </div>
+      <form
+        id="password-form"
+        class="cashier-panel__body d-flex flex-column"
+        data-password-url="{% url 'staff_settings_password_api' %}"
+        method="post"
+        novalidate
+      >
+        {% csrf_token %}
         <div class="cashier-form-group">
-          <label class="cashier-form-label" for="currentPassword">Current Password</label>
-          <input type="password" class="form-control" id="currentPassword" placeholder="Enter current password" />
+          <label class="cashier-form-label" for="password-current">Current Password</label>
+          <div class="input-group">
+            <input type="password" id="password-current" name="currentPassword" class="form-control" placeholder="Enter current password" autocomplete="current-password" required />
+            <button type="button" class="btn btn-outline-secondary cashier-password-toggle" data-target="password-current" aria-label="Show current password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
         <div class="cashier-form-group">
-          <label class="cashier-form-label" for="newPassword">New Password</label>
-          <input type="password" class="form-control" id="newPassword" placeholder="Enter new password" />
+          <label class="cashier-form-label" for="password-new">New Password</label>
+          <div class="input-group">
+            <input type="password" id="password-new" name="newPassword" class="form-control" placeholder="Enter new password" autocomplete="new-password" minlength="8" required />
+            <button type="button" class="btn btn-outline-secondary cashier-password-toggle" data-target="password-new" aria-label="Show new password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
         <div class="cashier-form-group">
-          <label class="cashier-form-label" for="confirmPassword">Confirm New Password</label>
-          <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm new password" />
+          <label class="cashier-form-label" for="password-confirm">Confirm New Password</label>
+          <div class="input-group">
+            <input type="password" id="password-confirm" name="confirmPassword" class="form-control" placeholder="Confirm new password" autocomplete="new-password" minlength="8" required />
+            <button type="button" class="btn btn-outline-secondary cashier-password-toggle" data-target="password-confirm" aria-label="Show confirm password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
-        <button type="submit" class="btn cashier-btn-primary w-100">Update Password</button>
+        <button type="submit" class="btn cashier-btn-primary w-100 mt-auto">Update Password</button>
       </form>
-    </div>
-  </article>
+    </article>
+  </div>
 </div>
+
+{% include "components/shared/settings_feedback_modal.html" %}
 
 {% include "components/cashier/layout_end.html" %}
 {% endblock %}
 
 {% block scripts %}
 {% include "components/cashier/scripts_common.html" %}
+<script type="module" src="{% static 'js/cashier-settings.js' %}"></script>
 {% endblock %}

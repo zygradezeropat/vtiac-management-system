@@ -26,5 +26,5 @@ def module_page(request, module):
     return render(
         request,
         module_template(module),
-        module_page_context(module),
+        module_page_context(module, request),
     )

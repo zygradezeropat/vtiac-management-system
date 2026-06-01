@@ -98,10 +98,10 @@ def normalize_module(module):
     return module
 
 
-def module_page_context(module):
+def module_page_context(module, request=None):
     module = normalize_module(module)
     meta = CASHIER_MODULES[module]
-    return {
+    ctx = {
         "module": module,
         "active_menu": meta["label"],
         "page_title": meta.get("title", meta["label"]),
@@ -109,6 +109,12 @@ def module_page_context(module):
         "sidebar_menu": cashier_sidebar(),
         "logout_class": "text-gray-600 hover:bg-gray-200/60",
     }
+    if module == "settings":
+        from backend.core.staff_settings_views import staff_settings_page_context
+
+        user = getattr(request, "user", None) if request else None
+        ctx.update(staff_settings_page_context(user))
+    return ctx
 
 
 def module_template(module):
