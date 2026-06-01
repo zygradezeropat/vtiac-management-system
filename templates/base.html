@@ -17,7 +17,9 @@
 </head>
 <body class="bg-white">
   {% block body %}{% endblock %}
+  {% include "components/shared/logout_confirm_modal.html" %}
   <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'js/logout-confirm.js' %}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

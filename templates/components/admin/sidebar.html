@@ -16,7 +16,7 @@
     {% endfor %}
   </nav>
 
-  <a href="{% url 'logout' %}" class="admin-logout" id="logoutButton">
+  <a href="{% url 'logout' %}" class="admin-logout" id="logoutButton" data-logout-confirm>
     <i class="bi bi-box-arrow-left" aria-hidden="true"></i>
     <span class="admin-logout-label">Logout</span>
   </a>
@@ -40,6 +40,6 @@
       </a>
       {% endfor %}
     </nav>
-    <a href="{% url 'logout' %}" class="admin-logout mt-3" data-bs-dismiss="offcanvas">Logout</a>
+    <a href="{% url 'logout' %}" class="admin-logout mt-3" data-logout-confirm>Logout</a>
   </div>
 </div>
