@@ -1,0 +1,154 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+
+{% block body %}
+{% include "components/admin/layout_start.html" %}
+{% include "components/admin/page_header.html" with show_clock=True show_fiscal_year=True %}
+{{ institutional_reports|json_script:"institutional-reports-data" }}
+
+<section class="admin-reports-center" aria-label="Institutional reports">
+  <p class="text-muted small mb-3" id="admin-reports-generated"></p>
+
+  <ul class="nav nav-tabs admin-reports-tabs mb-3" id="adminReportsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-enrollment" data-bs-toggle="tab" data-bs-target="#panel-enrollment" type="button" role="tab">Enrollment</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-payments" data-bs-toggle="tab" data-bs-target="#panel-payments" type="button" role="tab">Payments</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-performance" data-bs-toggle="tab" data-bs-target="#panel-performance" type="button" role="tab">Performance</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-egace" data-bs-toggle="tab" data-bs-target="#panel-egace" type="button" role="tab">E.G.A.C.E</button>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="panel-enrollment" role="tabpanel" aria-labelledby="tab-enrollment">
+      <div class="admin-table-card">
+        <div class="p-3 border-bottom d-flex flex-wrap gap-3">
+          <div><span class="text-muted small">Pending approvals</span><p class="fw-bold mb-0 fs-4" id="enroll-pending">0</p></div>
+          <div><span class="text-muted small">Total enrolled</span><p class="fw-bold mb-0 fs-4" id="enroll-approved">0</p></div>
+        </div>
+        <div class="row g-0">
+          <div class="col-lg-6 border-end">
+            <h3 class="h6 px-3 pt-3 mb-2">By status</h3>
+            <div class="table-responsive">
+              <table class="table admin-egace-table mb-0">
+                <thead><tr><th>Status</th><th class="text-center">Count</th></tr></thead>
+                <tbody id="enroll-by-status"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <h3 class="h6 px-3 pt-3 mb-2">By program</h3>
+            <div class="table-responsive">
+              <table class="table admin-egace-table mb-0">
+                <thead><tr><th>Program</th><th class="text-center">Enrolled</th></tr></thead>
+                <tbody id="enroll-by-program"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="panel-payments" role="tabpanel" aria-labelledby="tab-payments">
+      <div class="admin-table-card p-3">
+        <div class="d-flex flex-wrap gap-4 mb-3">
+          <div><span class="text-muted small">Transactions</span><p class="fw-bold mb-0" id="pay-count">0</p></div>
+          <div><span class="text-muted small">Total collected</span><p class="fw-bold mb-0" id="pay-total">₱0.00</p></div>
+          <div><span class="text-muted small">Collected today</span><p class="fw-bold mb-0" id="pay-today">₱0.00</p></div>
+        </div>
+        <h3 class="h6 mb-2">Recent transactions</h3>
+        <div class="table-responsive">
+          <table class="table admin-egace-table mb-0">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Student</th>
+                <th>Amount</th>
+                <th>Type</th>
+                <th>Cashier</th>
+              </tr>
+            </thead>
+            <tbody id="pay-recent"></tbody>
+          </table>
+        </div>
+        <nav
+          id="pay-recent-pagination"
+          class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 d-none"
+          aria-label="Recent transactions pagination"
+        ></nav>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="panel-performance" role="tabpanel" aria-labelledby="tab-performance">
+      <div class="admin-table-card p-3">
+        <p class="text-muted small mb-3">Trainer grade records: <strong id="perf-grade-count">0</strong></p>
+        <div class="table-responsive">
+          <table class="table admin-egace-table mb-0">
+            <thead>
+              <tr>
+                <th>Program</th>
+                <th class="text-center">Enrolled</th>
+                <th class="text-center">With grades</th>
+                <th class="text-center">Assessed</th>
+              </tr>
+            </thead>
+            <tbody id="perf-by-program"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="panel-egace" role="tabpanel" aria-labelledby="tab-egace">
+      <div class="admin-egace-summary__filter mb-3">
+        <label class="admin-egace-summary__filter-label" for="admin-reports-qualification">Qualification</label>
+        <select id="admin-reports-qualification" class="form-select form-select-sm admin-egace-qualification-select"></select>
+      </div>
+      <p class="admin-egace-summary__qualification text-center mb-3" id="admin-reports-qualification-title" hidden>
+        Qualification: <strong id="admin-reports-qualification-name"></strong>
+      </p>
+      <div class="admin-table-card">
+        <div class="table-responsive">
+          <table class="table admin-egace-table admin-egace-table--report mb-0">
+            <thead>
+              <tr>
+                <th rowspan="2"></th>
+                <th colspan="2" class="text-center">Enrolled</th>
+                <th colspan="2" class="text-center">Graduates</th>
+                <th colspan="2" class="text-center">Assessed</th>
+                <th colspan="2" class="text-center">Certified</th>
+                <th colspan="2" class="text-center">Employed</th>
+              </tr>
+              <tr>
+                <th class="text-center admin-egace-subhead">Actual</th>
+                <th class="text-center admin-egace-subhead">%</th>
+                <th class="text-center admin-egace-subhead">Actual</th>
+                <th class="text-center admin-egace-subhead">%</th>
+                <th class="text-center admin-egace-subhead">Actual</th>
+                <th class="text-center admin-egace-subhead">%</th>
+                <th class="text-center admin-egace-subhead">Actual</th>
+                <th class="text-center admin-egace-subhead">%</th>
+                <th class="text-center admin-egace-subhead">Actual</th>
+                <th class="text-center admin-egace-subhead">%</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reports-egace-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% include "components/admin/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "components/admin/scripts_common.html" with show_clock=True %}
+<script type="module" src="{% static 'js/admin-reports.js' %}"></script>
+{% endblock %}

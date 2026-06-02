@@ -122,6 +122,10 @@ class StudentRegistration(models.Model):
         default=False,
         help_text="Registrar E.G.A.C.E table — employment milestone (set manually).",
     )
+    egace_certificate = models.BooleanField(
+        default=False,
+        help_text="Registrar E.G.A.C.E table — certificate milestone (set manually).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

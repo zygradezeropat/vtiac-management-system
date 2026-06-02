@@ -10,6 +10,8 @@
 
 {% block body %}
 {% include "components/registrar/layout_start.html" %}
+<script id="scholarship-registry-seed" type="application/json">{{ scholarship_registry_json|default:"[]"|safe }}</script>
+<script id="scholarship-scholars-seed" type="application/json">{{ scholarship_scholars_json|default:"[]"|safe }}</script>
 
 <header class="registrar-page-header">
   <div>

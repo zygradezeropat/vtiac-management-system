@@ -1,4 +1,4 @@
-"""Registrar API — manual E.G.A.C.E employment milestone."""
+"""Registrar API — manual E.G.A.C.E employment and certificate milestones."""
 
 from __future__ import annotations
 
@@ -79,5 +79,61 @@ def egace_set_employment(request):
             "registration_id": str(reg.pk),
             "employment": reg.egace_employment,
             "message": "Employment status updated.",
+        }
+    )
+
+
+@login_required(login_url="/")
+@require_POST
+def egace_set_certificate(request):
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return JsonResponse({"ok": False, "message": "Access denied."}, status=403)
+
+    registration_id = (request.POST.get("registration_id") or "").strip()
+    certificate_raw = request.POST.get("certificate")
+
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            body = json.loads(request.body.decode("utf-8") or "{}")
+            registration_id = (body.get("registration_id") or registration_id).strip()
+            if "certificate" in body:
+                certificate_raw = body.get("certificate")
+        except json.JSONDecodeError:
+            return JsonResponse({"ok": False, "message": "Invalid JSON."}, status=400)
+
+    if not registration_id:
+        return JsonResponse(
+            {"ok": False, "message": "registration_id is required."},
+            status=400,
+        )
+
+    certificate = _parse_bool(certificate_raw)
+    if certificate is None:
+        return JsonResponse(
+            {"ok": False, "message": "certificate must be true or false."},
+            status=400,
+        )
+
+    try:
+        reg = StudentRegistration.objects.get(
+            pk=registration_id,
+            status=StudentRegistration.Status.APPROVED,
+        )
+    except (StudentRegistration.DoesNotExist, ValueError):
+        return JsonResponse(
+            {"ok": False, "message": "Enrolled student not found."},
+            status=404,
+        )
+
+    reg.egace_certificate = certificate
+    reg.save(update_fields=["egace_certificate"])
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "registration_id": str(reg.pk),
+            "certificate": reg.egace_certificate,
+            "message": "Certificate status updated.",
         }
     )

@@ -1,4 +1,5 @@
 {% extends "trainer/base.html" %}
+{% load static %}
 
 
 {% block body %}
@@ -54,5 +55,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script id="trainer-reports-config" type="application/json">{{ trainer_reports_json|default:"{}"|safe }}</script>
 {% include "components/trainer/scripts_common.html" %}
+<script type="module" src="{% static 'js/trainer-reports.js' %}"></script>
 {% endblock %}

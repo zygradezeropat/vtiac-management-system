@@ -183,8 +183,17 @@ def module_page_context(module, request=None):
         ctx["egace_config_json"] = json.dumps(
             {
                 "employment_url": reverse("registrar_egace_set_employment"),
+                "certificate_url": reverse("registrar_egace_set_certificate"),
             }
         )
+    if module == "scholarship":
+        from .scholarship_registry import (
+            scholarship_enrolled_scholars,
+            scholarship_student_registry,
+        )
+
+        ctx["scholarship_registry_json"] = json.dumps(scholarship_student_registry())
+        ctx["scholarship_scholars_json"] = json.dumps(scholarship_enrolled_scholars())
     if module == "settings":
         user = getattr(request, "user", None) if request else None
         profile = settings_profile_defaults(user)

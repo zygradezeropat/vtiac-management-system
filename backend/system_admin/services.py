@@ -4,6 +4,7 @@ ADMIN_ROLE = "admin"
 
 ADMIN_MODULE_ORDER = (
     "dashboard",
+    "reports",
     "system-settings",
     "user-management",
     "settings",
@@ -17,6 +18,14 @@ ADMIN_MODULES = {
         "subtitle": "",
         "template": "admin/dashboard.html",
         "route": "/dashboard/admin/",
+        "sidebar": True,
+    },
+    "reports": {
+        "label": "Reports Center",
+        "icon_bi": "bi-bar-chart-line-fill",
+        "title": "Institutional Reports Center",
+        "subtitle": "Enrollment, payments, performance, and E.G.A.C.E in one place",
+        "template": "admin/reports.html",
         "sidebar": True,
     },
     "system-settings": {
@@ -106,6 +115,10 @@ def module_page_context(module, request=None):
         from .dashboard_stats import admin_dashboard_stats
 
         ctx["admin_dashboard_stats"] = admin_dashboard_stats()
+    if module == "reports":
+        from .institutional_reports import institutional_reports_payload
+
+        ctx["institutional_reports"] = institutional_reports_payload()
     if module == "user-management":
         from backend.trainer.services import PROGRAM_QUALIFICATIONS
 

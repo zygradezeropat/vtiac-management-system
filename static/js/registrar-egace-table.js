@@ -59,8 +59,8 @@ function milestoneCell(value) {
     </td>`;
 }
 
-function employmentCell(row) {
-  const yes = Boolean(row.employment);
+function manualMilestoneCell(row, field, labelText) {
+  const yes = Boolean(row[field]);
   const label = yes ? "Yes" : "No";
   const stateClass = yes
     ? "registrar-egace-milestone--yes"
@@ -74,11 +74,11 @@ function employmentCell(row) {
       <button
         type="button"
         class="registrar-egace-milestone registrar-egace-milestone--clickable ${stateClass}"
-        data-employment-toggle
+        data-manual-milestone="${escapeHtml(field)}"
         data-row-id="${escapeHtml(String(row.id))}"
-        data-employment="${yes ? "1" : "0"}"
-        aria-label="Employment: ${label}. Click to change."
-        title="Click to set employment manually"
+        data-value="${yes ? "1" : "0"}"
+        aria-label="${escapeHtml(labelText)}: ${label}. Click to change."
+        title="Click to set ${escapeHtml(labelText.toLowerCase())} manually"
       >
         ${icon}
         <span>${label}</span>
@@ -111,8 +111,8 @@ function renderRow(row) {
       ${milestoneCell(row.enrolled)}
       ${milestoneCell(row.graduate)}
       ${milestoneCell(row.assessment)}
-      ${milestoneCell(row.certificate ?? row.certified)}
-      ${employmentCell(row)}
+      ${manualMilestoneCell(row, "certificate", "Certificate")}
+      ${manualMilestoneCell(row, "employment", "Employment")}
     </tr>`;
 }
 
@@ -148,6 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const paginationEl = document.getElementById("egace-pagination");
   const egaceConfig = readEgaceConfig();
   const employmentUrl = egaceConfig.employment_url || "";
+  const certificateUrl = egaceConfig.certificate_url || "";
 
   if (!tbody) return;
 
@@ -234,15 +235,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  async function toggleEmployment(rowId, nextValue) {
-    if (!employmentUrl) {
-      throw new Error("Employment save is not configured.");
+  async function saveManualMilestone(field, rowId, nextValue) {
+    const url = field === "certificate" ? certificateUrl : employmentUrl;
+    if (!url) {
+      throw new Error(`${field} save is not configured.`);
     }
     const body = new URLSearchParams();
     body.set("registration_id", rowId);
-    body.set("employment", nextValue ? "true" : "false");
+    body.set(field, nextValue ? "true" : "false");
 
-    const response = await fetch(employmentUrl, {
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -254,30 +256,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) {
-      throw new Error(data.message || "Could not save employment status.");
+      throw new Error(data.message || `Could not save ${field} status.`);
     }
-    return Boolean(data.employment);
+    return Boolean(data[field]);
   }
 
-  function bindEmploymentToggles() {
-    tbody.querySelectorAll("[data-employment-toggle]").forEach((btn) => {
+  function bindManualMilestoneToggles() {
+    tbody.querySelectorAll("[data-manual-milestone]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (savingEmployment || btn.disabled) return;
         const rowId = btn.dataset.rowId;
-        if (!rowId) return;
+        const field = btn.dataset.manualMilestone;
+        if (!rowId || !field) return;
 
-        const current = btn.dataset.employment === "1";
+        const current = btn.dataset.value === "1";
         const next = !current;
         savingEmployment = true;
         btn.disabled = true;
 
         try {
-          const saved = await toggleEmployment(rowId, next);
-          patchEgaceRow(rowId, { employment: saved });
+          const saved = await saveManualMilestone(field, rowId, next);
+          patchEgaceRow(rowId, { [field]: saved });
           render();
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Could not save employment status.";
+            error instanceof Error ? error.message : "Could not save status.";
           window.alert(message);
           btn.disabled = false;
         } finally {
@@ -350,7 +353,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const start = (currentPage - 1) * PAGE_SIZE;
     const pageRows = rows.slice(start, start + PAGE_SIZE);
     tbody.innerHTML = pageRows.map(renderRow).join("");
-    bindEmploymentToggles();
+    bindManualMilestoneToggles();
     renderPagination(rows.length, currentPage, totalPages);
   }
 

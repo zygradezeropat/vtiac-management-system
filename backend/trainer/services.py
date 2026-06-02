@@ -139,20 +139,21 @@ def module_page_context(module, request=None):
         if user and getattr(user, "is_authenticated", False):
             batch_ctx = trainer_class_schedule_context(user)
             ctx.update(batch_ctx)
+            if module == "students":
+                from .attendance_print import attendance_print_payload
+
+                attendance = attendance_print_payload(user, batch_ctx)
+                ctx["attendance_print_students"] = attendance["students"]
+                ctx["attendance_print_meta"] = attendance["meta"]
             if module == "dashboard":
                 total = (
                     batch_ctx["total_assigned_students"]
                     if batch_ctx["has_assigned_classes"]
                     else 0
                 )
-                ctx.update(
-                    {
-                        "total_students": total,
-                        "competent_count": 0,
-                        "nyc_count": 0,
-                        "avg_attendance": "—",
-                    }
-                )
+                from .portal_metrics import trainer_dashboard_metrics
+
+                ctx.update(trainer_dashboard_metrics(user))
         elif module == "dashboard":
             ctx.update(trainer_dashboard_stats())
         else:
@@ -165,6 +166,8 @@ def module_page_context(module, request=None):
                     "student_filter_programs": [],
                     "student_filter_batches": [],
                     "student_filter_schedules": [],
+                    "attendance_print_students": [],
+                    "attendance_print_meta": {"trainer": ""},
                 }
             )
     if module == "sheets":
@@ -202,6 +205,19 @@ def module_page_context(module, request=None):
                 "records_url": reverse("trainer_grading_records_api"),
                 "save_url": reverse("trainer_grading_save_api"),
                 "reports_url": reverse("trainer_module", kwargs={"module": "reports"}),
+            }
+        )
+    if module == "reports":
+        user = getattr(request, "user", None) if request else None
+        students = []
+        batch_cards = []
+        if user and getattr(user, "is_authenticated", False):
+            students, batch_cards = assigned_students_by_batch(user)
+        ctx["trainer_reports_json"] = json.dumps(
+            {
+                "students": students,
+                "batch_cards": batch_cards,
+                "has_classes": bool(batch_cards),
             }
         )
     if module == "settings":

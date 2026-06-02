@@ -261,7 +261,7 @@ def build_registrar_egace_rows() -> list[dict]:
                 "enrolled": True,
                 "graduate": student_is_graduate(payload, program),
                 "assessment": student_is_assessment_competent(payload),
-                "certificate": False,
+                "certificate": bool(reg.egace_certificate),
                 "employment": bool(reg.egace_employment),
             }
         )

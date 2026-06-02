@@ -5,17 +5,29 @@
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const STORAGE_KEY = "vtiac_scholarship_integrations";
 
-/** Demo registry for name matching (replace with API). */
-const STUDENT_REGISTRY = [
-  { key: "maria santos", name: "Maria Santos", program: "Automotive Servicing (Engine Repair) NC II", studentId: "VTIAC-2026-0001" },
-  { key: "john ramos", name: "John Ramos", program: "Automotive Servicing NC I", studentId: "VTIAC-2026-0002" },
-  { key: "ana lopez", name: "Ana Lopez", program: "Driving NC II", studentId: "VTIAC-2026-0003" },
-  { key: "paolo cruz", name: "Paolo Cruz", program: "Rice Machinery Operations NC II", studentId: "VTIAC-2026-0004" },
-  { key: "liza navarro", name: "Liza Navarro", program: "Automotive Servicing NC I", studentId: "VTIAC-2026-0006" },
-  { key: "juan dela cruz", name: "Juan Dela Cruz", program: "Automotive Servicing NC I", studentId: "VTIAC-2026-0101" },
-  { key: "rosa fernandez", name: "Rosa Fernandez", program: "Driving NC II", studentId: "VTIAC-2026-0202" },
-  { key: "rico tan", name: "Rico Tan", program: "Rice Machinery Operations NC II", studentId: "VTIAC-2026-0007" },
-];
+function loadStudentRegistry() {
+  const el = document.getElementById("scholarship-registry-seed");
+  if (!el?.textContent?.trim()) return [];
+  try {
+    const parsed = JSON.parse(el.textContent);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+let STUDENT_REGISTRY = loadStudentRegistry();
+
+function loadEnrolledScholars() {
+  const el = document.getElementById("scholarship-scholars-seed");
+  if (!el?.textContent?.trim()) return [];
+  try {
+    const parsed = JSON.parse(el.textContent);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 const COLUMN_ALIASES = {
   scholarName: ["scholar name", "name", "student name", "full name", "scholar", "beneficiary"],
@@ -307,7 +319,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!statsEl) return;
     if (parsedRows.length === 0 && integrated === 0) {
-      statsEl.innerHTML = "";
+      const scholars = loadEnrolledScholars();
+      statsEl.innerHTML = scholars.length
+        ? `
+      <div class="col-md-4">
+        <div class="registrar-finalized-stat">
+          <span class="registrar-finalized-stat__value">${scholars.length}</span>
+          <span class="registrar-finalized-stat__label">Scholars on enrollment profiles</span>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <p class="text-muted small mb-0 pt-2">Upload sponsor lists to match against <strong>${STUDENT_REGISTRY.length}</strong> enrolled students in the system.</p>
+      </div>`
+        : `<div class="col-12"><p class="text-muted small mb-0">No scholars on file yet. Students can select a scholarship type during enrollment.</p></div>`;
       return;
     }
 
