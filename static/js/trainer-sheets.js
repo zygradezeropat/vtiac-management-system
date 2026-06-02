@@ -7,6 +7,7 @@ import { getCsrfToken } from "./staff-settings-modal.js";
 const INSTITUTIONAL_UC_KEY = "institutional";
 const SCORE_MIN = 0;
 const SCORE_MAX = 100;
+const UC_ASSESSMENT_COLSPAN = 5;
 
 function readConfig() {
   const el = document.getElementById("sheets-config");
@@ -15,6 +16,107 @@ function readConfig() {
     return JSON.parse(el.textContent || "{}");
   } catch {
     return null;
+  }
+}
+
+function getCourseGroups(config) {
+  return config?.course_groups || [];
+}
+
+function findCourseGroup(config, program) {
+  return getCourseGroups(config).find((group) => group.program === program);
+}
+
+function findBatchMeta(state) {
+  const group = findCourseGroup(state.config, state.selection.program);
+  return group?.batches?.find((batch) => String(batch.id) === String(state.selection.batchId));
+}
+
+function getActiveStudents(state) {
+  const { students, selection } = state;
+  const { program, batchId } = selection;
+  return students.filter((student) => {
+    if (program && student.program !== program) return false;
+    if (batchId && String(student.batch_id) !== String(batchId)) return false;
+    return true;
+  });
+}
+
+function updatePageSubtitle(program, batchMeta) {
+  const subtitle = document.getElementById("trainer-sheets-page-subtitle");
+  if (!subtitle) return;
+  if (!program) {
+    subtitle.textContent = "Grading, assessment, and achievement tracking";
+    return;
+  }
+  const batchPart = batchMeta?.label ? ` · ${batchMeta.label}` : "";
+  const schedulePart = batchMeta?.schedule ? ` (${batchMeta.schedule})` : "";
+  subtitle.textContent = `Grading, assessment, and achievement tracking — ${program}${batchPart}${schedulePart}`;
+}
+
+function renderClassPicker(state, handlers) {
+  const picker = document.getElementById("trainer-sheets-class-picker");
+  const courseSelect = document.getElementById("trainer-sheets-course-select");
+  const batchSelect = document.getElementById("trainer-sheets-batch-select");
+  const metaEl = document.getElementById("trainer-sheets-class-meta");
+  const groups = getCourseGroups(state.config);
+  if (!picker || !courseSelect || !batchSelect) return;
+
+  if (!groups.length) {
+    picker.hidden = true;
+    return;
+  }
+  picker.hidden = false;
+
+  const { program, batchId } = state.selection;
+  courseSelect.innerHTML = groups
+    .map(
+      (group) => `
+        <option value="${escapeHtml(group.program)}"${group.program === program ? " selected" : ""}>
+          ${escapeHtml(group.program)}
+        </option>
+      `,
+    )
+    .join("");
+
+  const activeGroup = findCourseGroup(state.config, program) || groups[0];
+  const batches = activeGroup?.batches || [];
+  batchSelect.innerHTML = batches
+    .map((batch) => {
+      const count = batch.student_count ?? 0;
+      const label = `${batch.label} (${count} student${count === 1 ? "" : "s"})`;
+      return `
+        <option value="${escapeHtml(batch.id)}"${String(batch.id) === String(batchId) ? " selected" : ""}>
+          ${escapeHtml(label)}
+        </option>
+      `;
+    })
+    .join("");
+
+  courseSelect.value = program;
+  const matchedBatch = batches.find((batch) => String(batch.id) === String(batchId));
+  batchSelect.value = matchedBatch
+    ? String(matchedBatch.id)
+    : String(batches[0]?.id || "");
+
+  batchSelect.disabled = batches.length <= 1;
+
+  const activeBatch = findBatchMeta(state);
+  if (metaEl) {
+    const count = state.activeStudents.length;
+    metaEl.textContent = activeBatch
+      ? `${count} student${count === 1 ? "" : "s"} · ${activeBatch.schedule || "Schedule TBA"}`
+      : `${count} student${count === 1 ? "" : "s"}`;
+  }
+
+  if (!courseSelect.dataset.bound) {
+    courseSelect.dataset.bound = "1";
+    courseSelect.addEventListener("change", () => {
+      handlers.onCourseSelect(courseSelect.value);
+    });
+    batchSelect.addEventListener("change", () => {
+      handlers.onBatchSelect(batchSelect.value);
+    });
   }
 }
 
@@ -29,8 +131,9 @@ function escapeHtml(text) {
 function parseScore(value) {
   if (value === "" || value == null) return null;
   const num = Number(value);
-  if (!Number.isFinite(num) || num < SCORE_MIN || num > SCORE_MAX) return null;
-  return num;
+  if (!Number.isFinite(num)) return null;
+  const clamped = Math.min(SCORE_MAX, Math.max(SCORE_MIN, Math.round(num)));
+  return clamped;
 }
 
 function computeAverage(written, demo, interview) {
@@ -45,9 +148,6 @@ function resultFromAverage(avg) {
   }
   if (avg >= 75) {
     return { label: "Competent", className: "trainer-result-badge--competent", key: "competent" };
-  }
-  if (avg >= 73) {
-    return { label: "Conditional", className: "trainer-result-badge--conditional", key: "conditional" };
   }
   if (avg >= 1) {
     return { label: "Failed", className: "trainer-result-badge--failed", key: "failed" };
@@ -81,6 +181,105 @@ function getInstitutionalScores(record) {
   return firstUc ? scores[firstUc] : { written: null, demo: null, interview: null };
 }
 
+function getRecordSheetStructure(config, program) {
+  const key = program || config.primary_program || "";
+  return config.record_sheet_by_program?.[key] || [];
+}
+
+function flattenRecordSheetUnits(structure) {
+  const units = [];
+  (structure || []).forEach((category) => {
+    (category.units || []).forEach((unit) => {
+      units.push({ ...unit, category_label: category.label || "" });
+    });
+  });
+  return units;
+}
+
+function getUcScores(record, ucId) {
+  const row = record?.scores?.[ucId];
+  if (row) {
+    return {
+      written: row.written ?? null,
+      demo: row.demo ?? null,
+      interview: row.interview ?? null,
+    };
+  }
+  return { written: null, demo: null, interview: null };
+}
+
+function computeOverallRecordResult(record, units) {
+  const averages = units
+    .map((unit) => {
+      const scores = getUcScores(record, unit.id);
+      return computeAverage(
+        parseScore(scores.written),
+        parseScore(scores.demo),
+        parseScore(scores.interview)
+      );
+    })
+    .filter((avg) => avg != null);
+
+  if (!averages.length) {
+    return { avg: null, result: resultFromAverage(null) };
+  }
+  const overall = averages.reduce((sum, value) => sum + value, 0) / averages.length;
+  return { avg: overall, result: resultFromAverage(overall) };
+}
+
+function computeUcResultFromScores(scores) {
+  const avg = computeAverage(
+    parseScore(scores?.written),
+    parseScore(scores?.demo),
+    parseScore(scores?.interview)
+  );
+  return { avg, result: resultFromAverage(avg) };
+}
+
+function renderUcSummaryCells(unit, scores) {
+  const { avg, result } = computeUcResultFromScores(scores);
+  return `
+    <td class="text-center trainer-record-uc-average" data-uc-avg="${escapeHtml(unit.id)}">${avg == null ? "—" : avg.toFixed(1)}</td>
+    <td class="text-center trainer-record-uc-result" data-uc-result="${escapeHtml(unit.id)}">
+      <span class="trainer-result-badge ${result.className}">${escapeHtml(result.label)}</span>
+    </td>
+  `;
+}
+
+function updateUcSummaryCells(rowEl, unit) {
+  const scores = {
+    written: parseScore(rowEl.querySelector(`[data-uc-id="${unit.id}"][data-field="written"]`)?.value),
+    demo: parseScore(rowEl.querySelector(`[data-uc-id="${unit.id}"][data-field="demo"]`)?.value),
+    interview: parseScore(rowEl.querySelector(`[data-uc-id="${unit.id}"][data-field="interview"]`)?.value),
+  };
+  const { avg, result } = computeUcResultFromScores(scores);
+  const avgEl = rowEl.querySelector(`[data-uc-avg="${unit.id}"]`);
+  const resultEl = rowEl.querySelector(`[data-uc-result="${unit.id}"]`);
+  if (avgEl) avgEl.textContent = avg == null ? "—" : avg.toFixed(1);
+  if (resultEl) {
+    resultEl.innerHTML = `<span class="trainer-result-badge ${result.className}">${escapeHtml(result.label)}</span>`;
+  }
+}
+
+function renderScoreInput(student, unit, field, value, className) {
+  const display =
+    value !== "" && value != null ? escapeHtml(value) : "";
+  return `
+    <input
+      type="number"
+      min="0"
+      max="100"
+      step="1"
+      inputmode="numeric"
+      class="form-control form-control-sm trainer-score-input ${className || ""}"
+      data-uc-id="${escapeHtml(unit.id)}"
+      data-field="${field}"
+      value="${display}"
+      aria-label="${escapeHtml(field)} score for ${escapeHtml(student.name)} — ${escapeHtml(unit.title)}"
+    />
+  `;
+}
+
 function emptyRecord(learningOutcomes) {
   return {
     scores: {},
@@ -106,6 +305,30 @@ function mergeRecord(existing, learningOutcomes) {
 function getEncodableStructure(student, config) {
   const program = student?.program || "";
   return config.encodable_by_program?.[program] || [];
+}
+
+function getEncodableSheetStructure(config, program) {
+  const key = program || config.primary_program || "";
+  return config.encodable_by_program?.[key] || [];
+}
+
+function unitLoCount(unit) {
+  const count = (unit.learning_outcomes || []).length;
+  return count > 0 ? count : 1;
+}
+
+function categoryLoCount(category) {
+  return (category.units || []).reduce((sum, unit) => sum + unitLoCount(unit), 0);
+}
+
+function flattenEncodableUnits(categories) {
+  const units = [];
+  (categories || []).forEach((category) => {
+    (category.units || []).forEach((unit) => {
+      units.push({ ...unit, category_label: category.label || "" });
+    });
+  });
+  return units;
 }
 
 function getNonEncodableStructure(config, program) {
@@ -141,16 +364,6 @@ function formatStudentEncodableName(student, index) {
 
 function formatRecordNameUpper(value) {
   return String(value ?? "—").trim().toUpperCase() || "—";
-}
-
-function formatStudentProgressName(student, index) {
-  const { first, last } = splitNameParts(student);
-  const lastUpper = (last || "—").toUpperCase();
-  const firstUpper = (first || "").toUpperCase();
-  if (firstUpper) {
-    return `${index + 1}. ${lastUpper}, ${firstUpper}`;
-  }
-  return `${index + 1}. ${(student.name || "—").toUpperCase()}`;
 }
 
 function unitLoProgress(record, unit) {
@@ -279,13 +492,15 @@ function enforceScoreInput(input) {
     return;
   }
   const num = Number(raw);
-  if (!Number.isFinite(num) || num < SCORE_MIN || num > SCORE_MAX) {
+  if (!Number.isFinite(num)) {
     input.classList.add("trainer-score-input--invalid");
     input.setCustomValidity("Enter a number from 0 to 100.");
     return;
   }
-  if (num > SCORE_MAX) input.value = String(SCORE_MAX);
-  if (num < SCORE_MIN) input.value = String(SCORE_MIN);
+  const clamped = Math.min(SCORE_MAX, Math.max(SCORE_MIN, Math.round(num)));
+  if (input.value !== String(clamped)) {
+    input.value = String(clamped);
+  }
   input.classList.remove("trainer-score-input--invalid");
   input.setCustomValidity("");
 }
@@ -321,21 +536,16 @@ async function fetchRecords(recordsUrl) {
 }
 
 async function saveRecord(saveUrl, student, record) {
-  const institutional = getInstitutionalScores(record);
   const payload = {
     student_key: student.key,
     student_name: student.name,
     program: student.program,
-    scores: {
-      ...(record.scores || {}),
-      [INSTITUTIONAL_UC_KEY]: {
-        written: institutional.written,
-        demo: institutional.demo,
-        interview: institutional.interview,
-      },
-    },
+    scores: record.scores || {},
     learning_outcomes: record.learning_outcomes || {},
-    national_assessment: record.national_assessment || { result: "", date: "" },
+    national_assessment: {
+      ...(record.national_assessment || { result: "", date: "" }),
+      remarks: record.remarks || record.national_assessment?.remarks || "",
+    },
   };
 
   const response = await fetch(saveUrl, {
@@ -362,10 +572,42 @@ async function saveRecord(saveUrl, student, record) {
   return result;
 }
 
-function updateRowResult(rowEl) {
-  const written = parseScore(rowEl.querySelector('[data-field="written"]')?.value);
-  const demo = parseScore(rowEl.querySelector('[data-field="demo"]')?.value);
-  const interview = parseScore(rowEl.querySelector('[data-field="interview"]')?.value);
+function updateRowResult(rowEl, units) {
+  const unitList = units || [];
+  let written = null;
+  let demo = null;
+  let interview = null;
+
+  if (unitList.length) {
+    unitList.forEach((unit) => updateUcSummaryCells(rowEl, unit));
+
+    const overall = computeOverallRecordResult(
+      { scores: collectRowScores(rowEl) },
+      unitList
+    );
+    const avg = overall.avg;
+    const result = overall.result;
+
+    const avgEl = rowEl.querySelector("[data-average]");
+    if (avgEl) avgEl.textContent = avg == null ? "—" : avg.toFixed(1);
+
+    const resultEl = rowEl.querySelector("[data-result]");
+    if (resultEl) {
+      resultEl.innerHTML = `<span class="trainer-result-badge ${result.className}">${escapeHtml(result.label)}</span>`;
+    }
+
+    const retakeBtn = rowEl.querySelector("[data-retake-btn]");
+    if (retakeBtn) {
+      retakeBtn.classList.toggle("hidden", result.key !== "failed");
+    }
+
+    rowEl.dataset.resultKey = result.key;
+    return;
+  }
+
+  written = parseScore(rowEl.querySelector('[data-field="written"]')?.value);
+  demo = parseScore(rowEl.querySelector('[data-field="demo"]')?.value);
+  interview = parseScore(rowEl.querySelector('[data-field="interview"]')?.value);
   const avg = computeAverage(written, demo, interview);
   const result = resultFromAverage(avg);
 
@@ -387,34 +629,56 @@ function updateRowResult(rowEl) {
 }
 
 function collectRowScores(rowEl) {
+  const scores = {};
+  rowEl.querySelectorAll("[data-uc-id][data-field]").forEach((input) => {
+    const ucId = input.dataset.ucId;
+    const field = input.dataset.field;
+    if (!ucId || !field) return;
+    if (!scores[ucId]) scores[ucId] = {};
+    scores[ucId][field] = parseScore(input.value);
+  });
+
+  if (Object.keys(scores).length) {
+    return scores;
+  }
+
   return {
-    written: parseScore(rowEl.querySelector('[data-field="written"]')?.value),
-    demo: parseScore(rowEl.querySelector('[data-field="demo"]')?.value),
-    interview: parseScore(rowEl.querySelector('[data-field="interview"]')?.value),
+    [INSTITUTIONAL_UC_KEY]: {
+      written: parseScore(rowEl.querySelector('[data-field="written"]')?.value),
+      demo: parseScore(rowEl.querySelector('[data-field="demo"]')?.value),
+      interview: parseScore(rowEl.querySelector('[data-field="interview"]')?.value),
+    },
   };
 }
 
 function renderRecordSheetTable(state, filters) {
-  const { students, gradeStore, config } = state;
+  const { activeStudents, gradeStore, config } = state;
+  const students = activeStudents;
   const { query, status } = filters;
   const programLabel = config.primary_program || students[0]?.program || "";
+  const sheetStructure = getRecordSheetStructure(config, programLabel);
+  const units = flattenRecordSheetUnits(sheetStructure);
+  const useExcelLayout = units.length > 0;
 
   const labelEl = document.getElementById("record-sheet-program-label");
   if (labelEl && programLabel) {
-    labelEl.textContent = `Institutional Assessment — Written Score / Demonstration / Interview — ${programLabel}`;
+    labelEl.textContent = useExcelLayout
+      ? `TESDA Rating Sheet — Written / Demonstration / Interview per Unit of Competency — ${programLabel}`
+      : `Institutional Assessment — Written Score / Demonstration / Interview — ${programLabel}`;
   }
 
   const filtered = students.filter((student) => {
     const names = splitNameParts(student);
     const haystack = `${names.first} ${names.middle} ${names.last} ${student.name}`.toLowerCase();
     const record = mergeRecord(gradeStore[student.key], config.learning_outcomes);
-    const scores = getInstitutionalScores(record);
-    const avg = computeAverage(
-      parseScore(scores.written),
-      parseScore(scores.demo),
-      parseScore(scores.interview)
-    );
-    const resultKey = resultFromAverage(avg).key;
+    const overall = useExcelLayout
+      ? computeOverallRecordResult(record, units)
+      : { result: resultFromAverage(computeAverage(
+          parseScore(getInstitutionalScores(record).written),
+          parseScore(getInstitutionalScores(record).demo),
+          parseScore(getInstitutionalScores(record).interview)
+        )) };
+    const resultKey = overall.result.key;
     const matchesQuery = !query || haystack.includes(query);
     const matchesStatus = !status || resultKey === status;
     return matchesQuery && matchesStatus;
@@ -427,6 +691,113 @@ function renderRecordSheetTable(state, filters) {
     return `<p class="trainer-schedule-empty mb-0" role="status">No students match your filters.</p>`;
   }
 
+  if (!useExcelLayout) {
+    return renderSimpleRecordSheetTable(filtered, gradeStore, config);
+  }
+
+  const categoryHeaderCells = sheetStructure
+    .map((category) => {
+      const count = (category.units || []).length;
+      if (!count) return "";
+      return `
+        <th colspan="${count * UC_ASSESSMENT_COLSPAN}" class="trainer-record-category-head text-center">
+          ${escapeHtml(category.label)}
+        </th>
+      `;
+    })
+    .join("");
+
+  const unitHeaderCells = units
+    .map(
+      (unit) => `
+        <th colspan="${UC_ASSESSMENT_COLSPAN}" class="trainer-record-page-head text-center">
+          <span class="trainer-record-page-head__title">${escapeHtml(unit.title)}</span>
+        </th>
+      `
+    )
+    .join("");
+
+  const subHeaderCells = units
+    .map(
+      () => `
+        <th class="text-center trainer-record-assessment-sub trainer-record-assessment-sub--written">Written</th>
+        <th class="text-center trainer-record-assessment-sub trainer-record-assessment-sub--demo">Demo</th>
+        <th class="text-center trainer-record-assessment-sub trainer-record-assessment-sub--interview">Interview</th>
+        <th class="text-center trainer-record-assessment-sub trainer-record-assessment-sub--average">Grade Average</th>
+        <th class="text-center trainer-record-assessment-sub trainer-record-assessment-sub--result">Result</th>
+      `
+    )
+    .join("");
+
+  const rows = filtered
+    .map((student, rowIndex) => {
+      const names = splitNameParts(student);
+      const record = mergeRecord(gradeStore[student.key], config.learning_outcomes);
+      const overall = computeOverallRecordResult(record, units);
+      const remarks = record.remarks || "";
+
+      const scoreCells = units
+        .map((unit) => {
+          const scores = getUcScores(record, unit.id);
+          return `
+            <td class="text-center">${renderScoreInput(student, unit, "written", scores.written, "trainer-score-input--written")}</td>
+            <td class="text-center">${renderScoreInput(student, unit, "demo", scores.demo, "trainer-score-input--demo")}</td>
+            <td class="text-center">${renderScoreInput(student, unit, "interview", scores.interview, "trainer-score-input--interview")}</td>
+            ${renderUcSummaryCells(unit, scores)}
+          `;
+        })
+        .join("");
+
+      return `
+        <tr data-student-key="${escapeHtml(student.key)}" data-result-key="${overall.result.key}">
+          <td class="text-center trainer-record-sticky trainer-record-sticky--no">${rowIndex + 1}</td>
+          <td class="trainer-record-name trainer-record-sticky trainer-record-sticky--last">${escapeHtml(formatRecordNameUpper(names.last))}</td>
+          <td class="trainer-record-name trainer-record-sticky trainer-record-sticky--first">${escapeHtml(formatRecordNameUpper(names.first))}</td>
+          <td class="trainer-record-name trainer-record-sticky trainer-record-sticky--middle">${escapeHtml(formatRecordNameUpper(names.middle || ""))}</td>
+          ${scoreCells}
+          <td class="text-center trainer-record-average" data-average>${overall.avg == null ? "—" : overall.avg.toFixed(1)}</td>
+          <td class="text-center" data-result>
+            <span class="trainer-result-badge ${overall.result.className}">${escapeHtml(overall.result.label)}</span>
+          </td>
+          <td class="text-center">
+            <button type="button" class="btn btn-sm trainer-btn-retake${overall.result.key === "failed" ? "" : " hidden"}" data-retake-btn>
+              <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+              Retake
+            </button>
+          </td>
+          <td class="trainer-record-remarks-col">
+            <input type="text" class="form-control form-control-sm trainer-record-remarks-input" data-remarks placeholder="Add remarks..." value="${escapeHtml(remarks)}" aria-label="Remarks for ${escapeHtml(student.name)}" />
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="trainer-record-sheet-scroll">
+      <table class="table trainer-table trainer-record-sheet-table trainer-record-sheet-table--excel mb-0" id="record-sheet-table">
+        <thead>
+          <tr>
+            <th rowspan="3" class="text-center trainer-record-sticky trainer-record-sticky--no">No.</th>
+            <th rowspan="3" class="trainer-record-sticky trainer-record-sticky--last">Last Name</th>
+            <th rowspan="3" class="trainer-record-sticky trainer-record-sticky--first">First Name</th>
+            <th rowspan="3" class="trainer-record-sticky trainer-record-sticky--middle">Middle Name</th>
+            ${categoryHeaderCells}
+            <th rowspan="3" class="text-center">Average</th>
+            <th rowspan="3" class="text-center">Result</th>
+            <th rowspan="3" class="text-center">Retake</th>
+            <th rowspan="3" class="trainer-record-remarks-col">Remarks</th>
+          </tr>
+          <tr>${unitHeaderCells}</tr>
+          <tr>${subHeaderCells}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSimpleRecordSheetTable(filtered, gradeStore, config) {
   const rows = filtered
     .map((student, rowIndex) => {
       const names = splitNameParts(student);
@@ -440,70 +811,32 @@ function renderRecordSheetTable(state, filters) {
       const remarks = record.remarks || "";
 
       return `
-        <tr
-          data-student-key="${escapeHtml(student.key)}"
-          data-result-key="${result.key}"
-        >
+        <tr data-student-key="${escapeHtml(student.key)}" data-result-key="${result.key}">
           <td class="text-center">${rowIndex + 1}</td>
           <td class="trainer-record-name">${escapeHtml(formatRecordNameUpper(names.last))}</td>
           <td class="trainer-record-name">${escapeHtml(formatRecordNameUpper(names.first))}</td>
           <td class="trainer-record-name">${escapeHtml(formatRecordNameUpper(names.middle || ""))}</td>
           <td class="text-center">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              class="form-control form-control-sm trainer-score-input trainer-score-input--written"
-              data-field="written"
-              value="${written !== "" && written != null ? escapeHtml(written) : ""}"
-              aria-label="Written score for ${escapeHtml(student.name)}"
-            />
+            <input type="number" min="0" max="100" step="1" inputmode="numeric" class="form-control form-control-sm trainer-score-input trainer-score-input--written" data-uc-id="${INSTITUTIONAL_UC_KEY}" data-field="written" value="${written !== "" && written != null ? escapeHtml(written) : ""}" aria-label="Written score for ${escapeHtml(student.name)}" />
           </td>
           <td class="text-center">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              class="form-control form-control-sm trainer-score-input trainer-score-input--demo"
-              data-field="demo"
-              value="${demoScore !== "" && demoScore != null ? escapeHtml(demoScore) : ""}"
-              aria-label="Demonstration score for ${escapeHtml(student.name)}"
-            />
+            <input type="number" min="0" max="100" step="1" inputmode="numeric" class="form-control form-control-sm trainer-score-input trainer-score-input--demo" data-uc-id="${INSTITUTIONAL_UC_KEY}" data-field="demo" value="${demoScore !== "" && demoScore != null ? escapeHtml(demoScore) : ""}" aria-label="Demonstration score for ${escapeHtml(student.name)}" />
           </td>
           <td class="text-center">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              class="form-control form-control-sm trainer-score-input trainer-score-input--interview"
-              data-field="interview"
-              value="${interview !== "" && interview != null ? escapeHtml(interview) : ""}"
-              aria-label="Interview score for ${escapeHtml(student.name)}"
-            />
+            <input type="number" min="0" max="100" step="1" inputmode="numeric" class="form-control form-control-sm trainer-score-input trainer-score-input--interview" data-uc-id="${INSTITUTIONAL_UC_KEY}" data-field="interview" value="${interview !== "" && interview != null ? escapeHtml(interview) : ""}" aria-label="Interview score for ${escapeHtml(student.name)}" />
           </td>
           <td class="text-center trainer-record-average" data-average>${avg == null ? "—" : avg.toFixed(1)}</td>
           <td class="text-center" data-result>
             <span class="trainer-result-badge ${result.className}">${escapeHtml(result.label)}</span>
           </td>
           <td class="text-center">
-            <button
-              type="button"
-              class="btn btn-sm trainer-btn-retake${result.key === "failed" ? "" : " hidden"}"
-              data-retake-btn
-            >
+            <button type="button" class="btn btn-sm trainer-btn-retake${result.key === "failed" ? "" : " hidden"}" data-retake-btn>
               <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
               Retake
             </button>
           </td>
           <td>
-            <input
-              type="text"
-              class="form-control form-control-sm trainer-record-remarks-input"
-              data-remarks
-              placeholder="Add remarks..."
-              value="${escapeHtml(remarks)}"
-              aria-label="Remarks for ${escapeHtml(student.name)}"
-            />
+            <input type="text" class="form-control form-control-sm trainer-record-remarks-input" data-remarks placeholder="Add remarks..." value="${escapeHtml(remarks)}" aria-label="Remarks for ${escapeHtml(student.name)}" />
           </td>
         </tr>
       `;
@@ -537,20 +870,60 @@ function renderRecordSheetTable(state, filters) {
   `;
 }
 
+function encodableResultFromUc(record, unit) {
+  const row = record.scores?.[unit.id];
+  if (!hasUcScoreRow(row)) {
+    return { label: "—", className: "trainer-result-badge--empty", key: "incomplete" };
+  }
+  const result = competencyStatusForUnit(record, unit);
+  if (result.key === "competent") {
+    return { label: "Competent", className: "trainer-result-badge--competent", key: "competent" };
+  }
+  return { label: "Incompetent", className: "trainer-result-badge--incompetent", key: "incompetent" };
+}
+
+function renderEncodableStatusCell(result) {
+  if (result.key === "incomplete") {
+    return `<td class="text-center trainer-encodable-status-cell">—</td>`;
+  }
+  return `
+    <td class="text-center trainer-encodable-status-cell">
+      <span class="trainer-result-badge ${result.className}">${escapeHtml(result.label)}</span>
+    </td>
+  `;
+}
+
+function renderEncodableLoCells(record, unit) {
+  const result = encodableResultFromUc(record, unit);
+  const los = unit.learning_outcomes || [];
+  if (!los.length) {
+    return renderEncodableStatusCell(result);
+  }
+  return los.map(() => renderEncodableStatusCell(result)).join("");
+}
+
 function renderEncodableSheet(state, filters) {
-  const { students, gradeStore, config } = state;
+  const { activeStudents, gradeStore, config } = state;
+  const students = activeStudents;
   const { query, status } = filters;
+
+  const programLabel = config.primary_program || students[0]?.program || "";
+  const sheetStructure = getEncodableSheetStructure(config, programLabel);
+  const allUnits = flattenEncodableUnits(sheetStructure);
 
   const filtered = students.filter((student, index) => {
     const names = splitNameParts(student);
     const haystack = `${formatStudentEncodableName(student, index)} ${names.first} ${names.last} ${student.name}`.toLowerCase();
-    const structure = getEncodableStructure(student, config);
     const record = mergeRecord(
       gradeStore[student.key],
       learningOutcomeDefsForStudent(student, config)
     );
-    const progress = studentLoProgress(record, structure);
-    const statusKey = encodableStatusKey(progress);
+    const unitResults = allUnits.map((unit) => encodableResultFromUc(record, unit));
+    const hasIncomplete = unitResults.some((r) => r.key === "incomplete");
+    const hasIncompetent = unitResults.some((r) => r.key === "incompetent");
+    let statusKey = "complete";
+    if (hasIncomplete) statusKey = "incomplete";
+    else if (hasIncompetent) statusKey = "incompetent";
     const matchesQuery = !query || haystack.includes(query);
     const matchesStatus = !status || statusKey === status;
     return matchesQuery && matchesStatus;
@@ -559,23 +932,97 @@ function renderEncodableSheet(state, filters) {
   if (!students.length) {
     return `<p class="trainer-schedule-empty mb-0">No assigned students yet.</p>`;
   }
+  if (!allUnits.length) {
+    return `<p class="trainer-schedule-empty mb-0">No competencies configured for this class.</p>`;
+  }
   if (!filtered.length) {
     return `<p class="trainer-schedule-empty mb-0">No students match your filters.</p>`;
   }
 
-  const cards = filtered
-    .map((student) => {
-      const index = students.indexOf(student);
-      const structure = getEncodableStructure(student, config);
+  const categoryHeaderCells = sheetStructure
+    .map((category) => {
+      const count = categoryLoCount(category);
+      if (!count) return "";
+      return `
+        <th colspan="${count}" class="trainer-encodable-category-head text-center">
+          ${escapeHtml(category.label)}
+        </th>
+      `;
+    })
+    .join("");
+
+  const unitHeaderCells = allUnits
+    .map(
+      (unit) => `
+        <th colspan="${unitLoCount(unit)}" class="trainer-encodable-unit-head text-center">
+          <span class="trainer-encodable-unit-head__title">${escapeHtml(unit.title || "")}</span>
+        </th>
+      `
+    )
+    .join("");
+
+  const loHeaderCells = allUnits
+    .flatMap((unit) => {
+      const los = unit.learning_outcomes || [];
+      if (!los.length) {
+        return `
+          <th class="trainer-encodable-lo-head text-center">
+            <span class="trainer-encodable-lo-head__title">—</span>
+          </th>
+        `;
+      }
+      return los.map(
+        (lo) => `
+          <th class="trainer-encodable-lo-head text-center">
+            <span class="trainer-encodable-lo-head__title">${escapeHtml(lo.label)}</span>
+          </th>
+        `
+      );
+    })
+    .join("");
+
+  const rows = filtered
+    .map((student, rowIndex) => {
+      const names = splitNameParts(student);
       const record = mergeRecord(
         gradeStore[student.key],
         learningOutcomeDefsForStudent(student, config)
       );
-      return renderStudentEncodableCard(student, index, record, structure);
+
+      const competencyCells = allUnits
+        .map((unit) => renderEncodableLoCells(record, unit))
+        .join("");
+
+      return `
+        <tr>
+          <td class="text-center trainer-encodable-name-col">${rowIndex + 1}</td>
+          <td class="trainer-encodable-name-col">${escapeHtml(names.last || "—")}</td>
+          <td class="trainer-encodable-name-col">${escapeHtml(names.first || "—")}</td>
+          <td class="trainer-encodable-name-col">${escapeHtml(names.middle || "—")}</td>
+          ${competencyCells}
+        </tr>
+      `;
     })
     .join("");
 
-  return `<div class="trainer-encodable-student-grid">${cards}</div>`;
+  return `
+    <div class="trainer-encodable-scroll">
+      <table class="table trainer-table trainer-encodable-sheet-table mb-0">
+        <thead>
+          <tr>
+            <th rowspan="3" class="text-center trainer-encodable-name-col">No.</th>
+            <th rowspan="3" class="trainer-encodable-name-col">Last Name</th>
+            <th rowspan="3" class="trainer-encodable-name-col">First Name</th>
+            <th rowspan="3" class="trainer-encodable-name-col">Middle Name</th>
+            ${categoryHeaderCells}
+          </tr>
+          <tr>${unitHeaderCells}</tr>
+          <tr>${loHeaderCells}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 function hasUcScoreRow(row) {
@@ -607,19 +1054,61 @@ function renderStatusPill(result) {
   return `<span class="trainer-result-badge ${result.className}">${escapeHtml(result.label)}</span>`;
 }
 
-function studentOverallStatus(record) {
-  const inst = getInstitutionalScores(record);
-  return resultFromAverage(
-    computeAverage(
-      parseScore(inst.written),
-      parseScore(inst.demo),
-      parseScore(inst.interview)
-    )
+function isOverallResultsRowComplete(record, units) {
+  if (!units?.length) return false;
+  return units.every(
+    (unit) => overallResultFromEncodableUnit(record, unit).key !== "incomplete"
   );
 }
 
+function renderNationalAssessmentSelect(record, studentName, disabled = false) {
+  const current = (record?.national_assessment?.result || "").trim();
+  const mutedClass = disabled ? " trainer-na-select-wrap--muted" : "";
+  const disabledAttr = disabled ? " disabled" : "";
+  const hint = disabled
+    ? "Complete all competency results before selecting national assessment"
+    : "Select national assessment result";
+  return `
+    <label class="trainer-na-select-wrap${mutedClass}">
+      <select
+        class="form-select form-select-sm trainer-na-select"
+        data-national-assessment-result
+        aria-label="National assessment result for ${escapeHtml(studentName || "student")}"
+        title="${escapeHtml(hint)}"
+        ${disabledAttr}
+      >
+        <option value="" ${!current ? "selected" : ""}>Select result</option>
+        <option value="Not Yet Competent" ${current === "Not Yet Competent" ? "selected" : ""}>Not Yet Competent</option>
+        <option value="Competent" ${current === "Competent" ? "selected" : ""}>Competent</option>
+      </select>
+      <i class="bi bi-chevron-down" aria-hidden="true"></i>
+    </label>
+  `;
+}
+
+function overallResultFromEncodableUnit(record, unit) {
+  const row = record.scores?.[unit.id];
+  if (!hasUcScoreRow(row)) {
+    return { label: "—", className: "trainer-result-badge--empty", key: "incomplete" };
+  }
+  const result = competencyStatusForUnit(record, unit);
+  if (result.key === "competent") {
+    return { label: "Competent", className: "trainer-result-badge--competent", key: "competent" };
+  }
+  return { label: "Incompetent", className: "trainer-result-badge--incompetent", key: "incompetent" };
+}
+
+function overallResultStatusKey(record, units) {
+  const results = (units || []).map((unit) => overallResultFromEncodableUnit(record, unit));
+  if (!results.length) return "incomplete";
+  if (results.some((result) => result.key === "incomplete")) return "incomplete";
+  if (results.some((result) => result.key === "incompetent")) return "incompetent";
+  return "competent";
+}
+
 function renderNonEncodableSheet(state, filters) {
-  const { students, gradeStore, config } = state;
+  const { activeStudents, gradeStore, config } = state;
+  const students = activeStudents;
   const { query, status } = filters;
 
   const program =
@@ -637,7 +1126,7 @@ function renderNonEncodableSheet(state, filters) {
       gradeStore[student.key],
       learningOutcomeDefsForStudent(student, config)
     );
-    const resultKey = studentOverallStatus(record).key;
+    const resultKey = overallResultStatusKey(record, allUnits);
     const matchesQuery = !query || haystack.includes(query);
     const matchesStatus = !status || resultKey === status;
     return matchesQuery && matchesStatus;
@@ -683,9 +1172,11 @@ function renderNonEncodableSheet(state, filters) {
         learningOutcomeDefsForStudent(student, config)
       );
 
+      const rowComplete = isOverallResultsRowComplete(record, allUnits);
+
       const competencyCells = allUnits
         .map((unit) => {
-          const result = competencyStatusForUnit(record, unit);
+          const result = overallResultFromEncodableUnit(record, unit);
           return `
             <td class="text-center trainer-non-encodable-status-cell">
               ${renderStatusPill(result)}
@@ -695,12 +1186,15 @@ function renderNonEncodableSheet(state, filters) {
         .join("");
 
       return `
-        <tr>
+        <tr data-student-key="${escapeHtml(student.key)}" data-row-complete="${rowComplete ? "1" : "0"}">
           <td class="text-center trainer-non-encodable-name-col">${rowIndex + 1}</td>
           <td class="trainer-non-encodable-name-col">${escapeHtml(names.last || "—")}</td>
           <td class="trainer-non-encodable-name-col">${escapeHtml(names.first || "—")}</td>
           <td class="trainer-non-encodable-name-col">${escapeHtml(names.middle || "—")}</td>
           ${competencyCells}
+          <td class="trainer-non-encodable-na-cell">
+            ${renderNationalAssessmentSelect(record, student.name, !rowComplete)}
+          </td>
         </tr>
       `;
     })
@@ -716,115 +1210,13 @@ function renderNonEncodableSheet(state, filters) {
             <th rowspan="2" class="trainer-non-encodable-name-col">First Name</th>
             <th rowspan="2" class="trainer-non-encodable-name-col">Middle Name</th>
             ${categoryHeaderCells}
+            <th rowspan="2" class="trainer-non-encodable-na-head text-center">For National Assessment</th>
           </tr>
           <tr>${unitHeaderCells}</tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
-  `;
-}
-
-function progressChartRows(state) {
-  const { students, gradeStore, config } = state;
-  return students.map((student, index) => {
-    const los = learningOutcomeDefsForStudent(student, config);
-    const record = mergeRecord(gradeStore[student.key], los);
-    const structure = getEncodableStructure(student, config);
-    const loProgress = studentLoProgress(record, structure);
-    const institutional = studentOverallStatus(record);
-    return {
-      student,
-      index,
-      record,
-      loProgress,
-      loStatusKey: encodableStatusKey(loProgress),
-      institutional,
-      searchText: formatStudentProgressName(student, index).toLowerCase(),
-    };
-  });
-}
-
-function renderProgressChart(state, filters) {
-  const { students, config } = state;
-  const { query, status } = filters || {};
-
-  if (!students.length) {
-    return `<p class="trainer-schedule-empty mb-0">No students to display.</p>`;
-  }
-
-  const allRows = progressChartRows(state);
-  let completeCount = 0;
-  let inProgressCount = 0;
-  let notStartedCount = 0;
-
-  allRows.forEach((row) => {
-    if (row.loStatusKey === "complete") completeCount += 1;
-    else if (row.loStatusKey === "in-progress") inProgressCount += 1;
-    else notStartedCount += 1;
-  });
-
-  const filtered = allRows.filter((row) => {
-    const matchesQuery = !query || row.searchText.includes(query);
-    const matchesStatus = !status || row.loStatusKey === status;
-    return matchesQuery && matchesStatus;
-  });
-
-  const reportsUrl = config.reports_url || "/trainer/reports/";
-
-  const listItems = filtered
-    .map((row) => {
-      const { student, index, loProgress, institutional } = row;
-      return `
-        <li class="trainer-progress-row" data-lo-status="${row.loStatusKey}">
-          <div class="trainer-progress-row__top">
-            <span class="trainer-progress-row__name">${escapeHtml(formatStudentProgressName(student, index))}</span>
-            <span class="trainer-progress-row__meta">
-              <span class="trainer-progress-row__los">${loProgress.checked}/${loProgress.total} LOs</span>
-              ${renderStatusPill(institutional)}
-            </span>
-          </div>
-          <div class="trainer-progress-row__bar-line">
-            <div class="trainer-progress-row__bar" role="presentation">
-              <span class="trainer-progress-row__bar-fill" style="width: ${loProgress.percent}%"></span>
-            </div>
-            <span class="trainer-progress-row__pct">${loProgress.percent}%</span>
-          </div>
-        </li>
-      `;
-    })
-    .join("");
-
-  const listHtml = filtered.length
-    ? `<ul class="list-unstyled trainer-progress-list mb-0">${listItems}</ul>`
-    : `<p class="trainer-schedule-empty mb-0" role="status">No students match your filters.</p>`;
-
-  return `
-    <div class="trainer-progress-summary" aria-label="Progress summary">
-      <div class="trainer-progress-stat-card">
-        <p class="trainer-progress-stat-card__label">All LOs Complete</p>
-        <p class="trainer-progress-stat-card__value trainer-progress-stat-card__value--success">${completeCount}</p>
-      </div>
-      <div class="trainer-progress-stat-card">
-        <p class="trainer-progress-stat-card__label">In Progress</p>
-        <p class="trainer-progress-stat-card__value trainer-progress-stat-card__value--warning">${inProgressCount}</p>
-      </div>
-      <div class="trainer-progress-stat-card">
-        <p class="trainer-progress-stat-card__label">Not Started</p>
-        <p class="trainer-progress-stat-card__value trainer-progress-stat-card__value--muted">${notStartedCount}</p>
-      </div>
-      <div class="trainer-progress-stat-card">
-        <p class="trainer-progress-stat-card__label">Total Students</p>
-        <p class="trainer-progress-stat-card__value">${students.length}</p>
-      </div>
-    </div>
-    <div class="trainer-progress-download mb-3">
-      <a href="${escapeHtml(reportsUrl)}" class="btn trainer-btn-primary">
-        <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>
-        Download Progress Report
-      </a>
-    </div>
-    ${listHtml}
   `;
 }
 
@@ -857,24 +1249,52 @@ function initSheetsPage() {
   const gradeStore = {};
   const saveTimers = new Map();
 
-  const state = { students, gradeStore, config };
+  const state = {
+    students,
+    activeStudents: [],
+    gradeStore,
+    config,
+    selection: {
+      program: config.default_program || config.primary_program || "",
+      batchId: config.default_batch_id || "",
+    },
+  };
+
+  function syncSelectionView() {
+    if (!state.selection.program && getCourseGroups(config)[0]) {
+      state.selection.program = getCourseGroups(config)[0].program;
+      state.selection.batchId = getCourseGroups(config)[0].batches?.[0]?.id || "";
+    }
+    state.config.primary_program = state.selection.program;
+    state.activeStudents = getActiveStudents(state);
+    updatePageSubtitle(state.selection.program, findBatchMeta(state));
+    renderClassPicker(state, {
+      onCourseSelect(program) {
+        const group = findCourseGroup(state.config, program);
+        state.selection.program = program;
+        state.selection.batchId = group?.batches?.[0]?.id || "";
+        syncSelectionView();
+        renderAll();
+      },
+      onBatchSelect(batchId) {
+        state.selection.batchId = batchId;
+        syncSelectionView();
+        renderAll();
+      },
+    });
+  }
 
   const recordContent = document.getElementById("record-sheet-content");
   const encodableContent = document.getElementById("encodable-sheet-content");
   const nonEncodableContent = document.getElementById("non-encodable-sheet-content");
-  const progressContent = document.getElementById("progress-chart-content");
 
   const recordSearch = document.getElementById("record-sheet-search");
   const recordStatus = document.getElementById("record-sheet-status");
   const encodableSearch = document.getElementById("encodable-sheet-search");
   const encodableStatus = document.getElementById("encodable-sheet-status");
-  const encodableExpandAll = document.getElementById("encodable-expand-all");
   const nonEncodableSearch = document.getElementById("non-encodable-search");
   const nonEncodableStatus = document.getElementById("non-encodable-status");
-  const progressSearch = document.getElementById("progress-chart-search");
-  const progressStatus = document.getElementById("progress-chart-status");
   const saveHint = document.getElementById("record-sheet-save-hint");
-  let encodableAllExpanded = false;
 
   function getRecordFilters() {
     return {
@@ -890,62 +1310,10 @@ function initSheetsPage() {
     };
   }
 
-  function updateEncodableStudentCard(cardEl) {
-    const studentKey = cardEl.dataset.studentKey;
-    const student = students.find((s) => s.key === studentKey);
-    if (!student) return;
-    const structure = getEncodableStructure(student, config);
-    const record = mergeRecord(
-      gradeStore[studentKey],
-      learningOutcomeDefsForStudent(student, config)
-    );
-    structure.forEach((category) => {
-      (category.units || []).forEach((unit) => {
-        const unitCard = cardEl.querySelector(`[data-unit-id="${unit.id}"]`);
-        if (!unitCard) return;
-        const progress = unitLoProgress(record, unit);
-        const pctEl = unitCard.querySelector(".trainer-encodable-unit-card__pct");
-        const barEl = unitCard.querySelector(".trainer-encodable-unit-card__bar-fill");
-        if (pctEl) pctEl.textContent = `${progress.percent}%`;
-        if (barEl) barEl.style.width = `${progress.percent}%`;
-      });
-    });
-    const progress = studentLoProgress(record, structure);
-    const countEl = cardEl.querySelector("[data-lo-count]");
-    const pctLabel = cardEl.querySelector("[data-lo-pct]");
-    const barEl = cardEl.querySelector("[data-lo-bar]");
-    if (countEl) countEl.textContent = `${progress.checked}/${progress.total} LOs`;
-    if (pctLabel) pctLabel.textContent = `${progress.percent}%`;
-    if (barEl) barEl.style.width = `${progress.percent}%`;
-    cardEl.dataset.status = encodableStatusKey(progress);
-  }
-
-  function syncEncodableFromCard(cardEl) {
-    const studentKey = cardEl.dataset.studentKey;
-    const student = students.find((s) => s.key === studentKey);
-    if (!student) return;
-    const los = learningOutcomeDefsForStudent(student, config);
-    const record = mergeRecord(gradeStore[studentKey], los);
-    cardEl.querySelectorAll("input[data-lo-id]").forEach((input) => {
-      record.learning_outcomes[input.dataset.loId] = input.checked;
-    });
-    gradeStore[studentKey] = record;
-    updateEncodableStudentCard(cardEl);
-    scheduleSave(studentKey);
-    if (progressContent) progressContent.innerHTML = renderProgressChart(state, getProgressFilters());
-  }
-
   function getNonEncodableFilters() {
     return {
       query: (nonEncodableSearch?.value || "").trim().toLowerCase(),
       status: nonEncodableStatus?.value || "",
-    };
-  }
-
-  function getProgressFilters() {
-    return {
-      query: (progressSearch?.value || "").trim().toLowerCase(),
-      status: progressStatus?.value || "",
     };
   }
 
@@ -957,17 +1325,10 @@ function initSheetsPage() {
     if (encodableContent) {
       encodableContent.innerHTML = renderEncodableSheet(state, getEncodableFilters());
       bindEncodableEvents();
-      if (encodableAllExpanded) {
-        encodableContent.querySelectorAll(".trainer-encodable-student-card").forEach((cardEl) => {
-          setStudentCardExpanded(cardEl, true);
-        });
-      }
     }
     if (nonEncodableContent) {
       nonEncodableContent.innerHTML = renderNonEncodableSheet(state, getNonEncodableFilters());
-    }
-    if (progressContent) {
-      progressContent.innerHTML = renderProgressChart(state, getProgressFilters());
+      bindNonEncodableEvents();
     }
   }
 
@@ -985,7 +1346,7 @@ function initSheetsPage() {
   }
 
   async function persistStudent(studentKey) {
-    const student = students.find((s) => s.key === studentKey);
+    const student = state.students.find((s) => s.key === studentKey);
     if (!student || !config.save_url) return;
 
     const record = mergeRecord(gradeStore[studentKey], config.learning_outcomes);
@@ -994,14 +1355,25 @@ function initSheetsPage() {
     showToast(`Scores saved for ${student.name}.`);
   }
 
+  function refreshDerivedSheets() {
+    if (encodableContent) {
+      encodableContent.innerHTML = renderEncodableSheet(state, getEncodableFilters());
+    }
+    if (nonEncodableContent) {
+      nonEncodableContent.innerHTML = renderNonEncodableSheet(state, getNonEncodableFilters());
+      bindNonEncodableEvents();
+    }
+  }
+
   function syncRowToStore(rowEl) {
     const studentKey = rowEl.dataset.studentKey;
     if (!studentKey) return;
     const record = mergeRecord(gradeStore[studentKey], config.learning_outcomes);
-    const scores = collectRowScores(rowEl);
+    const programLabel = config.primary_program || "";
+    const units = flattenRecordSheetUnits(getRecordSheetStructure(config, programLabel));
     record.scores = {
       ...(record.scores || {}),
-      [INSTITUTIONAL_UC_KEY]: scores,
+      ...collectRowScores(rowEl),
     };
     const remarksEl = rowEl.querySelector("[data-remarks]");
     if (remarksEl) {
@@ -1012,7 +1384,8 @@ function initSheetsPage() {
       };
     }
     gradeStore[studentKey] = record;
-    updateRowResult(rowEl);
+    updateRowResult(rowEl, units);
+    refreshDerivedSheets();
     scheduleSave(studentKey);
   }
 
@@ -1035,32 +1408,98 @@ function initSheetsPage() {
     });
   }
 
-  function setStudentCardExpanded(cardEl, expanded) {
-    const toggle = cardEl.querySelector(".trainer-encodable-student-card__toggle");
-    const body = cardEl.querySelector(".trainer-encodable-student-card__body");
-    if (!toggle || !body) return;
-    toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-    body.hidden = !expanded;
-    body.classList.toggle("hidden", !expanded);
-    cardEl.classList.toggle("is-expanded", expanded);
+  function bindEncodableEvents() {
+    /* Encodable sheet is read-only; no interactive bindings. */
   }
 
-  function bindEncodableEvents() {
-    encodableContent?.querySelectorAll(".trainer-encodable-student-card").forEach((cardEl) => {
-      const toggle = cardEl.querySelector(".trainer-encodable-student-card__toggle");
-      toggle?.addEventListener("click", () => {
-        const expanded = toggle.getAttribute("aria-expanded") !== "true";
-        setStudentCardExpanded(cardEl, expanded);
+  function bindNonEncodableEvents() {
+    nonEncodableContent
+      ?.querySelectorAll('tr[data-student-key] [data-national-assessment-result]')
+      .forEach((selectEl) => {
+        selectEl.addEventListener("change", () => {
+          if (selectEl.disabled) return;
+          const rowEl = selectEl.closest("tr[data-student-key]");
+          const studentKey = rowEl?.dataset.studentKey;
+          if (!studentKey) return;
+          const record = mergeRecord(gradeStore[studentKey], config.learning_outcomes);
+          record.national_assessment = {
+            ...(record.national_assessment || {}),
+            result: selectEl.value || "",
+          };
+          gradeStore[studentKey] = record;
+          scheduleSave(studentKey);
+        });
       });
-      cardEl.querySelectorAll("input[data-lo-id]").forEach((input) => {
-        input.addEventListener("change", () => syncEncodableFromCard(cardEl));
-      });
+  }
+
+  function printRecordSheetTableOnly() {
+    const table = document.getElementById("record-sheet-table");
+    if (!table) {
+      showToast("Record sheet table is not ready yet.", true);
+      return;
+    }
+
+    const tableClone = table.cloneNode(true);
+    tableClone.querySelectorAll("input, select, textarea").forEach((field) => {
+      const value = field.value != null ? String(field.value).trim() : "";
+      const text = value || "—";
+      const span = document.createElement("span");
+      span.textContent = text;
+      span.className = "print-field-text";
+      field.replaceWith(span);
     });
+    tableClone.querySelectorAll("button").forEach((btn) => {
+      const text = (btn.textContent || "").trim();
+      const span = document.createElement("span");
+      span.textContent = text || "—";
+      btn.replaceWith(span);
+    });
+
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1200,height=900");
+    if (!printWindow) {
+      showToast("Popup blocked. Please allow popups for printing.", true);
+      return;
+    }
+
+    const printTitle = `${state.selection.program || "Trainer"} - Record Sheet`;
+    printWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(printTitle)}</title>
+  <style>
+    @page { size: landscape; margin: 10mm; }
+    body { font-family: Arial, Helvetica, sans-serif; margin: 0; color: #0f172a; }
+    .print-head { margin-bottom: 8px; }
+    .print-title { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+    .print-meta { font-size: 11px; margin: 0; color: #334155; }
+    .sheet-wrap { overflow: visible; }
+    table { border-collapse: collapse; width: 100%; font-size: 10px; }
+    th, td { border: 1px solid #475569; padding: 4px 5px; vertical-align: middle; }
+    thead th { background: #f1f5f9; }
+    .print-field-text { display: inline-block; min-width: 1ch; font-weight: 600; }
+    .trainer-result-badge { padding: 0; border: none; background: transparent !important; color: #111827 !important; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div class="print-head">
+    <p class="print-title">${escapeHtml(printTitle)}</p>
+    <p class="print-meta">Printed ${new Date().toLocaleString()}</p>
+  </div>
+  <div class="sheet-wrap">${tableClone.outerHTML}</div>
+</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
   }
 
   async function loadRecords() {
     const loading = `<p class="text-muted mb-0">Loading record sheets…</p>`;
-    [recordContent, encodableContent, nonEncodableContent, progressContent].forEach((el) => {
+    [recordContent, encodableContent, nonEncodableContent].forEach((el) => {
       if (el) el.innerHTML = loading;
     });
 
@@ -1076,12 +1515,13 @@ function initSheetsPage() {
           );
         }
       });
-      seedDemoRecordScores(students, gradeStore);
+      seedDemoRecordScores(state.students, gradeStore);
+      syncSelectionView();
       renderAll();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not load record sheets.";
       const html = `<div class="alert alert-danger mb-0" role="alert">${escapeHtml(message)}</div>`;
-      [recordContent, encodableContent, nonEncodableContent, progressContent].forEach((el) => {
+      [recordContent, encodableContent, nonEncodableContent].forEach((el) => {
         if (el) el.innerHTML = html;
       });
     }
@@ -1095,26 +1535,15 @@ function initSheetsPage() {
     el?.addEventListener("input", renderAll);
     el?.addEventListener("change", renderAll);
   });
-  encodableExpandAll?.addEventListener("click", () => {
-    encodableAllExpanded = !encodableAllExpanded;
-    encodableExpandAll.textContent = encodableAllExpanded ? "Collapse All" : "Expand All";
-    encodableContent?.querySelectorAll(".trainer-encodable-student-card").forEach((cardEl) => {
-      setStudentCardExpanded(cardEl, encodableAllExpanded);
-    });
-  });
   [nonEncodableSearch, nonEncodableStatus].forEach((el) => {
     el?.addEventListener("input", renderAll);
     el?.addEventListener("change", renderAll);
   });
-  [progressSearch, progressStatus].forEach((el) => {
-    el?.addEventListener("input", renderAll);
-    el?.addEventListener("change", renderAll);
+  document.getElementById("record-sheet-print")?.addEventListener("click", () => {
+    printRecordSheetTableOnly();
   });
-
-  document.getElementById("record-sheet-print")?.addEventListener("click", () => window.print());
   document.getElementById("encodable-sheet-print")?.addEventListener("click", () => window.print());
   document.getElementById("non-encodable-print")?.addEventListener("click", () => window.print());
-  document.getElementById("progress-chart-print")?.addEventListener("click", () => window.print());
 
   loadRecords();
 }

@@ -1,6 +1,6 @@
 """Registrar batching & scheduling API (DB-backed course cards and templates)."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -189,6 +189,78 @@ def _schedule_display(days: list, schedule_type: str) -> str:
     return ", ".join(labels)
 
 
+def _effective_days(days: list, schedule_type: str) -> set[str]:
+    stype = (schedule_type or "").strip().lower()
+    if stype == "weekdays":
+        return {"mon", "tue", "wed", "thu", "fri"}
+    if stype == "weekends":
+        return {"sat", "sun"}
+    return {str(day).strip().lower() for day in (days or []) if str(day).strip()}
+
+
+def _parse_time(value: str):
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    for fmt in ("%H:%M", "%I:%M %p", "%I:%M%p"):
+        try:
+            return datetime.strptime(raw, fmt).time()
+        except ValueError:
+            continue
+    return None
+
+
+def _date_overlap(
+    start_a: date | None, end_a: date | None, start_b: date | None, end_b: date | None
+) -> bool:
+    if not start_a or not end_a or not start_b or not end_b:
+        return True
+    return start_a <= end_b and start_b <= end_a
+
+
+def _schedule_conflicts(template: RegistrarScheduleTemplate, other: RegistrarScheduleTemplate) -> bool:
+    if not _date_overlap(
+        template.available_from,
+        template.available_until,
+        other.available_from,
+        other.available_until,
+    ):
+        return False
+    if not (_effective_days(template.days, template.schedule_type) & _effective_days(other.days, other.schedule_type)):
+        return False
+    start_a = _parse_time(template.time_from)
+    end_a = _parse_time(template.time_to)
+    start_b = _parse_time(other.time_from)
+    end_b = _parse_time(other.time_to)
+    if not start_a or not end_a or not start_b or not end_b:
+        return True
+    return start_a < end_b and start_b < end_a
+
+
+def _conflicting_finalized_batch(
+    template: RegistrarScheduleTemplate, *, exclude_id: int | None = None
+):
+    qs = RegistrarScheduleTemplate.objects.filter(
+        status=RegistrarScheduleTemplate.Status.FINALIZED,
+    )
+    if exclude_id:
+        qs = qs.exclude(pk=exclude_id)
+
+    trainer_name = (template.trainer_name or "").strip()
+    trainer_req_id = template.trainer_request_id
+    if trainer_req_id:
+        qs = qs.filter(trainer_request_id=trainer_req_id)
+    elif trainer_name:
+        qs = qs.filter(trainer_name__iexact=trainer_name)
+    else:
+        return None
+
+    for existing in qs:
+        if _schedule_conflicts(template, existing):
+            return existing
+    return None
+
+
 def _students_for_course(course_name: str) -> list[dict]:
     """Students eligible to be placed in the next batch (excludes scheduled / in training)."""
     return available_students_for_course(course_name)
@@ -321,6 +393,19 @@ def batching_template_finalize(request, template_id):
             status=400,
         )
 
+    conflict = _conflicting_finalized_batch(obj, exclude_id=obj.pk)
+    if conflict:
+        return JsonResponse(
+            {
+                "error": (
+                    "Schedule conflict: trainer is already assigned to "
+                    f"{conflict.course_name} ({conflict.batch_label or 'Batch 1'}) "
+                    f"on overlapping day/time."
+                )
+            },
+            status=400,
+        )
+
     obj.students_snapshot = students
     obj.status = RegistrarScheduleTemplate.Status.FINALIZED
     obj.finalized_at = timezone.now()
@@ -393,6 +478,23 @@ def batching_template_upsert(request):
     obj.examination_course = data.get("examination_course", "").strip()
     obj.trainer_request = trainer
     obj.trainer_name = data.get("trainer_name", "").strip()
+
+    if obj.trainer_request_id or obj.trainer_name:
+        conflict = _conflicting_finalized_batch(
+            obj,
+            exclude_id=obj.pk if obj.pk else None,
+        )
+        if conflict:
+            return JsonResponse(
+                {
+                    "error": (
+                        "Schedule conflict: trainer is already assigned to "
+                        f"{conflict.course_name} ({conflict.batch_label or 'Batch 1'}) "
+                        f"on overlapping day/time."
+                    )
+                },
+                status=400,
+            )
     obj.save()
     return JsonResponse({"ok": True, "template": _serialize_template(obj)})
 

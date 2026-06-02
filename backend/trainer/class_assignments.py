@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Optional
 
 from django.db.models import Q
@@ -104,7 +105,79 @@ def batch_to_dashboard_dict(template: RegistrarScheduleTemplate) -> dict:
         "finalized_at_display": _format_date(
             template.finalized_at.date() if template.finalized_at else None
         ),
+        "has_conflict": False,
+        "conflict_count": 0,
     }
+
+
+def _effective_days(template: RegistrarScheduleTemplate) -> set[str]:
+    schedule_type = (template.schedule_type or "").strip().lower()
+    if schedule_type == "weekdays":
+        return {"mon", "tue", "wed", "thu", "fri"}
+    if schedule_type == "weekends":
+        return {"sat", "sun"}
+    days = template.days if isinstance(template.days, list) else []
+    return {str(day).strip().lower() for day in days if str(day).strip()}
+
+
+def _parse_time(value: str):
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    for fmt in ("%H:%M", "%I:%M %p", "%I:%M%p"):
+        try:
+            return datetime.strptime(raw, fmt).time()
+        except ValueError:
+            continue
+    return None
+
+
+def _date_overlap(
+    start_a: date | None, end_a: date | None, start_b: date | None, end_b: date | None
+) -> bool:
+    # Treat open-ended ranges as potentially overlapping.
+    if not start_a or not end_a or not start_b or not end_b:
+        return True
+    return start_a <= end_b and start_b <= end_a
+
+
+def _time_overlap(template_a: RegistrarScheduleTemplate, template_b: RegistrarScheduleTemplate) -> bool:
+    start_a = _parse_time(template_a.time_from)
+    end_a = _parse_time(template_a.time_to)
+    start_b = _parse_time(template_b.time_from)
+    end_b = _parse_time(template_b.time_to)
+    # If a time cannot be parsed, assume overlap to avoid missing conflicts.
+    if not start_a or not end_a or not start_b or not end_b:
+        return True
+    return start_a < end_b and start_b < end_a
+
+
+def _templates_conflict(
+    template_a: RegistrarScheduleTemplate, template_b: RegistrarScheduleTemplate
+) -> bool:
+    if not _date_overlap(
+        template_a.available_from,
+        template_a.available_until,
+        template_b.available_from,
+        template_b.available_until,
+    ):
+        return False
+    if not (_effective_days(template_a) & _effective_days(template_b)):
+        return False
+    return _time_overlap(template_a, template_b)
+
+
+def _conflict_map_for_batches(
+    batches: list[RegistrarScheduleTemplate],
+) -> dict[int, set[int]]:
+    conflicts: dict[int, set[int]] = {}
+    for i, current in enumerate(batches):
+        for other in batches[i + 1 :]:
+            if not _templates_conflict(current, other):
+                continue
+            conflicts.setdefault(current.pk, set()).add(other.pk)
+            conflicts.setdefault(other.pk, set()).add(current.pk)
+    return conflicts
 
 
 def _assigned_students_from_batches(batches: list[RegistrarScheduleTemplate]) -> list[dict]:
@@ -140,6 +213,11 @@ def trainer_class_schedule_context(user) -> dict:
     trainer_req = trainer_account_request_for_user(user)
     batches = list(finalized_batches_for_trainer(trainer_req, user=user))
     batch_cards = [batch_to_dashboard_dict(b) for b in batches]
+    conflicts = _conflict_map_for_batches(batches)
+    for card in batch_cards:
+        linked = conflicts.get(card["id"], set())
+        card["has_conflict"] = bool(linked)
+        card["conflict_count"] = len(linked)
     students = _assigned_students_from_batches(batches)
     total_students = len(students) or sum(c["student_count"] for c in batch_cards)
     return {
@@ -216,6 +294,7 @@ def _student_row(entry: dict, template: RegistrarScheduleTemplate, schedule_disp
         "program": program,
         "schedule": schedule_display,
         "batch_label": template.batch_label or "Batch 1",
+        "batch_id": str(template.pk),
         "reference_id": registration.reference_id if registration else "",
         "search_text": f"{name} {program} {schedule_display}".lower(),
     }
@@ -224,3 +303,16 @@ def _student_row(entry: dict, template: RegistrarScheduleTemplate, schedule_disp
 def trainer_assigned_students(user) -> list[dict]:
     """Students in finalized batches assigned to this trainer."""
     return trainer_class_schedule_context(user)["assigned_students"]
+
+
+def assigned_students_by_batch(user) -> tuple[list[dict], list[dict]]:
+    """Per-batch student roster (no cross-batch dedupe) for record sheets."""
+    trainer_req = trainer_account_request_for_user(user)
+    batches = list(finalized_batches_for_trainer(trainer_req, user=user))
+    batch_cards = [batch_to_dashboard_dict(b) for b in batches]
+    students: list[dict] = []
+    for template, card in zip(batches, batch_cards):
+        schedule_display = card["schedule_display"]
+        for entry in _students_for_batch(template):
+            students.append(_student_row(entry, template, schedule_display))
+    return students, batch_cards

@@ -57,6 +57,12 @@
           <span class="trainer-schedule-assigned__meta">(finalized {{ batch.finalized_at_display }})</span>
           {% endif %}
         </p>
+        {% if batch.has_conflict %}
+        <p class="mb-2 text-danger small">
+          <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+          Schedule conflict detected with {{ batch.conflict_count }} other assigned batch{{ batch.conflict_count|pluralize }}.
+        </p>
+        {% endif %}
         <ul class="list-unstyled trainer-schedule-assigned__list mb-0">
           {% if batch.label %}
           <li><i class="bi bi-journal-bookmark me-2 text-success" aria-hidden="true"></i>{{ batch.label }}</li>

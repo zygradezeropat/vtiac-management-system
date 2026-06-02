@@ -8,9 +8,16 @@ from django.contrib.auth.hashers import make_password
 
 from django.urls import reverse
 
-from .class_assignments import trainer_class_schedule_context
+from .class_assignments import (
+    assigned_students_by_batch,
+    trainer_class_schedule_context,
+)
 from .egace_records import TRAINER_STUDENT_PROGRESS, egace_rows_for_registrar
-from .grading_sample import grading_page_payload, unit_competencies_for_program
+from .grading_sample import (
+    grading_page_payload,
+    record_sheet_structure_for_program,
+    unit_competencies_for_program,
+)
 from .grading_api import list_trainer_grade_records
 from .models import TrainerAccountRequest
 
@@ -164,17 +171,18 @@ def module_page_context(module, request=None):
         ctx["topbar_page_title"] = "Record Sheets"
         user = getattr(request, "user", None) if request else None
         students = []
-        primary_program = ""
+        batch_cards = []
         if user and getattr(user, "is_authenticated", False):
-            batch_ctx = trainer_class_schedule_context(user)
-            students = batch_ctx.get("assigned_students") or []
-            batches = batch_ctx.get("assigned_batches") or []
-            if batches:
-                primary_program = batches[0].get("course_name") or ""
-        payload = grading_page_payload(students)
-        if primary_program:
+            students, batch_cards = assigned_students_by_batch(user)
+        payload = grading_page_payload(students, batch_cards)
+        default_program = payload.get("default_program") or ""
+        if default_program:
             ctx["page_subtitle"] = (
-                f"Grading, assessment, and achievement tracking — {primary_program}"
+                f"Grading, assessment, and achievement tracking — {default_program}"
+            )
+        elif not batch_cards:
+            ctx["page_subtitle"] = (
+                "Grading, assessment, and achievement tracking — no finalized batches assigned yet"
             )
         if user and getattr(user, "is_authenticated", False):
             for record in list_trainer_grade_records(user):
@@ -183,10 +191,14 @@ def module_page_context(module, request=None):
                     payload["competencies_by_program"][program] = unit_competencies_for_program(
                         program
                     )
+                if program and program not in payload.get("record_sheet_by_program", {}):
+                    payload.setdefault("record_sheet_by_program", {})[program] = (
+                        record_sheet_structure_for_program(program)
+                    )
         ctx["sheets_config_json"] = json.dumps(
             {
                 **payload,
-                "primary_program": primary_program,
+                "primary_program": default_program,
                 "records_url": reverse("trainer_grading_records_api"),
                 "save_url": reverse("trainer_grading_save_api"),
                 "reports_url": reverse("trainer_module", kwargs={"module": "reports"}),
@@ -247,25 +259,67 @@ def trainer_egace_mirror_rows():
     return egace_rows_for_registrar()
 
 
+def _qualifications_from_payload(quals_raw, *, qualification_other, other_qualification):
+    other = (other_qualification or "").strip()
+    if qualification_other and other:
+        return list(quals_raw) + [f"Other: {other}"]
+    return list(quals_raw)
+
+
+def parse_trainer_request_data(data):
+    """Normalize trainer request fields from a dict (JSON API) or mapping."""
+    quals_raw = data.get("qualifications") or []
+    if not isinstance(quals_raw, (list, tuple)):
+        quals_raw = [quals_raw] if quals_raw else []
+    quals_raw = [str(q).strip() for q in quals_raw if str(q).strip()]
+
+    qualification_other = data.get("qualification_other")
+    if isinstance(qualification_other, str):
+        qualification_other = qualification_other.lower() in ("1", "true", "on", "yes")
+    else:
+        qualification_other = bool(qualification_other)
+
+    return {
+        "first_name": (data.get("first_name") or "").strip(),
+        "middle_name": (data.get("middle_name") or "").strip(),
+        "last_name": (data.get("last_name") or "").strip(),
+        "email": (data.get("email") or "").strip().lower(),
+        "phone_number": (data.get("phone_number") or "").strip(),
+        "password": data.get("password") or "",
+        "password_confirm": data.get("password_confirm") or "",
+        "qualifications": _qualifications_from_payload(
+            quals_raw,
+            qualification_other=qualification_other,
+            other_qualification=data.get("other_qualification"),
+        ),
+        "other_qualification": (data.get("other_qualification") or "").strip(),
+        "highest_tesda_nc": (data.get("highest_tesda_nc") or "").strip(),
+        "years_experience": (data.get("years_experience") or "").strip(),
+        "remarks": (data.get("remarks") or "").strip(),
+    }
+
+
 def parse_trainer_request_post(post):
     quals_raw = post.getlist("qualifications")
     other = post.get("other_qualification", "").strip()
-    if post.get("qualification_other") == "on" and other:
-        quals_raw = list(quals_raw) + [f"Other: {other}"]
-    return {
-        "first_name": post.get("first_name", "").strip(),
-        "middle_name": post.get("middle_name", "").strip(),
-        "last_name": post.get("last_name", "").strip(),
-        "email": post.get("email", "").strip().lower(),
-        "phone_number": post.get("phone_number", "").strip(),
-        "password": post.get("password", ""),
-        "password_confirm": post.get("password_confirm", ""),
-        "qualifications": quals_raw,
-        "other_qualification": other,
-        "highest_tesda_nc": post.get("highest_tesda_nc", "").strip(),
-        "years_experience": post.get("years_experience", "").strip(),
-        "remarks": post.get("remarks", "").strip(),
-    }
+    qualification_other = post.get("qualification_other") == "on"
+    return parse_trainer_request_data(
+        {
+            "first_name": post.get("first_name", ""),
+            "middle_name": post.get("middle_name", ""),
+            "last_name": post.get("last_name", ""),
+            "email": post.get("email", ""),
+            "phone_number": post.get("phone_number", ""),
+            "password": post.get("password", ""),
+            "password_confirm": post.get("password_confirm", ""),
+            "qualifications": quals_raw,
+            "qualification_other": qualification_other,
+            "other_qualification": other,
+            "highest_tesda_nc": post.get("highest_tesda_nc", ""),
+            "years_experience": post.get("years_experience", ""),
+            "remarks": post.get("remarks", ""),
+        }
+    )
 
 
 def validate_trainer_request_data(data):

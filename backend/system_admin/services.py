@@ -6,7 +6,6 @@ ADMIN_MODULE_ORDER = (
     "dashboard",
     "system-settings",
     "user-management",
-    "training-approval",
     "settings",
 )
 
@@ -34,14 +33,6 @@ ADMIN_MODULES = {
         "title": "User Management",
         "subtitle": "Create and manage staff and student portal accounts",
         "template": "admin/user_management.html",
-        "sidebar": True,
-    },
-    "training-approval": {
-        "label": "Training Approval",
-        "icon_bi": "bi-person-check-fill",
-        "title": "Training Approval",
-        "subtitle": "Review and approve training-related requests",
-        "template": "admin/training_approval.html",
         "sidebar": True,
     },
     "settings": {
@@ -111,18 +102,14 @@ def module_page_context(module, request=None):
 
         user = getattr(request, "user", None) if request else None
         ctx.update(staff_settings_page_context(user))
-    if module == "training-approval":
-        from backend.trainer.approval import (
-            pending_trainer_requests_count,
-            pending_trainer_requests_payload,
-        )
-
-        ctx["trainer_approval_items"] = pending_trainer_requests_payload()
-        ctx["trainer_approval_count"] = pending_trainer_requests_count()
     if module == "dashboard":
         from .dashboard_stats import admin_dashboard_stats
 
         ctx["admin_dashboard_stats"] = admin_dashboard_stats()
+    if module == "user-management":
+        from backend.trainer.services import PROGRAM_QUALIFICATIONS
+
+        ctx["program_qualifications"] = PROGRAM_QUALIFICATIONS
     return ctx
 
 

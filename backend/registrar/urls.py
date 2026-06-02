@@ -11,8 +11,6 @@ from .document_review_api import document_approve, document_reject, document_rel
 from .enrollment_detail import enrollment_detail
 from .pending_enrollment import enrollment_approve, enrollment_reject
 from .schedule_api import student_schedule_options
-from .trainer_approval import trainer_approval_approve, trainer_approval_reject
-
 urlpatterns = [
     path(
         "dashboard/registrar/",
@@ -74,15 +72,5 @@ urlpatterns = [
         "registrar/api/batching/template/delete/<str:template_id>/",
         batching_template_delete,
         name="registrar_batching_template_delete",
-    ),
-    path(
-        "registrar/api/trainer-approval/approve/",
-        trainer_approval_approve,
-        name="registrar_trainer_approval_approve",
-    ),
-    path(
-        "registrar/api/trainer-approval/reject/",
-        trainer_approval_reject,
-        name="registrar_trainer_approval_reject",
     ),
 ]

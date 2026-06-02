@@ -914,6 +914,28 @@
   margin-top: 1rem;
 }
 
+.admin-trainer-user-form section + section {
+  margin-top: 0;
+}
+
+.admin-trainer-qual-grid {
+  display: grid;
+  gap: 0.5rem 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 576px) {
+  .admin-trainer-qual-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .admin-trainer-qual-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .admin-users-pagination__label {
   font-size: 0.875rem;
   color: #64748b;

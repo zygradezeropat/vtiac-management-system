@@ -52,8 +52,6 @@ LOGIN_PORTAL_COPY = {
         "help_title": "Trainer Login",
         "help_text": "Sign in with your trainer staff account. Sample credentials are shown below for testing.",
         "help_link_register": False,
-        "account_request_prompt": "Don't have an account?",
-        "account_request_link_label": "Register here",
     },
     "admin": {
         "help_title": "Admin Login",

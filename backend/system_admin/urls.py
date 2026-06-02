@@ -1,10 +1,6 @@
 from django.urls import path
 
 from . import api, views
-from backend.trainer.approval_views import (
-    trainer_approval_approve,
-    trainer_approval_reject,
-)
 
 urlpatterns = [
     path("dashboard/admin/", views.dashboard, name="admin_dashboard"),
@@ -27,16 +23,6 @@ urlpatterns = [
         "admin/api/programs/<int:program_id>/",
         api.programs_update,
         name="admin_programs_update",
-    ),
-    path(
-        "admin/api/trainer-approval/approve/",
-        trainer_approval_approve,
-        name="admin_trainer_approval_approve",
-    ),
-    path(
-        "admin/api/trainer-approval/reject/",
-        trainer_approval_reject,
-        name="admin_trainer_approval_reject",
     ),
     path("admin/<str:module>/", views.module_page, name="admin_module"),
 ]

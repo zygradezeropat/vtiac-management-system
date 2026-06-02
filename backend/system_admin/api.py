@@ -15,7 +15,13 @@ from .programs import (
     update_system_settings,
 )
 from .services import ADMIN_ROLE
-from .user_management import create_user, list_users, reset_user_password, update_user
+from .user_management import (
+    create_trainer_staff_user,
+    create_user,
+    list_users,
+    reset_user_password,
+    update_user,
+)
 
 
 def _json_body(request):
@@ -59,15 +65,21 @@ def users_create(request):
     if data is None:
         return JsonResponse({"error": "Invalid JSON body."}, status=400)
 
+    account_type = (data.get("account_type") or "").strip().lower()
+    role = (data.get("role") or "").strip().lower()
+
     try:
-        user = create_user(
-            account_type=data.get("account_type"),
-            email=data.get("email"),
-            first_name=data.get("first_name"),
-            last_name=data.get("last_name"),
-            password=data.get("password"),
-            role=data.get("role"),
-        )
+        if account_type == "staff" and role == "trainer":
+            user = create_trainer_staff_user(data.get("trainer") or data)
+        else:
+            user = create_user(
+                account_type=account_type,
+                email=data.get("email"),
+                first_name=data.get("first_name"),
+                last_name=data.get("last_name"),
+                password=data.get("password"),
+                role=role,
+            )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 

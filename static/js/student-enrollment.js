@@ -89,6 +89,51 @@ function isAddressComplete() {
   });
 }
 
+/** First Middle Last [Extension] — matches typed full-name signature. */
+function composeApplicantFullName(form, middleNameField) {
+  const first = form.querySelector("#field-first-name")?.value.trim() || "";
+  const last = form.querySelector("#field-last-name")?.value.trim() || "";
+  const middle =
+    middleNameField?.getValue?.() ??
+    form.querySelector("#field-middle-name")?.value.trim() ??
+    "";
+  const extension = form.querySelector("#field-extension")?.value.trim() || "";
+  const parts = [first, middle, last].filter(Boolean);
+  let full = parts.join(" ");
+  if (extension) {
+    full = full ? `${full} ${extension}` : extension;
+  }
+  return full.trim();
+}
+
+/** Keep #field-signature in sync with First + Middle + Last + extension. */
+function initApplicantSignatureAutoFill(form, middleNameField) {
+  const signatureEl = form.querySelector("#field-signature");
+  if (!signatureEl) {
+    return () => {};
+  }
+
+  const sync = () => {
+    const composed = composeApplicantFullName(form, middleNameField);
+    if (!composed) return;
+    if (signatureEl.value !== composed) {
+      signatureEl.value = composed;
+      signatureEl.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  };
+
+  ["#field-first-name", "#field-last-name", "#field-middle-name", "#field-extension"].forEach(
+    (selector) => {
+      const el = form.querySelector(selector);
+      el?.addEventListener("input", sync);
+      el?.addEventListener("change", sync);
+    }
+  );
+
+  sync();
+  return sync;
+}
+
 function syncEmploymentTypeField(form) {
   const wrap = document.getElementById("employment-type-wrap");
   const select = document.getElementById("field-employment-type");
@@ -291,7 +336,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("student-enrollment-form");
   if (!form) return;
 
-  const middleNameField = initMiddleNameField({ inputId: "field-middle-name" });
+  let syncSignatureFromName = () => {};
+  const middleNameField = initMiddleNameField({
+    inputId: "field-middle-name",
+    onChange: () => syncSignatureFromName(),
+  });
+  syncSignatureFromName = initApplicantSignatureAutoFill(form, middleNameField);
 
   const alertEl = document.getElementById("enrollment-form-alert");
   const staticBase = form.dataset.staticBase || "/static/";
@@ -370,6 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
   form.addEventListener("submit", (e) => {
     enableAddressFieldsForSubmit();
     middleNameField.prepareForSubmit();
+    syncSignatureFromName();
     updateRequiredFieldStates(form);
     const valid = validateForm(form);
 

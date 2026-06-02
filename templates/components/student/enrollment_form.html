@@ -286,7 +286,7 @@
   <div class="row g-3 align-items-end student-enroll-signature-row">
     <div class="col-md-4">
       <label class="student-enroll-label" for="field-signature">Applicant's Signature (Type Full Name) <span class="student-enroll-required">*</span></label>
-      <input id="field-signature" name="signature" type="text" class="student-enroll-input" placeholder="Type your full name as signature" value="{{ fi.signature|default:'' }}" required data-required />
+      <input id="field-signature" name="signature" type="text" class="student-enroll-input" placeholder="Auto-filled from your name" value="{{ fi.signature|default:'' }}" required data-required readonly aria-readonly="true" />
     </div>
     <div class="col-md-4">
       <label class="student-enroll-label" for="field-date-accomplished">Date Accomplished</label>

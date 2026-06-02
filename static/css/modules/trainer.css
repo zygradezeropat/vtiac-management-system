@@ -1125,6 +1125,53 @@ a.trainer-stat-card {
   color: #94a3b8;
 }
 
+.trainer-sheets-class-picker {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.trainer-sheets-class-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+  .trainer-sheets-class-picker__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trainer-sheets-class-picker__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.trainer-sheets-class-picker__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0;
+}
+
+.trainer-sheets-class-select {
+  width: 100%;
+  max-width: none;
+}
+
+.trainer-sheets-class-picker__meta {
+  margin-top: 0.25rem;
+}
+
 .trainer-sheets-shell {
   background: #fff;
   border: 1px solid var(--trainer-border);
@@ -1271,6 +1318,11 @@ a.trainer-stat-card {
   color: #6b7280;
 }
 
+.trainer-result-badge--incompetent {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .trainer-record-sheet-table {
   border: 1px solid var(--trainer-border);
   border-radius: 0.5rem;
@@ -1310,6 +1362,151 @@ a.trainer-stat-card {
   letter-spacing: 0.03em;
   color: #1f2937;
   font-size: 0.75rem;
+}
+
+.trainer-record-sheet-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--trainer-border);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.trainer-record-sheet-table--excel {
+  min-width: max-content;
+  border: none;
+  border-radius: 0;
+}
+
+.trainer-record-sheet-table--excel thead th {
+  vertical-align: middle;
+  font-size: 0.6875rem;
+  white-space: normal;
+}
+
+.trainer-record-category-head {
+  background: #eef2ff !important;
+  color: #3730a3;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #c7d2fe !important;
+}
+
+.trainer-record-page-head {
+  background: #f0fdf4 !important;
+  color: #166534;
+  font-weight: 600;
+  min-width: 8.5rem;
+  width: max-content;
+  max-width: none;
+  line-height: 1.25;
+  padding: 0.5rem 0.5rem !important;
+  border-bottom: 1px solid #bbf7d0 !important;
+  white-space: normal !important;
+  vertical-align: bottom;
+}
+
+.trainer-record-page-head__code {
+  display: block;
+  font-size: 0.625rem;
+  color: #6b7280;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.trainer-record-page-head__title {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #14532d;
+  margin-top: 0.25rem;
+  line-height: 1.35;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.trainer-record-assessment-sub--average {
+  color: #4338ca;
+  min-width: 4.5rem;
+}
+
+.trainer-record-assessment-sub--result {
+  color: #374151;
+  min-width: 5.5rem;
+}
+
+.trainer-record-uc-average {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: #4338ca;
+  background: #f8fafc;
+}
+
+.trainer-record-uc-result {
+  background: #f8fafc;
+}
+
+.trainer-record-uc-result .trainer-result-badge {
+  font-size: 0.625rem;
+}
+
+.trainer-record-assessment-sub--written {
+  color: #047857;
+}
+
+.trainer-record-assessment-sub--demo {
+  color: #1d4ed8;
+}
+
+.trainer-record-assessment-sub--interview {
+  color: #b45309;
+}
+
+.trainer-record-sticky {
+  position: sticky;
+  z-index: 3;
+  background: #fff;
+  box-shadow: 1px 0 0 #e5e7eb;
+}
+
+.trainer-record-sheet-table--excel thead .trainer-record-sticky {
+  z-index: 4;
+  background: #f9fafb;
+}
+
+.trainer-record-sticky--no {
+  left: 0;
+  min-width: 2.75rem;
+}
+
+.trainer-record-sticky--last {
+  left: 2.75rem;
+  min-width: 6.5rem;
+}
+
+.trainer-record-sticky--first {
+  left: 9.25rem;
+  min-width: 6.5rem;
+}
+
+.trainer-record-sticky--middle {
+  left: 15.75rem;
+  min-width: 5.5rem;
+  box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06);
+}
+
+.trainer-record-sheet-table--excel .trainer-score-input {
+  width: 3.25rem;
+  min-width: 3.25rem;
+  padding: 0.25rem 0.15rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.trainer-record-remarks-col {
+  min-width: 10rem;
 }
 
 .trainer-record-sheet-table .trainer-record-remarks-input {
@@ -1716,6 +1913,7 @@ a.trainer-stat-card {
   .trainer-topbar,
   .trainer-sheet-tabs,
   .trainer-sheets-workflow,
+  .trainer-sheets-class-picker,
   .trainer-sheets-header-actions,
   .trainer-header-actions,
   .trainer-sheets-legend,
@@ -1824,6 +2022,127 @@ a.trainer-stat-card {
   vertical-align: middle;
 }
 
+.trainer-encodable-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--trainer-emerald-50);
+  border: 1px solid #a7f3d0;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  color: #065f46;
+}
+
+.trainer-encodable-alert .bi {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  font-size: 1.125rem;
+}
+
+.trainer-encodable-scroll {
+  overflow-x: auto;
+  margin: 0 -0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.trainer-encodable-sheet-table {
+  min-width: 960px;
+  font-size: 0.8125rem;
+  table-layout: auto;
+}
+
+.trainer-encodable-sheet-table td {
+  white-space: nowrap;
+}
+
+.trainer-encodable-sheet-table thead th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.trainer-encodable-category-head {
+  background: #f0fdf4;
+  color: var(--trainer-emerald-700);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #bbf7d0;
+}
+
+.trainer-encodable-unit-head {
+  min-width: 7rem;
+  width: max-content;
+  max-width: none;
+  white-space: normal !important;
+  vertical-align: middle;
+  background: #ecfdf5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #14532d;
+  line-height: 1.35;
+  padding: 0.5rem 0.5rem;
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid #bbf7d0;
+  border-left: 1px solid #d1d5db;
+}
+
+.trainer-encodable-unit-head:first-of-type {
+  border-left: none;
+}
+
+.trainer-encodable-unit-head__title {
+  display: block;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.trainer-encodable-lo-head {
+  min-width: 6.5rem;
+  width: max-content;
+  max-width: none;
+  white-space: normal !important;
+  vertical-align: bottom;
+  background: #fafafa;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #4b5563;
+  line-height: 1.35;
+  padding: 0.5rem 0.4rem;
+  border-left: 1px solid #e5e7eb;
+}
+
+.trainer-encodable-lo-head__title {
+  display: block;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.trainer-encodable-name-col {
+  background: #fff;
+  font-weight: 500;
+}
+
+.trainer-encodable-sheet-table thead .trainer-encodable-name-col {
+  background: #f9fafb;
+}
+
+.trainer-encodable-status-cell {
+  min-width: 5.5rem;
+  padding: 0.5rem 0.35rem;
+  border-left: 1px solid #f3f4f6;
+}
+
+.trainer-encodable-sheet-table tbody td.trainer-encodable-status-cell:first-of-type,
+.trainer-encodable-sheet-table thead .trainer-encodable-lo-head:first-of-type {
+  border-left: none;
+}
+
 .trainer-non-encodable-alert {
   display: flex;
   align-items: flex-start;
@@ -1854,10 +2173,14 @@ a.trainer-stat-card {
   font-size: 0.8125rem;
 }
 
-.trainer-non-encodable-sheet-table th,
 .trainer-non-encodable-sheet-table td {
   vertical-align: middle;
   white-space: nowrap;
+}
+
+.trainer-non-encodable-sheet-table thead th {
+  vertical-align: bottom;
+  white-space: normal;
 }
 
 .trainer-non-encodable-category-head {
@@ -1870,23 +2193,25 @@ a.trainer-stat-card {
 }
 
 .trainer-non-encodable-unit-head {
-  min-width: 9.5rem;
-  max-width: 11rem;
+  min-width: 7rem;
+  width: max-content;
+  max-width: none;
   white-space: normal !important;
   vertical-align: bottom;
   background: #fafafa;
   font-size: 0.6875rem;
   font-weight: 600;
   color: #374151;
-  line-height: 1.3;
-  padding: 0.5rem 0.35rem;
+  line-height: 1.35;
+  padding: 0.625rem 0.5rem;
 }
 
 .trainer-non-encodable-unit-head__title {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: block;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .trainer-non-encodable-name-col {
@@ -1901,6 +2226,65 @@ a.trainer-stat-card {
 .trainer-non-encodable-status-cell {
   min-width: 6.5rem;
   padding: 0.5rem 0.35rem;
+}
+
+.trainer-non-encodable-na-head {
+  min-width: 11.5rem;
+  background: #eef2ff !important;
+  color: #3730a3;
+}
+
+.trainer-non-encodable-na-cell {
+  min-width: 11.5rem;
+  padding: 0.35rem 0.45rem !important;
+}
+
+.trainer-na-select-wrap {
+  position: relative;
+  display: block;
+}
+
+.trainer-na-select {
+  width: 100%;
+  min-width: 10.75rem;
+  border-radius: 0.45rem;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.28rem 1.8rem 0.28rem 0.55rem;
+  min-height: 1.9rem;
+  appearance: none;
+}
+
+.trainer-na-select-wrap .bi {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.65rem;
+  color: #475569;
+}
+
+.trainer-na-select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 0.16rem rgba(16, 185, 129, 0.16);
+}
+
+.trainer-na-select-wrap--muted .trainer-na-select,
+.trainer-na-select:disabled {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.85;
+  box-shadow: none;
+}
+
+.trainer-na-select-wrap--muted .bi {
+  color: #cbd5e1;
 }
 
 .trainer-record-sheet-table th:nth-child(n + 3):nth-child(-n + 5),

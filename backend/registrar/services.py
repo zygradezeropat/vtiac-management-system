@@ -12,7 +12,6 @@ REGISTRAR_MODULE_ORDER = (
     "batching-scheduling",
     "finalized-batches",
     "scholarship",
-    "trainer-approval",
     "egace-table",
     "reports",
     "settings",
@@ -61,14 +60,6 @@ REGISTRAR_MODULES = {
         "title": "Scholarship Management",
         "subtitle": "Upload sponsor lists, parse Excel or PDF files, and integrate scholar records",
         "template": "registrar/scholarship.html",
-    },
-    "trainer-approval": {
-        "label": "Trainer Account Approval",
-        "icon_bi": "bi-person-badge",
-        "badge_class": "registrar-badge-primary",
-        "title": "Trainer Account Approval",
-        "subtitle": "Review and approve trainer portal accounts",
-        "template": "registrar/trainer_approval.html",
     },
     "egace-table": {
         "label": "E.G.A.C.E Table",
@@ -133,10 +124,8 @@ def registrar_route(slug):
 
 def registrar_sidebar():
     from .pending_enrollment import pending_enrollment_count
-    from .trainer_approval import pending_trainer_requests_count
 
     pending_count = pending_enrollment_count()
-    trainer_pending_count = pending_trainer_requests_count()
     menu = []
     for slug in REGISTRAR_MODULE_ORDER:
         meta = REGISTRAR_MODULES[slug]
@@ -148,8 +137,6 @@ def registrar_sidebar():
         badge = meta.get("badge")
         if slug == "enrollment" and pending_count:
             badge = str(pending_count)
-        if slug == "trainer-approval" and trainer_pending_count:
-            badge = str(trainer_pending_count)
         if badge:
             item["badge"] = badge
             item["badge_class"] = meta.get("badge_class", "bg-secondary")
@@ -212,14 +199,6 @@ def module_page_context(module, request=None):
         # Pass a Python list — json_script in the template encodes it once.
         ctx["pending_enrollments"] = pending_enrollments_payload()
         ctx["pending_enrollment_count"] = pending_enrollment_count()
-    if module == "trainer-approval":
-        from .trainer_approval import (
-            pending_trainer_requests_count,
-            pending_trainer_requests_payload,
-        )
-
-        ctx["trainer_approval_items"] = pending_trainer_requests_payload()
-        ctx["trainer_approval_count"] = pending_trainer_requests_count()
     if module == "student":
         from .student_list import registrar_students_module_data
 

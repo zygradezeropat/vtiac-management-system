@@ -1,0 +1,105 @@
+<div class="admin-trainer-user-form">
+  <p class="text-muted small mb-3">
+    Same fields as the public trainer account request. Profile data is stored on the trainer request record and an active trainer account is created.
+  </p>
+
+  <section class="mb-3">
+    <h3 class="h6 fw-semibold border-bottom pb-2 mb-3">Personal Information</h3>
+    <div class="row g-3">
+      <div class="col-sm-6 col-lg-3">
+        <label class="admin-form-label" for="adminTrainerFirstName">First Name <span class="text-danger">*</span></label>
+        <input type="text" id="adminTrainerFirstName" class="form-control admin-form-input" placeholder="Juan" />
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="admin-form-label" for="adminTrainerMiddleName">Middle Name <span class="text-secondary fw-normal">(optional)</span></label>
+        <input type="text" id="adminTrainerMiddleName" class="form-control admin-form-input" placeholder="Santos" />
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" id="adminTrainerNoMiddleName" />
+          <label class="form-check-label small" for="adminTrainerNoMiddleName">I don't have a middle name</label>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="admin-form-label" for="adminTrainerLastName">Last Name <span class="text-danger">*</span></label>
+        <input type="text" id="adminTrainerLastName" class="form-control admin-form-input" placeholder="Dela Cruz" />
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="admin-form-label" for="adminTrainerEmail">Email Address <span class="text-danger">*</span></label>
+        <input type="email" id="adminTrainerEmail" class="form-control admin-form-input" placeholder="trainer@vtiac.com" autocomplete="email" />
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <label class="admin-form-label" for="adminTrainerPhone">Phone Number <span class="text-danger">*</span></label>
+        <input type="tel" id="adminTrainerPhone" class="form-control admin-form-input" inputmode="numeric" maxlength="11" value="09" placeholder="09171234567" autocomplete="tel" />
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-3">
+    <h3 class="h6 fw-semibold border-bottom pb-2 mb-3">Account Credentials</h3>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="admin-form-label" for="adminTrainerPassword">Password <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <input type="password" id="adminTrainerPassword" class="form-control admin-form-input" minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters" />
+          <button type="button" class="btn btn-outline-secondary" data-toggle-password="adminTrainerPassword" aria-label="Show password">👁</button>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="admin-form-label" for="adminTrainerPasswordConfirm">Confirm Password <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <input type="password" id="adminTrainerPasswordConfirm" class="form-control admin-form-input" minlength="8" autocomplete="new-password" placeholder="Re-enter password" />
+          <button type="button" class="btn btn-outline-secondary" data-toggle-password="adminTrainerPasswordConfirm" aria-label="Show password">👁</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-3">
+    <h3 class="h6 fw-semibold border-bottom pb-2 mb-3">
+      Program / Qualification <span class="text-danger">*</span>
+      <span class="fw-normal text-secondary">(select at least one)</span>
+    </h3>
+    <div class="admin-trainer-qual-grid mb-3">
+      {% for program in program_qualifications %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="{{ program }}" id="adminTrainerQual{{ forloop.counter }}" data-admin-trainer-qualification />
+        <label class="form-check-label" for="adminTrainerQual{{ forloop.counter }}">{{ program }}</label>
+      </div>
+      {% endfor %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="adminTrainerQualOther" data-admin-trainer-qual-other />
+        <label class="form-check-label" for="adminTrainerQualOther">Other (specify below)</label>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <label class="admin-form-label" for="adminTrainerHighestNc">Highest TESDA Qualification / NC Level <span class="text-danger">*</span></label>
+        <input type="text" id="adminTrainerHighestNc" class="form-control admin-form-input" placeholder="e.g., NC II, NC III, Assessor" />
+      </div>
+      <div class="col-lg-6">
+        <label class="admin-form-label" for="adminTrainerOtherQual">Other qualification (if selected above)</label>
+        <input type="text" id="adminTrainerOtherQual" class="form-control admin-form-input" placeholder="Specify other program" disabled />
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-0">
+    <h3 class="h6 fw-semibold border-bottom pb-2 mb-3">Experience &amp; Remarks</h3>
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <label class="admin-form-label" for="adminTrainerExperience">Years of Teaching / Training Experience <span class="text-danger">*</span></label>
+        <select id="adminTrainerExperience" class="form-select admin-form-input">
+          <option value="">Select range</option>
+          <option value="lt_1">Less than 1 year</option>
+          <option value="1_3">1–3 years</option>
+          <option value="4_6">4–6 years</option>
+          <option value="7_10">7–10 years</option>
+          <option value="gt_10">More than 10 years</option>
+        </select>
+      </div>
+      <div class="col-lg-8">
+        <label class="admin-form-label" for="adminTrainerRemarks">Additional Remarks <span class="text-secondary fw-normal">(optional)</span></label>
+        <textarea id="adminTrainerRemarks" class="form-control admin-form-input" rows="2" placeholder="Briefly describe background, certifications, etc."></textarea>
+      </div>
+    </div>
+  </section>
+</div>

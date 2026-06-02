@@ -21,8 +21,13 @@ def _parse_score(value):
         num = float(value)
     except (TypeError, ValueError):
         return None
-    if num < SCORE_MIN or num > SCORE_MAX:
+    if not (num == num):  # NaN
         return None
+    num = round(num)
+    if num < SCORE_MIN:
+        num = SCORE_MIN
+    if num > SCORE_MAX:
+        num = SCORE_MAX
     return num
 
 
@@ -70,7 +75,7 @@ def validate_grade_payload(data: dict) -> tuple[dict | None, list[str]]:
         national = {}
 
     result = (national.get("result") or "").strip()
-    if result and result not in {"passed", "failed"}:
+    if result and result not in {"passed", "failed", "Competent", "Not Yet Competent"}:
         errors.append("Invalid national assessment result.")
 
     if errors:

@@ -8,6 +8,12 @@ from django.db.models import Q
 
 from backend.core.models import StaffProfile
 from backend.student.models import StudentProfile
+from backend.trainer.approval import approve_trainer_request
+from backend.trainer.services import (
+    create_trainer_account_request,
+    parse_trainer_request_data,
+    validate_trainer_request_data,
+)
 
 User = get_user_model()
 
@@ -153,6 +159,23 @@ def create_user(*, account_type, email, first_name, last_name, password, role=""
             StaffProfile.objects.create(user=user, role=role)
         else:
             StudentProfile.objects.create(user=user)
+
+    return serialize_user(user)
+
+
+def create_trainer_staff_user(trainer_payload):
+    """Create trainer via TrainerAccountRequest (same as public request), then approve."""
+    data = parse_trainer_request_data(trainer_payload or {})
+    errors = validate_trainer_request_data(data)
+    if errors:
+        raise ValueError(" ".join(errors))
+
+    with transaction.atomic():
+        request_record = create_trainer_account_request(data)
+        approve_trainer_request(request_record)
+        user = User.objects.select_related("staff_profile").get(
+            email__iexact=request_record.email
+        )
 
     return serialize_user(user)
 

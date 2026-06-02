@@ -16,7 +16,6 @@ from backend.student.document_review import (
 )
 from backend.student.models import StudentEnrollmentProfile, StudentRegistration
 from backend.system_admin.program_config import enrollment_program_options
-from backend.trainer.approval import pending_trainer_requests_count
 from backend.trainer.egace_records import TRAINER_STUDENT_PROGRESS
 
 
@@ -156,12 +155,6 @@ def pending_counts_payload() -> list[dict]:
             "label": "Enrollment approvals",
             "count": pending_enrollment_count(),
             "icon": "bi-person-plus-fill",
-        },
-        {
-            "key": "trainer_requests",
-            "label": "Trainer applications",
-            "count": pending_trainer_requests_count(),
-            "icon": "bi-person-check-fill",
         },
         {
             "key": "balances",

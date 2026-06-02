@@ -69,7 +69,7 @@
 </section>
 
 <div class="modal fade" id="userFormModal" tabindex="-1" aria-labelledby="userFormModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
     <div class="modal-content rounded-4">
       <div class="modal-header border-0 pb-0">
         <h2 class="modal-title h5 fw-semibold" id="userFormModalLabel">Add User</h2>
@@ -79,19 +79,7 @@
         <p id="userFormError" class="alert alert-danger d-none mb-3" role="alert"></p>
         <form id="userForm" novalidate>
           <input type="hidden" id="userFormId" value="" />
-          <div class="admin-form-grid">
-            <div class="admin-form-field">
-              <label class="admin-form-label" for="userFormFirstName">First Name</label>
-              <input type="text" class="form-control admin-form-input" id="userFormFirstName" required />
-            </div>
-            <div class="admin-form-field">
-              <label class="admin-form-label" for="userFormLastName">Last Name</label>
-              <input type="text" class="form-control admin-form-input" id="userFormLastName" required />
-            </div>
-            <div class="admin-form-field">
-              <label class="admin-form-label" for="userFormEmail">Email</label>
-              <input type="email" class="form-control admin-form-input" id="userFormEmail" required />
-            </div>
+          <div class="admin-form-grid mb-3">
             <div class="admin-form-field" id="userFormAccountTypeWrap">
               <label class="admin-form-label" for="userFormAccountType">Account Type</label>
               <select class="form-select admin-form-input" id="userFormAccountType" required>
@@ -116,15 +104,36 @@
               </select>
             </div>
           </div>
-          <div class="admin-form-field mb-0" id="userFormPasswordWrap">
-            <label class="admin-form-label" for="userFormPassword">Password</label>
-            <input
-              type="password"
-              class="form-control admin-form-input"
-              id="userFormPassword"
-              placeholder="Required for new users"
-              autocomplete="new-password"
-            />
+
+          <div id="userFormStandardFields">
+            <div class="admin-form-grid">
+              <div class="admin-form-field">
+                <label class="admin-form-label" for="userFormFirstName">First Name</label>
+                <input type="text" class="form-control admin-form-input" id="userFormFirstName" />
+              </div>
+              <div class="admin-form-field">
+                <label class="admin-form-label" for="userFormLastName">Last Name</label>
+                <input type="text" class="form-control admin-form-input" id="userFormLastName" />
+              </div>
+              <div class="admin-form-field admin-form-field--full">
+                <label class="admin-form-label" for="userFormEmail">Email</label>
+                <input type="email" class="form-control admin-form-input" id="userFormEmail" />
+              </div>
+            </div>
+            <div class="admin-form-field mb-0" id="userFormPasswordWrap">
+              <label class="admin-form-label" for="userFormPassword">Password</label>
+              <input
+                type="password"
+                class="form-control admin-form-input"
+                id="userFormPassword"
+                placeholder="Required for new users"
+                autocomplete="new-password"
+              />
+            </div>
+          </div>
+
+          <div id="userFormTrainerFields" class="d-none">
+            {% include "components/admin/trainer_user_form_fields.html" %}
           </div>
         </form>
       </div>
