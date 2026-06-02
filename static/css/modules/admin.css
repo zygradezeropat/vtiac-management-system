@@ -602,6 +602,80 @@
   padding-top: 2rem;
 }
 
+.admin-egace-summary__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-egace-summary__filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-egace-summary__filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.admin-egace-qualification-select {
+  min-width: 16rem;
+  max-width: 22rem;
+}
+
+.admin-egace-summary__qualification {
+  font-size: 0.95rem;
+  color: #374151;
+  letter-spacing: 0.02em;
+}
+
+.admin-egace-table--report thead th {
+  vertical-align: middle;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-egace-table__batch-col {
+  min-width: 7rem;
+  background-color: #f9fafb;
+}
+
+.admin-egace-subhead {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  background-color: #f3f4f6;
+}
+
+.admin-egace-table--report tbody tr.admin-egace-row--alt {
+  background-color: #dbeafe;
+}
+
+.admin-egace-table--report tbody tr.admin-egace-row--alt:hover {
+  background-color: #bfdbfe;
+}
+
+.admin-egace-table--report tbody tr.admin-egace-row--total {
+  font-weight: 700;
+  background-color: #fff;
+  border-top: 2px solid #9ca3af;
+}
+
+.admin-egace-table--report tbody tr.admin-egace-row--total td {
+  color: #111827;
+}
+
+.admin-egace-metric-cell {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .admin-table-card {
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;

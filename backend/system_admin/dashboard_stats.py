@@ -113,6 +113,117 @@ def _egace_summary_payload() -> list[dict]:
     return rows
 
 
+def _pct_of_enrolled(count: int, enrolled: int) -> int:
+    if enrolled <= 0:
+        return 0
+    return round(count * 100 / enrolled)
+
+
+def _metrics_with_percentages(metrics: dict) -> dict:
+    enrolled = metrics["enrolled"]
+    return {
+        "enrolled": {"actual": enrolled, "percent": 100 if enrolled else 0},
+        "graduated": {
+            "actual": metrics["graduated"],
+            "percent": _pct_of_enrolled(metrics["graduated"], enrolled),
+        },
+        "assessed": {
+            "actual": metrics["assessed"],
+            "percent": _pct_of_enrolled(metrics["assessed"], enrolled),
+        },
+        "certified": {
+            "actual": metrics["certified"],
+            "percent": _pct_of_enrolled(metrics["certified"], enrolled),
+        },
+        "employed": {
+            "actual": metrics["employed"],
+            "percent": _pct_of_enrolled(metrics["employed"], enrolled),
+        },
+    }
+
+
+def _batch_display_label(batch_key: str, index: int) -> str:
+    text = (batch_key or "").strip()
+    if not text or text.lower() == "unassigned":
+        return f"BATCH {index + 1}"
+    upper = text.upper()
+    if upper.startswith("BATCH"):
+        return upper
+    return f"BATCH {text}" if text.isdigit() else upper
+
+
+def _egace_batch_report_payload() -> dict:
+    """Per-qualification batch rows with Actual / % columns (admin EGACE summary)."""
+    rows = egace_rows_for_registrar()
+    by_course_batches: dict[str, dict[str, dict]] = defaultdict(
+        lambda: defaultdict(_empty_metrics)
+    )
+
+    for record in rows:
+        course = resolve_program(record.get("course") or "") or (
+            record.get("course") or ""
+        )
+        if not course or course == "—":
+            continue
+        batch_key = (record.get("batchLabel") or "Unassigned").strip() or "Unassigned"
+        metrics = by_course_batches[course][batch_key]
+        if record.get("enrolled"):
+            metrics["enrolled"] += 1
+        if record.get("graduate"):
+            metrics["graduated"] += 1
+        if record.get("assessment"):
+            metrics["assessed"] += 1
+        if record.get("certificate"):
+            metrics["certified"] += 1
+        if record.get("employment"):
+            metrics["employed"] += 1
+
+    courses = sorted(by_course_batches.keys(), key=str.lower)
+    reports: dict[str, dict] = {}
+
+    for course in courses:
+        batches_raw = by_course_batches[course]
+        batch_rows = []
+        total = _empty_metrics()
+
+        for index, (batch_key, metrics) in enumerate(
+            sorted(batches_raw.items(), key=lambda item: item[0].lower())
+        ):
+            for key in total:
+                total[key] += metrics[key]
+            batch_rows.append(
+                {
+                    "label": _batch_display_label(batch_key, index),
+                    "isTotal": False,
+                    **_metrics_with_percentages(metrics),
+                }
+            )
+
+        reports[course] = {
+            "qualification": course,
+            "batches": batch_rows,
+            "total": {
+                "label": "TOTAL",
+                "isTotal": True,
+                **_metrics_with_percentages(total),
+            },
+        }
+
+    default_course = ""
+    for course in courses:
+        if reports[course]["total"]["enrolled"]["actual"] > 0:
+            default_course = course
+            break
+    if not default_course and courses:
+        default_course = courses[0]
+
+    return {
+        "courses": courses,
+        "defaultCourse": default_course,
+        "reports": reports,
+    }
+
+
 def outstanding_balance_count() -> int:
     count = 0
     approved_regs = StudentRegistration.objects.filter(
@@ -184,4 +295,5 @@ def admin_dashboard_stats() -> dict:
         "pendingCounts": pending_counts_payload(),
         "programs": _program_cards_payload(),
         "egaceSummary": _egace_summary_payload(),
+        "egaceBatchReport": _egace_batch_report_payload(),
     }

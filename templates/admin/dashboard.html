@@ -51,18 +51,41 @@
 </section>
 
 <section class="admin-egace-summary" aria-label="E.G.A.C.E Summary">
-  <h2 class="admin-section-title">E.G.A.C.E Summary</h2>
+  <div class="admin-egace-summary__head">
+    <h2 class="admin-section-title mb-0">E.G.A.C.E Summary</h2>
+    <div class="admin-egace-summary__filter">
+      <label class="admin-egace-summary__filter-label" for="egace-qualification-filter">Qualification</label>
+      <select id="egace-qualification-filter" class="form-select form-select-sm admin-egace-qualification-select" aria-label="Filter by qualification">
+        <option value="">Select qualification</option>
+      </select>
+    </div>
+  </div>
+  <p class="admin-egace-summary__qualification text-center mb-3" id="egace-qualification-title" hidden>
+    Qualification: <strong id="egace-qualification-name"></strong>
+  </p>
   <div class="admin-table-card">
     <div class="admin-table-container">
-      <table class="admin-egace-table">
+      <table class="admin-egace-table admin-egace-table--report">
         <thead>
           <tr>
-            <th>Course / Qualification</th>
-            <th class="text-center">Enrolled</th>
-            <th class="text-center">Graduated</th>
-            <th class="text-center">Assessed</th>
-            <th class="text-center">Certified</th>
-            <th class="text-center">Employed</th>
+            <th scope="col" rowspan="2" class="admin-egace-table__batch-col"></th>
+            <th scope="colgroup" colspan="2" class="text-center">Enrolled</th>
+            <th scope="colgroup" colspan="2" class="text-center">Graduates</th>
+            <th scope="colgroup" colspan="2" class="text-center">Assessed</th>
+            <th scope="colgroup" colspan="2" class="text-center">Certified</th>
+            <th scope="colgroup" colspan="2" class="text-center">Employed</th>
+          </tr>
+          <tr>
+            <th scope="col" class="text-center admin-egace-subhead">Actual</th>
+            <th scope="col" class="text-center admin-egace-subhead">%</th>
+            <th scope="col" class="text-center admin-egace-subhead">Actual</th>
+            <th scope="col" class="text-center admin-egace-subhead">%</th>
+            <th scope="col" class="text-center admin-egace-subhead">Actual</th>
+            <th scope="col" class="text-center admin-egace-subhead">%</th>
+            <th scope="col" class="text-center admin-egace-subhead">Actual</th>
+            <th scope="col" class="text-center admin-egace-subhead">%</th>
+            <th scope="col" class="text-center admin-egace-subhead">Actual</th>
+            <th scope="col" class="text-center admin-egace-subhead">%</th>
           </tr>
         </thead>
         <tbody id="egaceSummaryTableBody"></tbody>

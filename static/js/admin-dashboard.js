@@ -53,24 +53,6 @@ function renderProgramCard(program) {
     </article>`;
 }
 
-function renderCountBadge(value) {
-  const num = Number(value) || 0;
-  const cls = num > 0 ? "has-count" : "no-count";
-  return `<span class="admin-count-badge ${cls}">${num}</span>`;
-}
-
-function renderEgaceRow(row) {
-  return `
-    <tr>
-      <td>${escapeHtml(row.course)}</td>
-      <td class="text-center">${renderCountBadge(row.enrolled)}</td>
-      <td class="text-center">${renderCountBadge(row.graduated)}</td>
-      <td class="text-center">${renderCountBadge(row.assessed)}</td>
-      <td class="text-center">${renderCountBadge(row.certified)}</td>
-      <td class="text-center">${renderCountBadge(row.employed)}</td>
-    </tr>`;
-}
-
 function renderPendingCard(item) {
   const count = Number(item.count) || 0;
   const highlight = count > 0 ? " admin-pending-card--active" : "";
@@ -104,19 +86,105 @@ function renderProgramCards(programs, tab) {
   }
 }
 
-function renderEgaceSummary(rows) {
+const EGACE_COLUMNS = ["enrolled", "graduated", "assessed", "certified", "employed"];
+
+function renderEgaceMetricCells(row) {
+  return EGACE_COLUMNS.map((key) => {
+    const metric = row[key] || { actual: 0, percent: 0 };
+    const actual = Number(metric.actual) || 0;
+    const percent = Number(metric.percent) || 0;
+    return `
+      <td class="admin-egace-metric-cell">${actual}</td>
+      <td class="admin-egace-metric-cell">${percent}%</td>
+    `;
+  }).join("");
+}
+
+function renderEgaceBatchRow(row, index) {
+  const rowClass = row.isTotal
+    ? "admin-egace-row--total"
+    : index % 2 === 0
+      ? "admin-egace-row--alt"
+      : "";
+  return `
+    <tr class="${rowClass}">
+      <th scope="row">${escapeHtml(row.label)}</th>
+      ${renderEgaceMetricCells(row)}
+    </tr>`;
+}
+
+function populateEgaceCourseFilter(report) {
+  const select = document.getElementById("egace-qualification-filter");
+  if (!select) return;
+
+  const courses = report?.courses || [];
+  if (!courses.length) {
+    select.innerHTML = `<option value="">No qualifications with data</option>`;
+    return;
+  }
+
+  select.innerHTML = courses
+    .map(
+      (course) =>
+        `<option value="${escapeHtml(course)}">${escapeHtml(course)}</option>`
+    )
+    .join("");
+
+  const defaultCourse = report?.defaultCourse || courses[0] || "";
+  if (defaultCourse && courses.includes(defaultCourse)) {
+    select.value = defaultCourse;
+  }
+}
+
+function renderEgaceBatchReport(report, course) {
   const tbody = document.getElementById("egaceSummaryTableBody");
+  const titleWrap = document.getElementById("egace-qualification-title");
+  const titleName = document.getElementById("egace-qualification-name");
   if (!tbody) return;
 
-  if (!rows.length) {
+  const qualification = course || "";
+  const courseReport = qualification ? report?.reports?.[qualification] : null;
+
+  if (titleWrap && titleName) {
+    if (qualification && courseReport) {
+      titleWrap.hidden = false;
+      titleName.textContent = qualification.toUpperCase();
+    } else {
+      titleWrap.hidden = true;
+      titleName.textContent = "";
+    }
+  }
+
+  if (!courseReport || !courseReport.batches?.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-muted py-4">No EGACE records yet.</td>
+        <td colspan="11" class="text-center text-muted py-4">
+          ${qualification ? "No batch data for this qualification yet." : "Select a qualification to view the E.G.A.C.E report."}
+        </td>
       </tr>`;
     return;
   }
 
-  tbody.innerHTML = rows.map(renderEgaceRow).join("");
+  const rows = [...courseReport.batches];
+  if (courseReport.total) {
+    rows.push(courseReport.total);
+  }
+
+  tbody.innerHTML = rows
+    .map((row, index) => renderEgaceBatchRow(row, row.isTotal ? -1 : index))
+    .join("");
+}
+
+function initEgaceBatchReport(report) {
+  const select = document.getElementById("egace-qualification-filter");
+  populateEgaceCourseFilter(report);
+
+  const initialCourse = select?.value || report?.defaultCourse || "";
+  renderEgaceBatchReport(report, initialCourse);
+
+  select?.addEventListener("change", () => {
+    renderEgaceBatchReport(report, select.value);
+  });
 }
 
 function renderPendingCounts(items) {
@@ -144,7 +212,7 @@ function initAdminDashboard() {
 
   renderPendingCounts(data.pendingCounts || []);
   renderProgramCards(data.programs || [], "all");
-  renderEgaceSummary(data.egaceSummary || []);
+  initEgaceBatchReport(data.egaceBatchReport || { courses: [], reports: {} });
   initProgramTabs(data.programs || []);
 }
 
