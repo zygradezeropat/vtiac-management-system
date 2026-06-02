@@ -21,7 +21,6 @@ const MIN_STUDENTS_TO_FINALIZE = 3;
 const BATCH_CAPACITY = 25;
 
 const BATCH_CATEGORY_TABS = [
-  { key: "assessment", label: "Assessment" },
   { key: "institutional", label: "Institutional Competency" },
   { key: "national", label: "National Competency" },
 ];
@@ -233,18 +232,18 @@ function getCsrfToken() {
 }
 
 function batchingCourseCategory(course) {
-  const fromServer = course?.category;
+  let fromServer = course?.category;
+  if (fromServer === "assessment") {
+    fromServer = "national";
+  }
   if (fromServer && BATCH_CATEGORY_TABS.some((t) => t.key === fromServer)) {
     return fromServer;
   }
   const name = String(course?.name || "").trim();
   if (!name) return "institutional";
-  if (name.includes(" NC I") || name.includes(" NC II") || name.includes(" NC III")) {
-    return "national";
-  }
   const lower = name.toLowerCase();
   if (lower === "assessment" || lower === "competency assessment" || lower.includes("assessment")) {
-    return "assessment";
+    return "national";
   }
   return "institutional";
 }
@@ -311,7 +310,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!coursesEl) return;
 
   let selectedCourseId = null;
-  let activeCategoryTab = "assessment";
+  let activeCategoryTab = "institutional";
   let formState = createEmptyTemplateForm();
   let editingTemplateId = null;
   const allTrainers = loadBatchingTrainersData();
@@ -959,7 +958,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const urlParams = new URLSearchParams(window.location.search);
   const courseParam = urlParams.get("course");
-  const categoryParam = urlParams.get("category");
+  let categoryParam = urlParams.get("category");
+  if (categoryParam === "assessment") {
+    categoryParam = "national";
+  }
   if (categoryParam && BATCH_CATEGORY_TABS.some((t) => t.key === categoryParam)) {
     activeCategoryTab = categoryParam;
   } else if (courseParam) {

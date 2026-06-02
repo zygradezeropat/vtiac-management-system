@@ -1,6 +1,7 @@
 """Cashier JSON API."""
 
 import json
+import re
 
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
@@ -23,13 +24,36 @@ def _format_control_number(seq: int) -> str:
     return f"CN-{seq:04d}"
 
 
+def _parse_control_seq(value: str) -> int:
+    match = re.match(r"^CN-(\d+)$", (value or "").strip(), re.IGNORECASE)
+    return int(match.group(1)) if match else 0
+
+
+def _max_control_sequence_from_db() -> int:
+    from .models import CashierPayment
+
+    max_seq = 0
+    for control_number in CashierPayment.objects.values_list("control_number", flat=True):
+        max_seq = max(max_seq, _parse_control_seq(control_number))
+    return max_seq
+
+
+def _ensure_control_cache_floor() -> None:
+    floor = _max_control_sequence_from_db()
+    current = cache.get(CONTROL_NUMBER_CACHE_KEY)
+    if current is None or int(current) < floor:
+        cache.set(CONTROL_NUMBER_CACHE_KEY, floor, timeout=None)
+
+
 def _next_control_sequence() -> int:
     """Atomically reserve the next control number sequence (shared across cashiers)."""
+    _ensure_control_cache_floor()
     try:
         return cache.incr(CONTROL_NUMBER_CACHE_KEY)
     except ValueError:
-        cache.set(CONTROL_NUMBER_CACHE_KEY, 1, timeout=None)
-        return 1
+        next_seq = _max_control_sequence_from_db() + 1
+        cache.set(CONTROL_NUMBER_CACHE_KEY, next_seq, timeout=None)
+        return next_seq
 
 
 @login_required(login_url="/")

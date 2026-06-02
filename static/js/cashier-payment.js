@@ -576,6 +576,23 @@ async function fetchNextControlNumber() {
   return formatControlNumber(next);
 }
 
+function controlNumberFromLocalTransactions() {
+  return formatControlNumber(maxControlSeqFromTransactions() + 1);
+}
+
+async function assignNextControlNumber() {
+  const input = document.getElementById("controlNumber");
+  if (!input) return;
+  input.removeAttribute("placeholder");
+  input.value = controlNumberFromLocalTransactions();
+  try {
+    const cn = await fetchNextControlNumber();
+    if (cn) input.value = cn;
+  } catch {
+    /* keep local fallback visible */
+  }
+}
+
 function resetPaymentForm() {
   const form = document.getElementById("paymentForm");
   form?.reset();
@@ -598,16 +615,6 @@ function resetPaymentForm() {
   updateTotals();
 }
 
-const SERVICE_INVOICE_ASSESSMENT_ROWS = [
-  "REGISTRATION",
-  "TRAINING FEE:",
-  "LABORATORY FEE:",
-  "ASSESSMENT FEE",
-  "*OTHERS",
-];
-
-const SERVICE_INVOICE_EMPTY_ROWS = 8;
-
 function getReceiptLogoUrls() {
   const modal = document.getElementById("receiptModal");
   return {
@@ -616,11 +623,8 @@ function getReceiptLogoUrls() {
   };
 }
 
-function formatInvoiceSerial(txn) {
-  const raw = (txn.orNumber || txn.controlNumber || "").trim();
-  const digits = raw.replace(/\D/g, "");
-  if (digits) return digits.slice(-6).padStart(6, "0");
-  return "000000";
+function formatInvoiceStudentName(name) {
+  return String(name || "").trim().toUpperCase();
 }
 
 function formatInvoiceDate(txn) {
@@ -633,56 +637,38 @@ function formatInvoiceDate(txn) {
   });
 }
 
-function matchAssessmentRowIndex(description) {
-  const d = (description || "").toLowerCase();
-  if (d.includes("registration")) return 0;
-  if (d.includes("training")) return 1;
-  if (d.includes("laboratory") || d.includes("lab fee") || d === "lab") return 2;
-  if (d.includes("assessment")) return 3;
-  return 4;
-}
+function buildParticularLineItems(txn) {
+  const particulars = (txn.particulars || []).filter(
+    (p) => (Number(p.amount) || 0) > 0 && String(p.description || "").trim()
+  );
+  if (!particulars.length) return [];
 
-function buildAssessmentLineItems(particulars) {
-  const rows = SERVICE_INVOICE_ASSESSMENT_ROWS.map((label) => ({
-    label,
-    assessment: 0,
-    payment: 0,
-    balance: 0,
-  }));
-
-  (particulars || []).forEach((p) => {
-    const idx = matchAssessmentRowIndex(p.description);
-    rows[idx].assessment += p.amount || 0;
-  });
-
-  return rows;
-}
-
-function distributePaymentAcrossRows(rows, totalPayable, paidAmount) {
-  if (totalPayable <= 0 || paidAmount <= 0) {
-    rows.forEach((row) => {
-      row.payment = 0;
-      row.balance = row.assessment;
-    });
-    return;
-  }
+  const totalPayable = Number(txn.totalPayable) || 0;
+  const credited =
+    txn.creditedAmount != null
+      ? Number(txn.creditedAmount)
+      : Math.min(Number(txn.amountPaid ?? txn.paidAmount) || 0, totalPayable);
 
   let allocated = 0;
-  rows.forEach((row, index) => {
-    if (row.assessment <= 0) {
-      row.payment = 0;
-      row.balance = 0;
-      return;
+  return particulars.map((p, index) => {
+    const assessment = Number(p.amount) || 0;
+    const isLast = index === particulars.length - 1;
+    let payment = 0;
+    if (totalPayable > 0 && credited > 0) {
+      payment = isLast
+        ? Math.max(0, Math.round((credited - allocated) * 100) / 100)
+        : Math.min(
+            assessment,
+            Math.round(((credited * assessment) / totalPayable) * 100) / 100
+          );
     }
-
-    const isLastWithAmount =
-      rows.slice(index + 1).every((r) => r.assessment <= 0);
-    const share = isLastWithAmount
-      ? Math.max(0, paidAmount - allocated)
-      : Math.min(row.assessment, (paidAmount * row.assessment) / totalPayable);
-    row.payment = Math.round(share * 100) / 100;
-    row.balance = Math.max(0, Math.round((row.assessment - row.payment) * 100) / 100);
-    allocated += row.payment;
+    allocated += payment;
+    return {
+      label: String(p.description).trim(),
+      assessment,
+      payment,
+      balance: Math.max(0, Math.round((assessment - payment) * 100) / 100),
+    };
   });
 }
 
@@ -691,32 +677,13 @@ function formatInvoiceMoney(amount) {
   return formatPeso(amount).replace(/^₱\s?/, "");
 }
 
-function buildServiceInvoiceHtml(txn) {
-  const logos = getReceiptLogoUrls();
-  const lineItems = buildAssessmentLineItems(txn.particulars);
-  const credited =
-    txn.creditedAmount != null
-      ? txn.creditedAmount
-      : Math.min(txn.amountPaid ?? txn.paidAmount, txn.totalPayable);
-  distributePaymentAcrossRows(lineItems, txn.totalPayable, credited);
+const SERVICE_INVOICE_BLANK_ROWS = 6;
 
-  const filledRows = lineItems
-    .map(
-      (row) => `
-      <tr>
-        <td class="service-invoice__assessment-label">${escapeHtml(row.label)}</td>
-        <td class="service-invoice__money service-invoice__assessment-amt">${escapeHtml(formatInvoiceMoney(row.assessment))}</td>
-        <td class="service-invoice__money">${escapeHtml(formatInvoiceMoney(row.payment))}</td>
-        <td class="service-invoice__money">${escapeHtml(formatInvoiceMoney(row.balance))}</td>
-        <td class="service-invoice__spacer" aria-hidden="true"></td>
-      </tr>`
-    )
-    .join("");
-
-  const emptyRows = Array.from({ length: SERVICE_INVOICE_EMPTY_ROWS })
+function buildInvoiceBlankRows() {
+  return Array.from({ length: SERVICE_INVOICE_BLANK_ROWS })
     .map(
       () => `
-      <tr>
+      <tr class="service-invoice__blank-row">
         <td colspan="2"></td>
         <td></td>
         <td></td>
@@ -724,9 +691,35 @@ function buildServiceInvoiceHtml(txn) {
       </tr>`
     )
     .join("");
+}
 
-  const amountPaid = txn.amountPaid ?? txn.paidAmount;
-  const isFullPayment = amountPaid >= txn.totalPayable && txn.totalPayable > 0;
+function buildServiceInvoiceHtml(txn) {
+  const logos = getReceiptLogoUrls();
+  const lineItems = buildParticularLineItems(txn);
+
+  const particularRows = lineItems.length
+    ? lineItems
+        .map(
+          (row) => `
+      <tr>
+        <td class="service-invoice__assessment-label">${escapeHtml(row.label)}</td>
+        <td class="service-invoice__money service-invoice__assessment-amt">${escapeHtml(formatInvoiceMoney(row.assessment))}</td>
+        <td class="service-invoice__money">${escapeHtml(formatInvoiceMoney(row.payment))}</td>
+        <td class="service-invoice__money">${escapeHtml(formatInvoiceMoney(row.balance))}</td>
+        <td class="service-invoice__spacer" aria-hidden="true"></td>
+      </tr>`
+        )
+        .join("")
+    : `
+      <tr>
+        <td class="service-invoice__assessment-label" colspan="2">—</td>
+        <td></td>
+        <td></td>
+        <td class="service-invoice__spacer" aria-hidden="true"></td>
+      </tr>`;
+
+  const amountPaid = Number(txn.amountPaid ?? txn.paidAmount) || 0;
+  const changeDue = Number(txn.changeDue) || 0;
 
   return `
     <article class="service-invoice" aria-label="Service invoice">
@@ -747,8 +740,8 @@ function buildServiceInvoiceHtml(txn) {
           </div>
           <div class="service-invoice__doc-badge">Service INVOICE</div>
           <p class="service-invoice__invoice-no">
-            <span>Invoice No.</span>
-            <strong>${escapeHtml(formatInvoiceSerial(txn))}</strong>
+            <span>Control Number</span>
+            <strong>${escapeHtml(txn.controlNumber || "—")}</strong>
           </p>
         </div>
       </header>
@@ -766,10 +759,9 @@ function buildServiceInvoiceHtml(txn) {
 
       <section class="service-invoice__sold-to">
         <span class="service-invoice__sold-to-label">SOLD TO</span>
-        <p><span>Registered Name:</span> <strong>${escapeHtml(txn.studentName || "")}</strong></p>
+        <p><span>Registered Name:</span> <strong>${escapeHtml(formatInvoiceStudentName(txn.studentName))}</strong></p>
         <p><span>TIN:</span> <span class="service-invoice__line"></span></p>
         <p><span>Business Address:</span> <span class="service-invoice__line"></span></p>
-        <p class="service-invoice__control-ref"><span>Control No:</span> ${escapeHtml(txn.controlNumber || "")}</p>
       </section>
 
       <table class="service-invoice__table">
@@ -789,8 +781,8 @@ function buildServiceInvoiceHtml(txn) {
           </tr>
         </thead>
         <tbody>
-          ${filledRows}
-          ${emptyRows}
+          ${particularRows}
+          ${buildInvoiceBlankRows()}
         </tbody>
       </table>
 
@@ -799,8 +791,13 @@ function buildServiceInvoiceHtml(txn) {
           <p class="service-invoice__received">
             <span class="service-invoice__box" aria-hidden="true"></span>
             Received the amount of:
-            <span class="service-invoice__amount-line">${escapeHtml(isFullPayment ? formatPeso(amountPaid) : "")}</span>
+            <span class="service-invoice__amount-line">${amountPaid > 0 ? escapeHtml(formatPeso(amountPaid)) : ""}</span>
           </p>
+          ${
+            changeDue > 0
+              ? `<p class="service-invoice__change mb-0 mt-1"><span>Change:</span> <strong>${escapeHtml(formatPeso(changeDue))}</strong></p>`
+              : ""
+          }
           <div class="service-invoice__id-sign">
             <div>
               <span>SC/PWD/NAAC/MOV/Solo Parent I.D. NO.:</span>
@@ -815,11 +812,6 @@ function buildServiceInvoiceHtml(txn) {
             <p class="service-invoice__issued-label mb-0"><span>Issued by:</span></p>
             <p class="service-invoice__issued-name mb-0">${escapeHtml(txn.cashierName || "—")}</p>
             <p class="service-invoice__issued-role mb-0">Cashier / Authorized Representative</p>
-            ${
-              (txn.changeDue || 0) > 0
-                ? `<p class="service-invoice__cash-meta mb-0 mt-1"><span>Change:</span> ${escapeHtml(formatPeso(txn.changeDue))}</p>`
-                : ""
-            }
           </div>
         </div>
         <table class="service-invoice__totals">
@@ -836,6 +828,14 @@ function buildServiceInvoiceHtml(txn) {
               <th scope="row">Less: Withholding Tax</th>
               <td></td>
             </tr>
+            ${
+              changeDue > 0
+                ? `<tr class="service-invoice__change-row">
+              <th scope="row">Change</th>
+              <td>${escapeHtml(formatPeso(changeDue))}</td>
+            </tr>`
+                : ""
+            }
             <tr class="service-invoice__total-due">
               <th scope="row">TOTAL AMOUNT DUE</th>
               <td>${escapeHtml(formatPeso(txn.remainingBalance))}</td>
@@ -843,33 +843,6 @@ function buildServiceInvoiceHtml(txn) {
           </tbody>
         </table>
       </footer>
-
-      <p class="service-invoice__disclaimer">"THIS DOCUMENT IS NOT VALID FOR CLAIM OF INPUT TAX"</p>
-
-      <table class="service-invoice__printer" aria-label="Printer accreditation details">
-        <tbody>
-          <tr>
-            <td colspan="6">Printer Name: DENORA PRINTING PRESS</td>
-          </tr>
-          <tr>
-            <td colspan="3">TIN: 458-298-543-00000</td>
-            <td colspan="3">Address: 035 Prk. Bearbrand, New Pandan, Panabo City, DDN</td>
-          </tr>
-          <tr>
-            <td colspan="2">Printer's Accrdyn No.</td>
-            <td colspan="2">Date Issued</td>
-            <td colspan="2">Expiry Date</td>
-          </tr>
-          <tr>
-            <td>BKLT. NO.</td>
-            <td>CPS PER SET</td>
-            <td>SERIAL NO.</td>
-            <td>SETS</td>
-            <td>BIR ATP NO.</td>
-            <td>DATE ISSUED</td>
-          </tr>
-        </tbody>
-      </table>
     </article>
   `;
 }
@@ -890,7 +863,7 @@ function buildArReceiptHtml(txn) {
       </div>
       <p><strong>Control No:</strong> ${escapeHtml(txn.controlNumber)}</p>
       ${txn.orNumber ? `<p><strong>OR No:</strong> ${escapeHtml(txn.orNumber)}</p>` : ""}
-      <p><strong>Student:</strong> ${escapeHtml(txn.studentName)}</p>
+      <p><strong>Student:</strong> ${escapeHtml(formatInvoiceStudentName(txn.studentName))}</p>
       <p><strong>Date:</strong> ${escapeHtml(txn.dateTime)}</p>
       <p><strong>Cashier:</strong> ${escapeHtml(txn.cashierName || "—")}</p>
       ${(txn.changeDue || 0) > 0 ? `<p><strong>Change:</strong> ${formatPeso(txn.changeDue)}</p>` : ""}
@@ -1081,7 +1054,6 @@ export function initPaymentModal() {
 
   const backdrop = document.getElementById("paymentModalBackdrop");
   const closeBtn = document.getElementById("paymentModalCloseBtn");
-  const generateBtn = document.getElementById("generateControlNumberBtn");
   const addRowBtn = document.getElementById("addParticularRowBtn");
   const studentInput = document.getElementById("studentSearchInput");
   const paidInput = document.getElementById("paidAmount");
@@ -1098,12 +1070,6 @@ export function initPaymentModal() {
     if (rm) closeModal(rm);
   });
   document.getElementById("receiptPrintBtn")?.addEventListener("click", printReceiptOnly);
-
-  generateBtn?.addEventListener("click", async () => {
-    const cn = await fetchNextControlNumber();
-    const input = document.getElementById("controlNumber");
-    if (input) input.value = cn;
-  });
 
   addRowBtn?.addEventListener("click", addParticularRow);
   paidInput?.addEventListener("input", updateTotals);
@@ -1188,5 +1154,11 @@ export function openPaymentModal() {
   const paymentModal = document.getElementById("paymentModal");
   if (!paymentModal) return;
   resetPaymentForm();
+  const controlInput = document.getElementById("controlNumber");
+  if (controlInput) {
+    controlInput.removeAttribute("placeholder");
+    controlInput.value = controlNumberFromLocalTransactions();
+  }
   openModal(paymentModal);
+  assignNextControlNumber();
 }

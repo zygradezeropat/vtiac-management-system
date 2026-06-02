@@ -46,12 +46,15 @@
         </div>
 
         <div class="cashier-form-group">
-          <label class="cashier-form-label" for="controlNumber">Control Number (System Tracking)</label>
-          <div class="cashier-control-number-group">
-            <input type="text" class="form-control" id="controlNumber" placeholder="Enter or auto-generate" />
-            <button type="button" class="btn cashier-btn-outline" id="generateControlNumberBtn">Auto Generate</button>
-          </div>
-          <p class="cashier-field-hint">System-generated number for tracking purposes</p>
+          <label class="cashier-form-label" for="controlNumber">Control Number</label>
+          <input
+            type="text"
+            class="form-control cashier-control-number-field"
+            id="controlNumber"
+            readonly
+            aria-readonly="true"
+          />
+          <p class="cashier-field-hint">Assigned automatically for each new payment</p>
         </div>
 
         <div class="cashier-form-group" id="orNumberGroup">

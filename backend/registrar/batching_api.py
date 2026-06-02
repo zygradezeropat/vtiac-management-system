@@ -56,15 +56,17 @@ BATCHING_CATEGORY_NATIONAL = "national"
 
 
 def batching_course_category(name: str) -> str:
-    """Classify a program for registrar batching tabs."""
+    """Classify a program for registrar batching tabs.
+
+    Institutional: training programs (including NC I/II/III qualifications).
+    National: assessment-only programs.
+    """
     text = (name or "").strip()
     if not text:
         return BATCHING_CATEGORY_INSTITUTIONAL
-    if " NC I" in text or " NC II" in text or " NC III" in text:
-        return BATCHING_CATEGORY_NATIONAL
     lower = text.lower()
     if lower in ("assessment", "competency assessment") or "assessment" in lower:
-        return BATCHING_CATEGORY_ASSESSMENT
+        return BATCHING_CATEGORY_NATIONAL
     return BATCHING_CATEGORY_INSTITUTIONAL
 
 
