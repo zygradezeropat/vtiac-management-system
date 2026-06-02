@@ -6,6 +6,7 @@ import json
 
 from django.contrib.auth import get_user_model
 
+from .class_assignments import trainer_assigned_grading_keys
 from .models import TrainerStudentGrade
 
 User = get_user_model()
@@ -105,6 +106,10 @@ def save_trainer_student_grade(user, data: dict) -> TrainerStudentGrade:
     cleaned, errors = validate_grade_payload(data)
     if errors:
         raise ValueError(errors[0])
+
+    allowed_keys = trainer_assigned_grading_keys(user)
+    if cleaned["student_key"] not in allowed_keys:
+        raise ValueError("You are not assigned to grade this student.")
 
     record, _created = TrainerStudentGrade.objects.update_or_create(
         trainer=user,

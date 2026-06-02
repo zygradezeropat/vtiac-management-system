@@ -586,7 +586,7 @@ def course_groups_from_roster(students: list[dict], batch_cards: list[dict] | No
 
 
 def grading_page_payload(students: list[dict], batch_cards: list[dict] | None = None) -> dict:
-    """JSON-safe config for the grading page demo."""
+    """JSON-safe config for trainer record sheets (assigned students only)."""
     roster = []
     for student in students:
         roster.append(
@@ -603,46 +603,6 @@ def grading_page_payload(students: list[dict], batch_cards: list[dict] | None = 
                 "schedule": student.get("schedule") or "",
             }
         )
-
-    if not roster:
-        roster = [
-            {
-                "key": "demo-juan-dela-cruz",
-                "name": "Juan Dela Cruz",
-                "first_name": "Juan",
-                "middle_name": "",
-                "last_name": "Dela Cruz",
-                "initials": "JD",
-                "program": "Automotive Servicing NC I",
-                "batch_label": "Batch 2026-A",
-                "batch_id": "demo-auto-a",
-                "schedule": "Mon–Fri · 8:00 AM – 12:00 NN",
-            },
-            {
-                "key": "demo-maria-santos",
-                "name": "Maria Santos",
-                "first_name": "Maria",
-                "middle_name": "",
-                "last_name": "Santos",
-                "initials": "MS",
-                "program": "Automotive Servicing NC I",
-                "batch_label": "Batch 2026-A",
-                "batch_id": "demo-auto-a",
-                "schedule": "Mon–Fri · 8:00 AM – 12:00 NN",
-            },
-            {
-                "key": "demo-pedro-garcia",
-                "name": "Pedro Garcia",
-                "first_name": "Pedro",
-                "middle_name": "",
-                "last_name": "Garcia",
-                "initials": "PG",
-                "program": "Driving NC II",
-                "batch_label": "Batch 2026-B",
-                "batch_id": "demo-driving-b",
-                "schedule": "Sat–Sun · 1:00 PM – 5:00 PM",
-            },
-        ]
 
     course_groups = course_groups_from_roster(roster, batch_cards)
     programs = sorted({s["program"] for s in roster if s.get("program")})

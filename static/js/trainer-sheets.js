@@ -1220,27 +1220,6 @@ function renderNonEncodableSheet(state, filters) {
   `;
 }
 
-function seedDemoRecordScores(students, gradeStore) {
-  const demoScores = {
-    "demo-juan-dela-cruz": { written: 85, demo: 75, interview: 90 },
-    "demo-maria-santos": { written: 88, demo: 82, interview: 86 },
-    "demo-pedro-garcia": { written: 68, demo: 70, interview: 65 },
-  };
-  students.forEach((student) => {
-    const seed = demoScores[student.key];
-    if (!seed) return;
-    const record = gradeStore[student.key];
-    if (!record) return;
-    const inst = getInstitutionalScores(record);
-    if (inst.written != null || inst.demo != null || inst.interview != null) return;
-    record.scores = {
-      ...(record.scores || {}),
-      [INSTITUTIONAL_UC_KEY]: { ...seed },
-    };
-    gradeStore[student.key] = record;
-  });
-}
-
 function initSheetsPage() {
   const config = readConfig();
   if (!config?.records_url) return;
@@ -1515,7 +1494,6 @@ function initSheetsPage() {
           );
         }
       });
-      seedDemoRecordScores(state.students, gradeStore);
       syncSelectionView();
       renderAll();
     } catch (error) {

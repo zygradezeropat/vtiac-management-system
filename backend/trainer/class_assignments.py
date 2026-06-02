@@ -316,3 +316,11 @@ def assigned_students_by_batch(user) -> tuple[list[dict], list[dict]]:
         for entry in _students_for_batch(template):
             students.append(_student_row(entry, template, schedule_display))
     return students, batch_cards
+
+
+def trainer_assigned_grading_keys(user) -> set[str]:
+    """Student keys the trainer may grade (from finalized assigned batches)."""
+    from .grading_sample import student_grading_key
+
+    students, _batch_cards = assigned_students_by_batch(user)
+    return {student_grading_key(student) for student in students}
