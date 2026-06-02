@@ -10,6 +10,8 @@ import {
   subscribeTrainerEgaceSync,
 } from "./trainer-egace-store.js";
 
+const PAGE_SIZE = 10;
+
 function getCsrfToken() {
   const input = document.querySelector("[name=csrfmiddlewaretoken]");
   if (input?.value) return input.value;
@@ -143,10 +145,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const courseEl = document.getElementById("egace-course-filter");
   const batchEl = document.getElementById("egace-batch-filter");
   const emptyEl = document.getElementById("egace-empty");
+  const paginationEl = document.getElementById("egace-pagination");
   const egaceConfig = readEgaceConfig();
   const employmentUrl = egaceConfig.employment_url || "";
 
   if (!tbody) return;
+
+  let currentPage = 1;
 
   if (seedEl?.textContent?.trim()) {
     try {
@@ -282,10 +287,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function render() {
+  function renderPagination(totalRows, page, totalPages) {
+    if (!paginationEl) return;
+
+    if (totalRows <= PAGE_SIZE) {
+      paginationEl.classList.add("d-none");
+      paginationEl.innerHTML = "";
+      return;
+    }
+
+    paginationEl.classList.remove("d-none");
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, totalRows);
+    const prevDisabled = page <= 1 ? "disabled" : "";
+    const nextDisabled = page >= totalPages ? "disabled" : "";
+
+    paginationEl.innerHTML = `
+      <span class="text-muted small">Showing ${start}–${end} of ${totalRows}</span>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary egace-page-prev" ${prevDisabled}>Previous</button>
+        <span class="text-muted small">Page ${page} of ${totalPages}</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary egace-page-next" ${nextDisabled}>Next</button>
+      </div>
+    `;
+  }
+
+  function render(resetPage = false) {
+    if (resetPage) currentPage = 1;
+
     populateFilterOptions();
     const allRows = getEgaceTableRows();
     const rows = filteredRows();
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE) || 1);
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
 
     if (countEl) {
       countEl.textContent =
@@ -295,6 +329,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (rows.length === 0) {
       tbody.innerHTML = "";
+      paginationEl?.classList.add("d-none");
+      paginationEl && (paginationEl.innerHTML = "");
       emptyEl?.classList.remove("d-none");
       const emptyText = emptyEl?.querySelector("p.fw-semibold");
       if (emptyText) {
@@ -310,25 +346,44 @@ document.addEventListener("DOMContentLoaded", () => {
     if (emptyText) {
       emptyText.textContent = "No records to display";
     }
-    tbody.innerHTML = rows.map(renderRow).join("");
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageRows = rows.slice(start, start + PAGE_SIZE);
+    tbody.innerHTML = pageRows.map(renderRow).join("");
     bindEmploymentToggles();
+    renderPagination(rows.length, currentPage, totalPages);
   }
 
   searchEl?.addEventListener("input", (e) => {
     searchQuery = e.target.value;
-    render();
+    render(true);
   });
 
   courseEl?.addEventListener("change", () => {
     courseFilter = courseEl.value;
     batchFilter = "";
     if (batchEl) batchEl.value = "";
-    render();
+    render(true);
   });
 
   batchEl?.addEventListener("change", () => {
     batchFilter = batchEl.value;
-    render();
+    render(true);
+  });
+
+  paginationEl?.addEventListener("click", (event) => {
+    const prev = event.target.closest(".egace-page-prev");
+    const next = event.target.closest(".egace-page-next");
+    if (prev && currentPage > 1) {
+      currentPage -= 1;
+      render(false);
+    } else if (next) {
+      const totalPages = Math.max(1, Math.ceil(filteredRows().length / PAGE_SIZE));
+      if (currentPage < totalPages) {
+        currentPage += 1;
+        render(false);
+      }
+    }
   });
 
   subscribeTrainerEgaceSync(render);
