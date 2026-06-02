@@ -19,7 +19,12 @@ def _cashier_display_name(user) -> str:
     return (user.get_full_name() or "").strip() or user.get_username() or "Cashier"
 
 
-def _validate_minimum_payment(paid_amount: Decimal, total_payable: Decimal) -> None:
+def _validate_minimum_payment(
+    paid_amount: Decimal,
+    total_payable: Decimal,
+    *,
+    is_new_student: bool = False,
+) -> None:
     if paid_amount <= 0:
         raise ValueError("Paid amount must be greater than zero.")
     if total_payable < MIN_PAYMENT_AMOUNT:
@@ -29,6 +34,10 @@ def _validate_minimum_payment(paid_amount: Decimal, total_payable: Decimal) -> N
             )
         return
     if paid_amount < MIN_PAYMENT_AMOUNT:
+        if is_new_student:
+            raise ValueError(
+                f"New students must pay at least ₱{MIN_PAYMENT_AMOUNT:,.2f} per transaction."
+            )
         raise ValueError(
             f"Minimum payment per transaction is ₱{MIN_PAYMENT_AMOUNT:,.2f}."
         )
@@ -109,15 +118,18 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
         payload.get("totalPayable") or sum(p["amount"] for p in cleaned_particulars),
         "total payable",
     )
+    program = profile.selected_program or (reg.selected_program if reg else "")
+    balance_before = fee_balance_for_profile(profile, program)
+
     amount_paid = _parse_decimal(payload.get("paidAmount", 0), "amount paid")
-    _validate_minimum_payment(amount_paid, total_payable)
+    is_new_student = Decimal(str(balance_before["totalPaid"])) <= 0
+    _validate_minimum_payment(
+        amount_paid, total_payable, is_new_student=is_new_student
+    )
 
     credited_amount = min(amount_paid, total_payable)
     change_due = max(Decimal("0"), amount_paid - total_payable)
     paid_amount = credited_amount
-
-    program = profile.selected_program or (reg.selected_program if reg else "")
-    balance_before = fee_balance_for_profile(profile, program)
     remaining_due = Decimal(str(balance_before["totalRemaining"]))
 
     if balance_before["totalAssessed"] > 0 and remaining_due > 0:

@@ -119,6 +119,7 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
         "totalPaid": balance["totalPaid"],
         "totalRemaining": balance["totalRemaining"],
         "isFullyPaid": balance["isFullyPaid"],
+        "isNewStudent": balance["totalPaid"] <= 0 and balance["totalAssessed"] > 0,
     }
 
 
@@ -213,5 +214,6 @@ def get_student_fees(registration_id: str) -> dict | None:
         "totalPaid": balance["totalPaid"],
         "totalRemaining": balance["totalRemaining"],
         "isFullyPaid": balance["isFullyPaid"],
+        "isNewStudent": balance["totalPaid"] <= 0 and balance["totalAssessed"] > 0,
         "paymentList": payment_list_display(),
     }

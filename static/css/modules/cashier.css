@@ -919,6 +919,14 @@
   text-align: right;
 }
 
+.cashier-amount-input:disabled,
+.cashier-amount-input.cashier-amount-input--muted {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+}
+
 .cashier-badge-full {
   background: var(--cashier-emerald-100);
   color: var(--cashier-emerald-700);

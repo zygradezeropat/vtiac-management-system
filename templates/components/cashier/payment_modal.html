@@ -114,11 +114,23 @@
           </div>
           <div class="cashier-computation-row">
             <span>Amount paid:</span>
-            <input type="number" class="form-control cashier-amount-input" id="paidAmount" placeholder="0.00" step="0.01" min="0" value="0" />
+            <input
+              type="number"
+              class="form-control cashier-amount-input cashier-amount-input--muted"
+              id="paidAmount"
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              value="0"
+              disabled
+            />
           </div>
-          <p class="cashier-field-hint mb-2">Minimum payment per transaction is <strong>₱500.00</strong> (unless the full balance due is less).</p>
+          <p class="cashier-field-hint mb-1" id="minPaymentHint">
+            Minimum payment per transaction is <strong>₱500.00</strong> (unless the full balance due is less).
+          </p>
+          <p class="cashier-field-hint text-danger mb-2 d-none" id="paidAmountError" role="alert"></p>
           <div class="cashier-computation-row cashier-computation-row--change">
-            <span>Sukli (change):</span>
+            <span>Change:</span>
             <strong id="changeDue">₱0.00</strong>
           </div>
           <div class="cashier-computation-row cashier-computation-row--total">

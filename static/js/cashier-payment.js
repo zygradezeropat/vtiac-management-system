@@ -79,6 +79,24 @@ function getMinPaymentAmount() {
   return Number.isFinite(raw) && raw > 0 ? raw : MIN_PAYMENT_AMOUNT;
 }
 
+function isNewStudentPayment() {
+  if (!selectedStudentBalance) return false;
+  if (selectedStudentBalance.isNewStudent === true) return true;
+  const totalPaid = Number(selectedStudentBalance.totalPaid);
+  const totalAssessed = Number(selectedStudentBalance.totalAssessed);
+  return totalPaid <= 0 && totalAssessed > 0;
+}
+
+function hasSelectedStudent() {
+  return Boolean(
+    selectedStudent &&
+      (selectedStudent.registrationId ||
+        selectedStudent.id ||
+        document.getElementById("selectedRegistrationId")?.value ||
+        document.getElementById("selectedStudentId")?.value)
+  );
+}
+
 function initPaymentMessageModal() {
   const modal = document.getElementById("paymentMessageModal");
   const backdrop = document.getElementById("paymentMessageModalBackdrop");
@@ -166,9 +184,71 @@ function validateMinimumPayment(paidAmount, totalPayable) {
     return "";
   }
   if (paidAmount + 0.009 < minPay) {
+    if (isNewStudentPayment()) {
+      return `New students must pay at least ${formatPeso(minPay)}. Amounts below ${formatPeso(minPay)} are not allowed.`;
+    }
     return `Minimum payment per transaction is ${formatPeso(minPay)}.`;
   }
   return "";
+}
+
+function syncPaidAmountFieldState() {
+  const paidInput = document.getElementById("paidAmount");
+  const minHint = document.getElementById("minPaymentHint");
+  if (!paidInput) return;
+
+  const total = computeTotalPayable();
+  const studentSelected = hasSelectedStudent();
+  const shouldDisable = !studentSelected || total <= 0;
+
+  paidInput.disabled = shouldDisable;
+  paidInput.classList.toggle("cashier-amount-input--muted", shouldDisable);
+
+  if (shouldDisable) {
+    paidInput.value = "0";
+  }
+
+  if (minHint) {
+    const minPay = formatPeso(getMinPaymentAmount());
+    if (isNewStudentPayment() && total >= getMinPaymentAmount()) {
+      minHint.innerHTML = `New students must pay at least <strong>${minPay}</strong> on their first payment.`;
+    } else {
+      minHint.innerHTML = `Minimum payment per transaction is <strong>${minPay}</strong> (unless the full balance due is less).`;
+    }
+  }
+}
+
+function showPaidAmountError(message) {
+  const el = document.getElementById("paidAmountError");
+  if (!el) return;
+  if (message) {
+    el.textContent = message;
+    el.classList.remove("d-none");
+  } else {
+    el.textContent = "";
+    el.classList.add("d-none");
+  }
+}
+
+function validatePaidAmountInput() {
+  const paidInput = document.getElementById("paidAmount");
+  if (!paidInput || paidInput.disabled) {
+    showPaidAmountError("");
+    return "";
+  }
+
+  const total = computeTotalPayable();
+  const paid = parseFloat(paidInput.value) || 0;
+  if (paid <= 0) {
+    showPaidAmountError("");
+    paidInput.setCustomValidity("");
+    return "";
+  }
+
+  const msg = validateMinimumPayment(paid, total);
+  showPaidAmountError(msg);
+  paidInput.setCustomValidity(msg);
+  return msg;
 }
 
 /** Print only #receiptContent (invoice / AR), not the dashboard or modal chrome. */
@@ -206,14 +286,19 @@ function computeTotalPayable() {
 }
 
 function updateTotals() {
+  syncPaidAmountFieldState();
+
   const total = computeTotalPayable();
-  const amountPaid = parseFloat(document.getElementById("paidAmount")?.value) || 0;
+  const paidInput = document.getElementById("paidAmount");
+  const amountPaid =
+    paidInput && !paidInput.disabled ? parseFloat(paidInput.value) || 0 : 0;
   const { remaining, change } = paymentAmounts(total, amountPaid);
 
   const totalEl = document.getElementById("totalPayable");
   const balanceEl = document.getElementById("remainingBalance");
   const changeEl = document.getElementById("changeDue");
   const badge = document.getElementById("paymentStatusBadge");
+  const submitBtn = document.getElementById("paymentSubmitBtn");
 
   if (totalEl) totalEl.textContent = formatPeso(total);
   if (balanceEl) balanceEl.textContent = formatPeso(remaining);
@@ -233,6 +318,16 @@ function updateTotals() {
       badge.textContent = "Unpaid";
       badge.className = "badge bg-secondary";
     }
+  }
+
+  const amountError = validatePaidAmountInput();
+  if (submitBtn) {
+    const blocked =
+      !hasSelectedStudent() ||
+      total <= 0 ||
+      amountPaid <= 0 ||
+      Boolean(amountError);
+    submitBtn.disabled = blocked;
   }
 }
 
@@ -366,6 +461,8 @@ async function applyStudentFees(student) {
   }
 
   if (!feeData && student) {
+    const totalPaid = Number(student.totalPaid) || 0;
+    const totalAssessed = Number(student.totalAssessed) || 0;
     feeData = {
       feeLines: student.feeLines || [],
       assessedFeeLines: student.assessedFeeLines || student.feeLines || [],
@@ -373,6 +470,7 @@ async function applyStudentFees(student) {
       totalPaid: student.totalPaid,
       totalRemaining: student.totalRemaining,
       isFullyPaid: student.isFullyPaid,
+      isNewStudent: student.isNewStudent ?? (totalPaid <= 0 && totalAssessed > 0),
     };
   }
 
@@ -719,7 +817,7 @@ function buildServiceInvoiceHtml(txn) {
             <p class="service-invoice__issued-role mb-0">Cashier / Authorized Representative</p>
             ${
               (txn.changeDue || 0) > 0
-                ? `<p class="service-invoice__cash-meta mb-0 mt-1"><span>Sukli (change):</span> ${escapeHtml(formatPeso(txn.changeDue))}</p>`
+                ? `<p class="service-invoice__cash-meta mb-0 mt-1"><span>Change:</span> ${escapeHtml(formatPeso(txn.changeDue))}</p>`
                 : ""
             }
           </div>
@@ -795,7 +893,7 @@ function buildArReceiptHtml(txn) {
       <p><strong>Student:</strong> ${escapeHtml(txn.studentName)}</p>
       <p><strong>Date:</strong> ${escapeHtml(txn.dateTime)}</p>
       <p><strong>Cashier:</strong> ${escapeHtml(txn.cashierName || "—")}</p>
-      ${(txn.changeDue || 0) > 0 ? `<p><strong>Sukli (change):</strong> ${formatPeso(txn.changeDue)}</p>` : ""}
+      ${(txn.changeDue || 0) > 0 ? `<p><strong>Change:</strong> ${formatPeso(txn.changeDue)}</p>` : ""}
       <table class="table table-sm mt-3">
         <thead><tr><th>Particular</th><th class="text-end">Amount</th></tr></thead>
         <tbody>${particularsRows}</tbody>
@@ -834,7 +932,7 @@ function buildPaymentConfirmSummary(txn) {
       <dt>Student</dt><dd>${escapeHtml(txn.studentName)}</dd>
       <dt>Control No.</dt><dd>${escapeHtml(txn.controlNumber)}</dd>
       <dt>Amount paid</dt><dd>${formatPeso(txn.amountPaid ?? txn.paidAmount)}</dd>
-      <dt>Sukli (change)</dt><dd>${formatPeso(txn.changeDue || 0)}</dd>
+      <dt>Change</dt><dd>${formatPeso(txn.changeDue || 0)}</dd>
       <dt>Remaining balance</dt><dd>${formatPeso(txn.remainingBalance)}</dd>
       <dt>Cashier</dt><dd>${escapeHtml(txn.cashierName)}</dd>
     </dl>
@@ -970,7 +1068,7 @@ async function savePaymentTransaction(form, payload) {
       message: err.message || "Payment could not be saved.",
     });
   } finally {
-    if (submitBtn) submitBtn.disabled = false;
+    updateTotals();
   }
 }
 
@@ -1009,6 +1107,7 @@ export function initPaymentModal() {
 
   addRowBtn?.addEventListener("click", addParticularRow);
   paidInput?.addEventListener("input", updateTotals);
+  paidInput?.addEventListener("blur", validatePaidAmountInput);
 
   getParticularRows().forEach(bindParticularRow);
   syncRemoveButtons();
