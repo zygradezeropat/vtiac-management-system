@@ -2,3 +2,4 @@
 Django>=6.0,<7
 django-cors-headers>=4.6,<5
 psycopg2-binary>=2.9,<3   # PostgreSQL adapter (required)
+openpyxl>=3.1,<4          # Cashier Excel report exports

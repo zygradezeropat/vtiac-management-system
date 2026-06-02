@@ -882,6 +882,38 @@
   font-weight: 700;
 }
 
+.cashier-computation-row--change strong {
+  color: #047857;
+  font-size: 1.0625rem;
+}
+
+.cashier-modal__dialog--compact {
+  max-width: 28rem;
+}
+
+.cashier-payment-confirm-summary {
+  background: #f0fdf4;
+  border: 1px solid rgba(0, 168, 89, 0.25);
+  border-radius: 0.5rem;
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+}
+
+.cashier-payment-confirm-summary dl {
+  margin: 0;
+}
+
+.cashier-payment-confirm-summary dt {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.cashier-payment-confirm-summary dd {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
 .cashier-amount-input {
   max-width: 10rem;
   text-align: right;
@@ -969,6 +1001,26 @@
   font-size: 0.75rem;
   color: var(--cashier-muted);
   margin: 0;
+}
+
+.cashier-report-download-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.cashier-report-download-card {
+  border: 1px solid var(--cashier-border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  background: #fafbfc;
+}
+
+.cashier-report-download-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: var(--cashier-text, #111827);
 }
 
 .cashier-date-range-form {

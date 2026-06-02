@@ -16,6 +16,13 @@ def _particulars_summary(particulars) -> str:
     return first
 
 
+def _cashier_name_for_payment(payment: CashierPayment) -> str:
+    user = payment.recorded_by
+    if not user:
+        return ""
+    return (user.get_full_name() or "").strip() or user.get_username() or ""
+
+
 def serialize_payment(payment: CashierPayment) -> dict:
     dt = timezone.localtime(payment.created_at)
     particulars = payment.particulars if isinstance(payment.particulars, list) else []
@@ -35,11 +42,14 @@ def serialize_payment(payment: CashierPayment) -> dict:
         "status": payment.status,
         "dateTime": dt.strftime("%b %d, %Y, %I:%M %p"),
         "createdAt": payment.created_at.isoformat(),
+        "cashierName": _cashier_name_for_payment(payment),
     }
 
 
 def list_transactions(limit: int | None = None) -> list[dict]:
-    qs = CashierPayment.objects.select_related("profile", "registration").order_by("-created_at")
+    qs = CashierPayment.objects.select_related(
+        "profile", "registration", "recorded_by"
+    ).order_by("-created_at")
     if limit:
         qs = qs[:limit]
     return [serialize_payment(p) for p in qs]

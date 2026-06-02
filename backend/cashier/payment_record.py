@@ -10,6 +10,29 @@ from .balance import fee_balance_for_profile
 from .models import CashierPayment
 from .notifications import notify_payment_recorded
 
+MIN_PAYMENT_AMOUNT = Decimal("500.00")
+
+
+def _cashier_display_name(user) -> str:
+    if not user or not getattr(user, "is_authenticated", False):
+        return "Cashier"
+    return (user.get_full_name() or "").strip() or user.get_username() or "Cashier"
+
+
+def _validate_minimum_payment(paid_amount: Decimal, total_payable: Decimal) -> None:
+    if paid_amount <= 0:
+        raise ValueError("Paid amount must be greater than zero.")
+    if total_payable < MIN_PAYMENT_AMOUNT:
+        if paid_amount < total_payable:
+            raise ValueError(
+                f"Payment must cover the full balance of ₱{total_payable:,.2f}."
+            )
+        return
+    if paid_amount < MIN_PAYMENT_AMOUNT:
+        raise ValueError(
+            f"Minimum payment per transaction is ₱{MIN_PAYMENT_AMOUNT:,.2f}."
+        )
+
 
 def _parse_decimal(value, field_name: str) -> Decimal:
     try:
@@ -87,8 +110,14 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
         "total payable",
     )
     paid_amount = _parse_decimal(payload.get("paidAmount", 0), "paid amount")
-    if paid_amount <= 0:
-        raise ValueError("Paid amount must be greater than zero.")
+    _validate_minimum_payment(paid_amount, total_payable)
+
+    amount_tendered = _parse_decimal(payload.get("amountTendered", paid_amount), "cash tendered")
+    if amount_tendered < paid_amount:
+        raise ValueError(
+            f"Cash tendered (₱{amount_tendered:,.2f}) is less than the amount to pay "
+            f"(₱{paid_amount:,.2f})."
+        )
 
     program = profile.selected_program or (reg.selected_program if reg else "")
     balance_before = fee_balance_for_profile(profile, program)
@@ -138,6 +167,8 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
 
     notify_payment_recorded(profile, payment)
 
+    change_due = amount_tendered - paid_amount
+
     return {
         "id": payment.pk,
         "controlNumber": payment.control_number,
@@ -145,5 +176,8 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
         "paidAmount": float(payment.paid_amount),
         "totalPayable": float(payment.total_payable),
         "remainingBalance": float(payment.remaining_balance),
+        "amountTendered": float(amount_tendered),
+        "changeDue": float(change_due),
+        "cashierName": _cashier_display_name(user),
         **fee_balance_for_profile(profile, program),
     }

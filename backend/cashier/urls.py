@@ -42,4 +42,9 @@ urlpatterns = [
         api.reports_data,
         name="cashier_reports_data",
     ),
+    path(
+        "cashier/api/reports/export/",
+        api.reports_export,
+        name="cashier_reports_export",
+    ),
 ]

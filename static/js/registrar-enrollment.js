@@ -94,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
   listEl?.insertAdjacentElement("afterend", paginationEl);
   const countEl = document.getElementById("enrollment-count");
   const searchEl = document.getElementById("enrollment-search");
+  const courseFilterEl = document.getElementById("enrollment-course-filter");
   const emptyEl = document.getElementById("enrollment-empty");
   const confirmModalEl = document.getElementById("enrollment-confirm-modal");
   const confirmTitleEl = document.getElementById("enrollment-confirm-title");
@@ -104,6 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let activeTab = "training";
   const searchQueries = { training: "", assessment: "" };
+  const courseFilters = { training: "", assessment: "" };
   const pageByTab = { training: 1, assessment: 1 };
   let pendingAction = null;
   let actionInFlight = false;
@@ -147,6 +149,37 @@ document.addEventListener("DOMContentLoaded", () => {
     return getModule(activeTab).items || [];
   }
 
+  function uniqueCoursesForActiveTab() {
+    const items = getActiveItems();
+    const courses = new Set();
+    items.forEach((p) => {
+      const label = (p.program || "").trim();
+      if (label) courses.add(label);
+    });
+    return Array.from(courses).sort((a, b) => a.localeCompare(b));
+  }
+
+  function syncCourseFilterOptions() {
+    if (!courseFilterEl) return;
+    const selected = courseFilters[activeTab] || "";
+    const courses = uniqueCoursesForActiveTab();
+    courseFilterEl.innerHTML = "";
+
+    const allOpt = document.createElement("option");
+    allOpt.value = "";
+    allOpt.textContent = "All courses";
+    courseFilterEl.appendChild(allOpt);
+
+    courses.forEach((course) => {
+      const opt = document.createElement("option");
+      opt.value = course;
+      opt.textContent = course;
+      courseFilterEl.appendChild(opt);
+    });
+
+    courseFilterEl.value = selected;
+  }
+
   function findByKey(key) {
     for (const mod of MODULE_DATA) {
       const item = (mod.items || []).find((p) => itemKey(p) === key);
@@ -172,9 +205,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function filteredItems() {
     const q = (searchQueries[activeTab] || "").trim().toLowerCase();
+    const course = (courseFilters[activeTab] || "").trim();
     const items = getActiveItems();
-    if (!q) return items;
-    return items.filter((p) => p.name.toLowerCase().includes(q));
+    return items.filter((p) => {
+      const matchesName = !q || p.name.toLowerCase().includes(q);
+      const matchesCourse = !course || (p.program || "").trim() === course;
+      return matchesName && matchesCourse;
+    });
   }
 
   function totalPages(rows) {
@@ -282,6 +319,8 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.addEventListener("click", () => {
         activeTab = tab.key;
         if (searchEl) searchEl.value = searchQueries[activeTab] || "";
+        if (courseFilterEl) courseFilterEl.value = courseFilters[activeTab] || "";
+        syncCourseFilterOptions();
         renderTabs();
         render();
       });
@@ -307,6 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (tabTitleEl) tabTitleEl.textContent = mod.title;
     if (tabBadgeEl) tabBadgeEl.textContent = mod.badgeLabel;
+    syncCourseFilterOptions();
 
     if (rows.length === 0) {
       listEl.innerHTML = "";
@@ -441,6 +481,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   searchEl?.addEventListener("input", (e) => {
     searchQueries[activeTab] = e.target.value;
+    pageByTab[activeTab] = 1;
+    render();
+  });
+
+  courseFilterEl?.addEventListener("change", (e) => {
+    courseFilters[activeTab] = e.target.value || "";
     pageByTab[activeTab] = 1;
     render();
   });

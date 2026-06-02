@@ -11,9 +11,12 @@ import {
   parseControlNumberSeq,
 } from "./cashier-store.js";
 
+const MIN_PAYMENT_AMOUNT = 500;
+
 let searchTimer = null;
 let selectedStudent = null;
 let selectedStudentBalance = null;
+let paymentMessagePrimaryHandler = null;
 
 function getCsrfToken() {
   const input = document.querySelector("[name=csrfmiddlewaretoken]");
@@ -40,6 +43,7 @@ async function recordPaymentOnServer(txn) {
       particulars: txn.particulars,
       totalPayable: txn.totalPayable,
       paidAmount: txn.paidAmount,
+      amountTendered: txn.amountTendered,
       status: txn.status,
     }),
   });
@@ -60,6 +64,117 @@ function closeModal(modal) {
   modal.classList.remove("is-open");
   modal.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "";
+}
+
+function getCashierName() {
+  const fromHeader = document.getElementById("staff-display-name")?.textContent?.trim();
+  if (fromHeader) return fromHeader;
+  const modal = document.getElementById("paymentModal");
+  return modal?.dataset.cashierName?.trim() || "Cashier";
+}
+
+function getMinPaymentAmount() {
+  const modal = document.getElementById("paymentModal");
+  const raw = Number(modal?.dataset.minPayment);
+  return Number.isFinite(raw) && raw > 0 ? raw : MIN_PAYMENT_AMOUNT;
+}
+
+function initPaymentMessageModal() {
+  const modal = document.getElementById("paymentMessageModal");
+  const backdrop = document.getElementById("paymentMessageModalBackdrop");
+  const closeBtn = document.getElementById("paymentMessageModalCloseBtn");
+  const cancelBtn = document.getElementById("paymentMessageModalCancelBtn");
+  const primaryBtn = document.getElementById("paymentMessageModalPrimaryBtn");
+
+  const close = () => {
+    paymentMessagePrimaryHandler = null;
+    closeModal(modal);
+  };
+
+  backdrop?.addEventListener("click", close);
+  closeBtn?.addEventListener("click", close);
+  cancelBtn?.addEventListener("click", close);
+  primaryBtn?.addEventListener("click", () => {
+    const handler = paymentMessagePrimaryHandler;
+    paymentMessagePrimaryHandler = null;
+    closeModal(modal);
+    handler?.();
+  });
+}
+
+function showPaymentMessage({
+  title = "Notice",
+  subtitle = "",
+  message,
+  primaryLabel = "OK",
+  showCancel = false,
+  onPrimary = null,
+  summaryHtml = "",
+}) {
+  const modal = document.getElementById("paymentMessageModal");
+  const titleEl = document.getElementById("paymentMessageModalTitle");
+  const subtitleEl = document.getElementById("paymentMessageModalSubtitle");
+  const bodyEl = document.getElementById("paymentMessageModalBody");
+  const summaryEl = document.getElementById("paymentConfirmSummary");
+  const primaryBtn = document.getElementById("paymentMessageModalPrimaryBtn");
+  const cancelBtn = document.getElementById("paymentMessageModalCancelBtn");
+
+  if (!modal || !bodyEl) return;
+
+  if (titleEl) titleEl.textContent = title;
+  if (subtitleEl) {
+    subtitleEl.textContent = subtitle;
+    subtitleEl.classList.toggle("d-none", !subtitle);
+  }
+  bodyEl.textContent = message || "";
+
+  if (summaryEl) {
+    if (summaryHtml) {
+      summaryEl.innerHTML = summaryHtml;
+      summaryEl.classList.remove("d-none");
+    } else {
+      summaryEl.innerHTML = "";
+      summaryEl.classList.add("d-none");
+    }
+  }
+
+  if (primaryBtn) primaryBtn.textContent = primaryLabel;
+  if (cancelBtn) cancelBtn.classList.toggle("d-none", !showCancel);
+
+  paymentMessagePrimaryHandler = onPrimary;
+  openModal(modal);
+}
+
+function updateChangeDue() {
+  const paid = parseFloat(document.getElementById("paidAmount")?.value) || 0;
+  const tendered = parseFloat(document.getElementById("amountTendered")?.value);
+  const changeEl = document.getElementById("changeDue");
+  if (!changeEl) return;
+
+  if (!Number.isFinite(tendered)) {
+    changeEl.textContent = formatPeso(0);
+    return;
+  }
+
+  const change = Math.max(0, tendered - paid);
+  changeEl.textContent = formatPeso(change);
+}
+
+function validateMinimumPayment(paidAmount, totalPayable) {
+  const minPay = getMinPaymentAmount();
+  if (paidAmount <= 0) {
+    return "Enter the amount the student is paying now.";
+  }
+  if (totalPayable < minPay) {
+    if (paidAmount + 0.009 < totalPayable) {
+      return `Payment must cover the full balance of ${formatPeso(totalPayable)}.`;
+    }
+    return "";
+  }
+  if (paidAmount + 0.009 < minPay) {
+    return `Minimum payment per transaction is ${formatPeso(minPay)}.`;
+  }
+  return "";
 }
 
 /** Print only #receiptContent (invoice / AR), not the dashboard or modal chrome. */
@@ -123,6 +238,7 @@ function updateTotals() {
       badge.className = "badge bg-secondary";
     }
   }
+  updateChangeDue();
 }
 
 function syncRemoveButtons() {
@@ -280,11 +396,13 @@ async function applyStudentFees(student) {
   selectedStudentBalance = feeData;
 
   const paidInput = document.getElementById("paidAmount");
+  const tenderedInput = document.getElementById("amountTendered");
   if (paidInput) {
     const due = Number(feeData?.totalRemaining) || 0;
     paidInput.value = due > 0 ? "" : "0";
     paidInput.placeholder = due > 0 ? `Up to ${formatPeso(due)}` : "0.00";
   }
+  if (tenderedInput) tenderedInput.value = "";
   updateTotals();
 }
 
@@ -386,6 +504,8 @@ function resetPaymentForm() {
   renderPaymentList([]);
   hideBalanceSummary();
   hideStudentDropdown();
+  const tenderedInput = document.getElementById("amountTendered");
+  if (tenderedInput) tenderedInput.value = "";
   updateTotals();
 }
 
@@ -599,9 +719,17 @@ function buildServiceInvoiceHtml(txn) {
           </div>
           <div class="service-invoice__issued">
             <span>Issued by:</span>
-            <span class="service-invoice__issued-line"></span>
+            <span class="service-invoice__issued-line">${escapeHtml(txn.cashierName || "")}</span>
             <small>Cashier/Authorized Representative</small>
           </div>
+          ${
+            txn.amountTendered > 0
+              ? `<p class="service-invoice__cash-meta mb-0 mt-2">
+            <span>Cash tendered:</span> ${escapeHtml(formatPeso(txn.amountTendered))}
+            · <span>Sukli:</span> ${escapeHtml(formatPeso(txn.changeDue || 0))}
+          </p>`
+              : ""
+          }
         </div>
         <table class="service-invoice__totals">
           <tbody>
@@ -673,6 +801,12 @@ function buildArReceiptHtml(txn) {
       ${txn.orNumber ? `<p><strong>OR No:</strong> ${escapeHtml(txn.orNumber)}</p>` : ""}
       <p><strong>Student:</strong> ${escapeHtml(txn.studentName)}</p>
       <p><strong>Date:</strong> ${escapeHtml(txn.dateTime)}</p>
+      <p><strong>Cashier:</strong> ${escapeHtml(txn.cashierName || "—")}</p>
+      ${
+        txn.amountTendered > 0
+          ? `<p><strong>Cash tendered:</strong> ${formatPeso(txn.amountTendered)} · <strong>Sukli:</strong> ${formatPeso(txn.changeDue || 0)}</p>`
+          : ""
+      }
       <table class="table table-sm mt-3">
         <thead><tr><th>Particular</th><th class="text-end">Amount</th></tr></thead>
         <tbody>${particularsRows}</tbody>
@@ -705,10 +839,157 @@ export function showReceiptModal(txn) {
   openModal(receiptModal);
 }
 
+function buildPaymentConfirmSummary(txn) {
+  return `
+    <dl>
+      <dt>Student</dt><dd>${escapeHtml(txn.studentName)}</dd>
+      <dt>Control No.</dt><dd>${escapeHtml(txn.controlNumber)}</dd>
+      <dt>Amount to pay</dt><dd>${formatPeso(txn.paidAmount)}</dd>
+      <dt>Cash tendered</dt><dd>${formatPeso(txn.amountTendered)}</dd>
+      <dt>Sukli (change)</dt><dd>${formatPeso(txn.changeDue)}</dd>
+      <dt>Remaining balance</dt><dd>${formatPeso(txn.remainingBalance)}</dd>
+      <dt>Cashier</dt><dd>${escapeHtml(txn.cashierName)}</dd>
+    </dl>
+  `;
+}
+
+function collectPaymentPayload(form) {
+  const controlNumber = document.getElementById("controlNumber")?.value?.trim();
+  const studentName = document.getElementById("studentSearchInput")?.value?.trim();
+  const particulars = readParticulars();
+  const totalPayable = computeTotalPayable();
+  const paidAmount = parseFloat(document.getElementById("paidAmount")?.value) || 0;
+  const amountTendered = parseFloat(document.getElementById("amountTendered")?.value);
+  const receiptType = form.querySelector('input[name="receiptType"]:checked')?.value || "OR";
+  const studentId = document.getElementById("selectedStudentId")?.value;
+  const registrationId = document.getElementById("selectedRegistrationId")?.value;
+
+  return {
+    controlNumber,
+    studentName,
+    particulars,
+    totalPayable,
+    paidAmount,
+    amountTendered: Number.isFinite(amountTendered) ? amountTendered : paidAmount,
+    receiptType,
+    studentId,
+    registrationId,
+  };
+}
+
+function validatePaymentPayload(payload) {
+  const {
+    controlNumber,
+    studentName,
+    particulars,
+    totalPayable,
+    paidAmount,
+    amountTendered,
+    studentId,
+    registrationId,
+  } = payload;
+
+  if (!controlNumber) return "Please enter or auto-generate a control number.";
+  if (!parseControlNumberSeq(controlNumber)) return "Control number must be in CN-0001 format.";
+  if (!studentName) return "Please search and select a student.";
+  if (!studentId && !registrationId) {
+    return "Select a student from the search results (must have an enrollment profile).";
+  }
+  if (!particulars.length || totalPayable <= 0) {
+    return "Add at least one particular with an amount.";
+  }
+
+  const minMsg = validateMinimumPayment(paidAmount, totalPayable);
+  if (minMsg) return minMsg;
+
+  if (!Number.isFinite(amountTendered) || amountTendered <= 0) {
+    return "Enter the cash amount tendered by the student.";
+  }
+  if (amountTendered + 0.009 < paidAmount) {
+    return `Cash tendered (${formatPeso(amountTendered)}) is less than the amount to pay (${formatPeso(paidAmount)}).`;
+  }
+
+  const accountDue = Number(selectedStudentBalance?.totalRemaining);
+  if (accountDue > 0 && totalPayable > accountDue + 0.01) {
+    return `Total payable cannot exceed this student's remaining balance (${formatPeso(accountDue)}).`;
+  }
+
+  return "";
+}
+
+async function savePaymentTransaction(form, payload) {
+  const {
+    controlNumber,
+    studentName,
+    particulars,
+    totalPayable,
+    paidAmount,
+    amountTendered,
+    receiptType,
+    studentId,
+    registrationId,
+  } = payload;
+
+  const remainingBalance = Math.max(0, totalPayable - paidAmount);
+  let status = "Unpaid";
+  if (paidAmount >= totalPayable && totalPayable > 0) status = "Full Payment";
+  else if (paidAmount > 0) status = "Partial Payment";
+
+  const now = new Date();
+  const txn = {
+    id: `txn-${Date.now()}`,
+    controlNumber,
+    orNumber: document.getElementById("orNumber")?.value?.trim() || "",
+    receiptType,
+    studentName,
+    studentId: studentId || null,
+    registrationId: registrationId || null,
+    particulars,
+    totalPayable,
+    paidAmount,
+    amountTendered,
+    changeDue: Math.max(0, amountTendered - paidAmount),
+    remainingBalance,
+    status,
+    cashierName: getCashierName(),
+    dateTime: now.toLocaleString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    createdAt: now.toISOString(),
+  };
+
+  const submitBtn = form.querySelector("#paymentSubmitBtn") || form.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    const saved = await recordPaymentOnServer(txn);
+    txn.serverPaymentId = saved?.id;
+    if (saved?.cashierName) txn.cashierName = saved.cashierName;
+    addTransaction(txn);
+    closeModal(document.getElementById("paymentModal"));
+    resetPaymentForm();
+    showReceiptModal(txn);
+    window.dispatchEvent(new CustomEvent("cashier:transaction-saved", { detail: txn }));
+  } catch (err) {
+    showPaymentMessage({
+      title: "Payment not saved",
+      message: err.message || "Payment could not be saved.",
+    });
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
 export function initPaymentModal() {
   const paymentModal = document.getElementById("paymentModal");
   const form = document.getElementById("paymentForm");
   if (!paymentModal || !form) return;
+
+  initPaymentMessageModal();
 
   const backdrop = document.getElementById("paymentModalBackdrop");
   const closeBtn = document.getElementById("paymentModalCloseBtn");
@@ -737,7 +1018,16 @@ export function initPaymentModal() {
   });
 
   addRowBtn?.addEventListener("click", addParticularRow);
-  paidInput?.addEventListener("input", updateTotals);
+  paidInput?.addEventListener("input", () => {
+    updateTotals();
+    const tenderedEl = document.getElementById("amountTendered");
+    const paid = parseFloat(paidInput?.value) || 0;
+    if (tenderedEl && (!tenderedEl.value || parseFloat(tenderedEl.value) < paid)) {
+      tenderedEl.value = paid > 0 ? String(paid) : "";
+    }
+    updateChangeDue();
+  });
+  document.getElementById("amountTendered")?.addEventListener("input", updateChangeDue);
 
   getParticularRows().forEach(bindParticularRow);
   syncRemoveButtons();
@@ -773,96 +1063,37 @@ export function initPaymentModal() {
     }
   });
 
-  form.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    const controlNumber = document.getElementById("controlNumber")?.value?.trim();
-    const studentName = document.getElementById("studentSearchInput")?.value?.trim();
-    const particulars = readParticulars();
-    const totalPayable = computeTotalPayable();
-    const paidAmount = parseFloat(document.getElementById("paidAmount")?.value) || 0;
-    const receiptType = form.querySelector('input[name="receiptType"]:checked')?.value || "OR";
-
-    if (!controlNumber) {
-      alert("Please enter or auto-generate a control number.");
-      return;
-    }
-    if (!parseControlNumberSeq(controlNumber)) {
-      alert("Control number must be in CN-0001 format.");
-      return;
-    }
-    if (!studentName) {
-      alert("Please search and select a student.");
-      return;
-    }
-    const studentId = document.getElementById("selectedStudentId")?.value;
-    const registrationId = document.getElementById("selectedRegistrationId")?.value;
-    if (!studentId && !registrationId) {
-      alert("Select a student from the search results (must have an enrollment profile).");
-      return;
-    }
-    if (!particulars.length || totalPayable <= 0) {
-      alert("Add at least one particular with an amount.");
-      return;
-    }
-    if (paidAmount <= 0) {
-      alert("Enter the amount the student is paying now (partial payments are allowed).");
+    const payload = collectPaymentPayload(form);
+    const error = validatePaymentPayload(payload);
+    if (error) {
+      showPaymentMessage({ title: "Check payment details", message: error });
       return;
     }
 
-    const accountDue = Number(selectedStudentBalance?.totalRemaining);
-    if (accountDue > 0 && totalPayable > accountDue + 0.01) {
-      alert(
-        `Total payable cannot exceed this student's remaining balance (${formatPeso(accountDue)}).`
-      );
-      return;
-    }
-
-    const remainingBalance = Math.max(0, totalPayable - paidAmount);
-    let status = "Unpaid";
-    if (paidAmount >= totalPayable && totalPayable > 0) status = "Full Payment";
-    else if (paidAmount > 0) status = "Partial Payment";
-
-    const now = new Date();
-    const txn = {
-      id: `txn-${Date.now()}`,
-      controlNumber,
-      orNumber: document.getElementById("orNumber")?.value?.trim() || "",
-      receiptType,
-      studentName,
-      studentId: studentId || null,
-      registrationId: registrationId || null,
-      particulars,
-      totalPayable,
-      paidAmount,
+    const remainingBalance = Math.max(0, payload.totalPayable - payload.paidAmount);
+    const changeDue = Math.max(0, payload.amountTendered - payload.paidAmount);
+    const previewTxn = {
+      studentName: payload.studentName,
+      controlNumber: payload.controlNumber,
+      paidAmount: payload.paidAmount,
+      amountTendered: payload.amountTendered,
+      changeDue,
       remainingBalance,
-      status,
-      dateTime: now.toLocaleString("en-PH", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      createdAt: now.toISOString(),
+      cashierName: getCashierName(),
     };
 
-    const submitBtn = form.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
-
-    try {
-      const saved = await recordPaymentOnServer(txn);
-      txn.serverPaymentId = saved?.id;
-      addTransaction(txn);
-      closeModal(paymentModal);
-      resetPaymentForm();
-      showReceiptModal(txn);
-      window.dispatchEvent(new CustomEvent("cashier:transaction-saved", { detail: txn }));
-    } catch (err) {
-      alert(err.message || "Payment could not be saved.");
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
+    showPaymentMessage({
+      title: "Confirm payment",
+      subtitle: "Review amounts before generating the receipt.",
+      message: "Proceed with this payment?",
+      primaryLabel: "Yes, generate receipt",
+      showCancel: true,
+      summaryHtml: buildPaymentConfirmSummary(previewTxn),
+      onPrimary: () => savePaymentTransaction(form, payload),
+    });
   });
 }
 

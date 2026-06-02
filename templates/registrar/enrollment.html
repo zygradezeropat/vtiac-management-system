@@ -27,13 +27,18 @@
           <h3 id="enrollment-tab-title" class="registrar-panel__title registrar-student-toolbar__title mb-0"></h3>
           <span id="enrollment-tab-badge" class="registrar-pill registrar-pill--primary flex-shrink-0"></span>
         </div>
-        <input
-          type="search"
-          id="enrollment-search"
-          class="form-control form-control-sm registrar-verification-search flex-shrink-0"
-          placeholder="Search by name..."
-          autocomplete="off"
-        />
+        <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+          <select id="enrollment-course-filter" class="form-select form-select-sm registrar-verification-search" aria-label="Filter by course">
+            <option value="">All courses</option>
+          </select>
+          <input
+            type="search"
+            id="enrollment-search"
+            class="form-control form-control-sm registrar-verification-search flex-shrink-0"
+            placeholder="Search by name..."
+            autocomplete="off"
+          />
+        </div>
       </div>
       <p class="text-muted small mb-3">The status capsule shows what each applicant still needs. Approve only when payment proof is on file.</p>
       <div id="enrollment-list" class="registrar-enrollment-list d-flex flex-column gap-3"></div>

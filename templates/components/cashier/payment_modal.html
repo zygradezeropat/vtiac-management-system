@@ -1,4 +1,10 @@
-<div class="cashier-modal" id="paymentModal" aria-hidden="true">
+<div
+  class="cashier-modal"
+  id="paymentModal"
+  aria-hidden="true"
+  data-cashier-name="{{ portal_display_name|default:'Cashier' }}"
+  data-min-payment="500"
+>
   <div class="cashier-modal__overlay" id="paymentModalBackdrop"></div>
   <div class="cashier-modal__dialog cashier-modal__dialog--payment" role="dialog" aria-labelledby="paymentModalTitle">
     <div class="cashier-modal__header">
@@ -107,8 +113,17 @@
             <span id="totalPayable">₱0.00</span>
           </div>
           <div class="cashier-computation-row">
-            <span>Paid Amount:</span>
+            <span>Amount to pay:</span>
             <input type="number" class="form-control cashier-amount-input" id="paidAmount" placeholder="0.00" step="0.01" min="0" value="0" />
+          </div>
+          <p class="cashier-field-hint mb-2">Minimum payment per transaction is <strong>₱500.00</strong> (unless the full balance due is less).</p>
+          <div class="cashier-computation-row">
+            <span>Cash tendered:</span>
+            <input type="number" class="form-control cashier-amount-input" id="amountTendered" placeholder="0.00" step="0.01" min="0" value="" />
+          </div>
+          <div class="cashier-computation-row cashier-computation-row--change">
+            <span>Sukli (change):</span>
+            <strong id="changeDue">₱0.00</strong>
           </div>
           <div class="cashier-computation-row cashier-computation-row--total">
             <span>Remaining Balance:</span>
@@ -119,10 +134,11 @@
           </div>
         </div>
 
-        <button type="submit" class="btn cashier-btn-primary w-100 mt-3">
+        <button type="submit" class="btn cashier-btn-primary w-100 mt-3" id="paymentSubmitBtn">
           <i class="bi bi-file-earmark-text" aria-hidden="true"></i> Generate Receipt
         </button>
       </form>
     </div>
   </div>
 </div>
+{% include "components/cashier/payment_message_modal.html" %}

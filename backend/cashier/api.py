@@ -4,7 +4,7 @@ import json
 
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_http_methods
 
 from backend.accounts.services import require_portal_access
@@ -13,7 +13,8 @@ from .payment_record import record_cashier_payment
 from .services import CASHIER_ROLE
 from .fees import payment_list_display
 from .student_search import get_student_fees, list_students_for_cashier, search_students
-from .transactions import dashboard_stats, list_transactions, reports_summary
+from .report_export import build_report_workbook
+from .transactions import dashboard_stats, list_transactions, reports_summary, _parse_date_param
 
 CONTROL_NUMBER_CACHE_KEY = "cashier_control_number_seq"
 
@@ -100,6 +101,47 @@ def reports_data(request):
             end_date=request.GET.get("end_date"),
         )
     )
+
+
+@login_required(login_url="/")
+@require_GET
+def reports_export(request):
+    denied = require_portal_access(request, CASHIER_ROLE)
+    if denied:
+        return denied
+
+    report_type = request.GET.get("type", "").strip().lower()
+    day = _parse_date_param(request.GET.get("date"))
+    year_param = request.GET.get("year", "").strip()
+    month_param = request.GET.get("month", "").strip()
+
+    year = int(year_param) if year_param.isdigit() else None
+    month = int(month_param) if month_param.isdigit() else None
+
+    if month_param and "-" in month_param:
+        try:
+            parts = month_param.split("-", 1)
+            year = int(parts[0])
+            month = int(parts[1])
+        except (ValueError, IndexError):
+            return JsonResponse({"error": "Invalid month format. Use YYYY-MM."}, status=400)
+
+    try:
+        buffer, filename = build_report_workbook(
+            report_type,
+            day=day,
+            year=year,
+            month=month,
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @login_required(login_url="/")

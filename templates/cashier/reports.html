@@ -43,6 +43,50 @@
 
 <article class="cashier-panel">
   <div class="cashier-panel__head cashier-panel__head--stack">
+    <h2 class="cashier-panel__title">Download Excel Reports</h2>
+    <p class="cashier-panel__subtitle">Consolidated collection reports (formatted for printing and filing)</p>
+  </div>
+  <div class="cashier-panel__body">
+    <div class="cashier-report-download-grid">
+      <div class="cashier-report-download-card">
+        <h3 class="cashier-report-download-card__title">Daily Consolidated Report</h3>
+        <p class="cashier-report-download-card__text text-muted small mb-3">
+          Line-by-line transactions for one day, with totals (same idea as a consolidated daily sales sheet).
+        </p>
+        <label class="cashier-form-label" for="exportDailyDate">Report date</label>
+        <input type="date" class="form-control form-control-sm mb-3" id="exportDailyDate" />
+        <button type="button" class="btn cashier-btn-primary btn-sm w-100" id="downloadDailyReportBtn">
+          <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Download Daily Excel
+        </button>
+      </div>
+      <div class="cashier-report-download-card">
+        <h3 class="cashier-report-download-card__title">Monthly Summary Report</h3>
+        <p class="cashier-report-download-card__text text-muted small mb-3">
+          Monthly transaction list plus breakdown by course/program and by day.
+        </p>
+        <label class="cashier-form-label" for="exportMonthlyMonth">Report month</label>
+        <input type="month" class="form-control form-control-sm mb-3" id="exportMonthlyMonth" />
+        <button type="button" class="btn cashier-btn-primary btn-sm w-100" id="downloadMonthlyReportBtn">
+          <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Download Monthly Excel
+        </button>
+      </div>
+      <div class="cashier-report-download-card">
+        <h3 class="cashier-report-download-card__title">Annual Performance Report</h3>
+        <p class="cashier-report-download-card__text text-muted small mb-3">
+          Yearly totals by month and share of collections by program.
+        </p>
+        <label class="cashier-form-label" for="exportAnnualYear">Report year</label>
+        <input type="number" class="form-control form-control-sm mb-3" id="exportAnnualYear" min="2020" max="2100" />
+        <button type="button" class="btn cashier-btn-primary btn-sm w-100" id="downloadAnnualReportBtn">
+          <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Download Annual Excel
+        </button>
+      </div>
+    </div>
+  </div>
+</article>
+
+<article class="cashier-panel">
+  <div class="cashier-panel__head cashier-panel__head--stack">
     <h2 class="cashier-panel__title">Custom Date Range Report</h2>
     <p class="cashier-panel__subtitle">Filter by specific date range</p>
   </div>

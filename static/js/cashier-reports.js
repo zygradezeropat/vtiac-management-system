@@ -94,10 +94,48 @@ function hideDetails(id) {
   document.getElementById(id)?.classList.add("hidden");
 }
 
+function todayIsoDate() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function currentMonthValue() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function triggerReportDownload(url) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export function initCashierReports() {
   const filterBtn = document.getElementById("filterByDateRangeBtn");
   const showFullBtn = document.getElementById("showFullPaymentsBtn");
   const showPartialBtn = document.getElementById("showPartialPaymentsBtn");
+  const exportDailyDateEl = document.getElementById("exportDailyDate");
+  const exportMonthlyMonthEl = document.getElementById("exportMonthlyMonth");
+  const exportAnnualYearEl = document.getElementById("exportAnnualYear");
+  const startDateEl = document.getElementById("startDate");
+
+  if (exportDailyDateEl && !exportDailyDateEl.value) {
+    exportDailyDateEl.value = startDateEl?.value || todayIsoDate();
+  }
+  if (exportMonthlyMonthEl && !exportMonthlyMonthEl.value) {
+    exportMonthlyMonthEl.value = currentMonthValue();
+  }
+  if (exportAnnualYearEl && !exportAnnualYearEl.value) {
+    exportAnnualYearEl.value = String(new Date().getFullYear());
+  }
 
   const load = async (start, end) => {
     const data = await fetchReports(start, end);
@@ -107,7 +145,26 @@ export function initCashierReports() {
   filterBtn?.addEventListener("click", () => {
     const start = document.getElementById("startDate")?.value;
     const end = document.getElementById("endDate")?.value;
+    if (exportDailyDateEl && start) exportDailyDateEl.value = start;
     load(start, end);
+  });
+
+  document.getElementById("downloadDailyReportBtn")?.addEventListener("click", () => {
+    const day = exportDailyDateEl?.value || startDateEl?.value || todayIsoDate();
+    const params = new URLSearchParams({ type: "daily", date: day });
+    triggerReportDownload(`/cashier/api/reports/export/?${params}`);
+  });
+
+  document.getElementById("downloadMonthlyReportBtn")?.addEventListener("click", () => {
+    const month = exportMonthlyMonthEl?.value || currentMonthValue();
+    const params = new URLSearchParams({ type: "monthly", month });
+    triggerReportDownload(`/cashier/api/reports/export/?${params}`);
+  });
+
+  document.getElementById("downloadAnnualReportBtn")?.addEventListener("click", () => {
+    const year = exportAnnualYearEl?.value || String(new Date().getFullYear());
+    const params = new URLSearchParams({ type: "annual", year });
+    triggerReportDownload(`/cashier/api/reports/export/?${params}`);
   });
 
   showFullBtn?.addEventListener("click", () => {

@@ -1,0 +1,22 @@
+<div class="cashier-modal" id="paymentMessageModal" aria-hidden="true">
+  <div class="cashier-modal__overlay" id="paymentMessageModalBackdrop"></div>
+  <div class="cashier-modal__dialog cashier-modal__dialog--compact" role="dialog" aria-labelledby="paymentMessageModalTitle">
+    <div class="cashier-modal__header">
+      <div>
+        <h3 class="cashier-modal__title" id="paymentMessageModalTitle">Notice</h3>
+        <p class="cashier-modal__subtitle mb-0" id="paymentMessageModalSubtitle"></p>
+      </div>
+      <button type="button" class="btn btn-sm btn-light" id="paymentMessageModalCloseBtn" aria-label="Close">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="cashier-modal__body">
+      <p class="mb-0" id="paymentMessageModalBody"></p>
+      <div class="cashier-payment-confirm-summary d-none mt-3" id="paymentConfirmSummary"></div>
+    </div>
+    <div class="cashier-modal__footer d-flex gap-2 justify-content-end">
+      <button type="button" class="btn cashier-btn-outline d-none" id="paymentMessageModalCancelBtn">Cancel</button>
+      <button type="button" class="btn cashier-btn-primary" id="paymentMessageModalPrimaryBtn">OK</button>
+    </div>
+  </div>
+</div>
