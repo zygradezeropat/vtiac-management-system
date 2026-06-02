@@ -117,6 +117,13 @@ def student_is_assessment_competent(payload: dict | None) -> bool:
     return result in {"competent", "passed"}
 
 
+def student_is_certified(payload: dict | None, program: str) -> bool:
+    """True when institutional grades show Graduate and national Assessment is competent."""
+    return student_is_graduate(payload, program) and student_is_assessment_competent(
+        payload
+    )
+
+
 def _registration_display_name(reg: StudentRegistration) -> str:
     parts = [reg.first_name, reg.middle_name, reg.last_name]
     return " ".join(p for p in parts if p).strip() or "—"
@@ -261,7 +268,7 @@ def build_registrar_egace_rows() -> list[dict]:
                 "enrolled": True,
                 "graduate": student_is_graduate(payload, program),
                 "assessment": student_is_assessment_competent(payload),
-                "certificate": bool(reg.egace_certificate),
+                "certificate": student_is_certified(payload, program),
                 "employment": bool(reg.egace_employment),
             }
         )

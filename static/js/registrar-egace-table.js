@@ -111,7 +111,7 @@ function renderRow(row) {
       ${milestoneCell(row.enrolled)}
       ${milestoneCell(row.graduate)}
       ${milestoneCell(row.assessment)}
-      ${manualMilestoneCell(row, "certificate", "Certificate")}
+      ${milestoneCell(row.certificate)}
       ${manualMilestoneCell(row, "employment", "Employment")}
     </tr>`;
 }
@@ -148,7 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const paginationEl = document.getElementById("egace-pagination");
   const egaceConfig = readEgaceConfig();
   const employmentUrl = egaceConfig.employment_url || "";
-  const certificateUrl = egaceConfig.certificate_url || "";
 
   if (!tbody) return;
 
@@ -236,7 +235,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function saveManualMilestone(field, rowId, nextValue) {
-    const url = field === "certificate" ? certificateUrl : employmentUrl;
+    if (field !== "employment") {
+      throw new Error(`${field} is computed from trainer grades and cannot be edited.`);
+    }
+    const url = employmentUrl;
     if (!url) {
       throw new Error(`${field} save is not configured.`);
     }

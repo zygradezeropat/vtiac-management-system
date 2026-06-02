@@ -124,7 +124,7 @@ class StudentRegistration(models.Model):
     )
     egace_certificate = models.BooleanField(
         default=False,
-        help_text="Registrar E.G.A.C.E table — certificate milestone (set manually).",
+        help_text="Deprecated — certificate is derived from trainer grades (graduate + assessment).",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
