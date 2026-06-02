@@ -6,8 +6,15 @@
 export const TRAINER_EGACE_STORAGE_KEY = "vtiac_trainer_egace_records";
 export const TRAINER_EGACE_SYNC_EVENT = "vtiac-trainer-egace-sync";
 
-/** Hardcoded exclusion — never surfaced in registrar EGACE table */
-export const EGACE_EXCLUDED_FIELDS = ["employment", "employmentStatus", "employmentDetails"];
+/** Trainer-only fields stripped before registrar EGACE display */
+export const EGACE_EXCLUDED_FIELDS = [
+  "employmentStatus",
+  "employmentDetails",
+  "trainerStatus",
+  "statementOfAccount",
+  "graduateAuto",
+  "certified",
+];
 
 export function projectTrainerRecordForEgace(record) {
   const row = {};
@@ -43,8 +50,23 @@ export function getEgaceTableRows() {
 
 /** Replace local mirror with trainer-module payload (registrar page load / API). */
 export function syncFromTrainerModule(records) {
-  if (!Array.isArray(records) || !records.length) return;
+  if (!Array.isArray(records)) return;
   saveTrainerModuleRecords(records);
+}
+
+/** Update one registrar EGACE row in the local mirror (e.g. after manual employment toggle). */
+export function patchEgaceRow(rowId, patch) {
+  const records = getTrainerModuleRecords() || [];
+  if (!records.length) return false;
+  let found = false;
+  const next = records.map((row) => {
+    if (String(row.id) !== String(rowId)) return row;
+    found = true;
+    return { ...row, ...patch };
+  });
+  if (!found) return false;
+  saveTrainerModuleRecords(next);
+  return true;
 }
 
 export function subscribeTrainerEgaceSync(callback) {

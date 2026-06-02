@@ -9,6 +9,7 @@ from .batching_api import (
 )
 from .document_review_api import document_approve, document_reject, document_release
 from .enrollment_detail import enrollment_detail
+from .egace_api import egace_set_employment
 from .pending_enrollment import enrollment_approve, enrollment_reject
 from .schedule_api import student_schedule_options
 urlpatterns = [
@@ -52,6 +53,11 @@ urlpatterns = [
         "registrar/api/enrollment/document/release/",
         document_release,
         name="registrar_enrollment_document_release",
+    ),
+    path(
+        "registrar/api/egace/employment/",
+        egace_set_employment,
+        name="registrar_egace_set_employment",
     ),
     path(
         "registrar/api/batching/batches/",

@@ -118,6 +118,10 @@ class StudentRegistration(models.Model):
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True
     )
+    egace_employment = models.BooleanField(
+        default=False,
+        help_text="Registrar E.G.A.C.E table — employment milestone (set manually).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

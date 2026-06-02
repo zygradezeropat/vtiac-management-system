@@ -65,7 +65,7 @@ REGISTRAR_MODULES = {
         "label": "E.G.A.C.E Table",
         "icon_bi": "bi-table",
         "title": "E.G.A.C.E Table",
-        "subtitle": "Employment, Graduate, Assessment, Certified, Employment Tracking",
+        "subtitle": "Enrolled · Graduate · Assessment · Certificate · Employment tracking",
         "template": "registrar/egace_table.html",
     },
     "reports": {
@@ -175,9 +175,16 @@ def module_page_context(module, request=None):
         "logout_class": "text-red-600 hover:bg-red-50",
     }
     if module == "egace-table":
-        from backend.trainer.egace_records import TRAINER_STUDENT_PROGRESS
+        from django.urls import reverse
 
-        ctx["trainer_egace_seed_json"] = json.dumps(TRAINER_STUDENT_PROGRESS)
+        from backend.trainer.egace_records import egace_rows_for_registrar
+
+        ctx["trainer_egace_seed_json"] = json.dumps(egace_rows_for_registrar())
+        ctx["egace_config_json"] = json.dumps(
+            {
+                "employment_url": reverse("registrar_egace_set_employment"),
+            }
+        )
     if module == "settings":
         user = getattr(request, "user", None) if request else None
         profile = settings_profile_defaults(user)

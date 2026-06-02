@@ -1,15 +1,18 @@
 """
-Trainer module — student progress records (source of truth for E.G.A.C.E mirroring).
+Trainer module — student progress records (legacy demo fallback for E.G.A.C.E).
 
-Employment fields exist on trainer records but are hard-excluded from registrar EGACE output.
+Live registrar rows are built in egace_progress.build_registrar_egace_rows().
 """
 
-# Fields that must never appear in the registrar E.G.A.C.E table (9.1)
+# Trainer-only / legacy fields omitted from registrar EGACE rows
 EGACE_EXCLUDED_FIELDS = frozenset(
     {
-        "employment",
         "employmentStatus",
         "employmentDetails",
+        "trainerStatus",
+        "statementOfAccount",
+        "graduateAuto",
+        "certified",
     }
 )
 
@@ -159,9 +162,24 @@ TRAINER_STUDENT_PROGRESS = [
 
 
 def project_trainer_record_for_egace(record):
-    """Mirror trainer record into EGACE row; employment fields are never included."""
-    return {key: value for key, value in record.items() if key not in EGACE_EXCLUDED_FIELDS}
+    """Normalize legacy trainer demo record into registrar EGACE row shape."""
+    row = {key: value for key, value in record.items() if key not in EGACE_EXCLUDED_FIELDS}
+    row.setdefault("enrolled", True)
+    row.setdefault("certificate", record.get("certified", False))
+    row.setdefault("employment", False)
+    course = (row.get("course") or "").strip()
+    if not row.get("batchLabel"):
+        row["batchLabel"] = "Unassigned"
+    if not row.get("batchId"):
+        label = row["batchLabel"]
+        row["batchId"] = f"{course}|{label}" if course else label
+    return row
 
 
 def egace_rows_for_registrar():
+    from .egace_progress import build_registrar_egace_rows
+
+    rows = build_registrar_egace_rows()
+    if rows:
+        return rows
     return [project_trainer_record_for_egace(r) for r in TRAINER_STUDENT_PROGRESS]

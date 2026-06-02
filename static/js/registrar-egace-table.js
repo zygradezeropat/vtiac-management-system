@@ -1,13 +1,31 @@
 /**
- * Registrar — E.G.A.C.E table (mirrors trainer module; employment column excluded).
+ * Registrar — E.G.A.C.E table (enrollment + trainer grading milestones).
  */
 
 import { escapeHtml } from "./registrar-student-detail.js";
 import {
   getEgaceTableRows,
+  patchEgaceRow,
   syncFromTrainerModule,
   subscribeTrainerEgaceSync,
 } from "./trainer-egace-store.js";
+
+function getCsrfToken() {
+  const input = document.querySelector("[name=csrfmiddlewaretoken]");
+  if (input?.value) return input.value;
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function readEgaceConfig() {
+  const el = document.getElementById("egace-config");
+  if (!el?.textContent?.trim()) return {};
+  try {
+    return JSON.parse(el.textContent);
+  } catch {
+    return {};
+  }
+}
 
 function initialsFromName(name) {
   return name
@@ -19,41 +37,60 @@ function initialsFromName(name) {
     .toUpperCase();
 }
 
-function pillTrainerStatus(status) {
-  const s = (status || "Pending").toLowerCase();
-  const cls =
-    s === "complete" || s === "completed"
-      ? "registrar-egace-pill--success"
-      : s === "in progress"
-        ? "registrar-egace-pill--info"
-        : "registrar-egace-pill--muted";
-  return `<span class="registrar-egace-pill ${cls}">${escapeHtml(status || "Pending")}</span>`;
-}
-
-function pillPayment(label) {
-  const text = label || "—";
-  const isFull = text.toLowerCase().includes("full");
-  const cls = isFull ? "registrar-egace-pill--payment" : "registrar-egace-pill--payment-partial";
-  return `<span class="registrar-egace-pill ${cls}">${escapeHtml(text)}</span>`;
-}
-
-function milestoneCell(value, options = {}) {
+function milestoneCell(value) {
   const yes = Boolean(value);
-  const auto = options.auto && !yes;
   if (yes) {
     return `
-      <span class="registrar-egace-milestone registrar-egace-milestone--yes">
-        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-        <span>Yes</span>
-      </span>`;
+      <td class="text-center">
+        <span class="registrar-egace-milestone registrar-egace-milestone--yes">
+          <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+          <span>Yes</span>
+        </span>
+      </td>`;
   }
-  const label = auto ? "No (Auto)" : "No";
-  const shape = options.round ? "registrar-egace-milestone__icon--round" : "";
   return `
-    <span class="registrar-egace-milestone registrar-egace-milestone--no">
-      <span class="registrar-egace-milestone__icon ${shape}" aria-hidden="true"><i class="bi bi-x-lg"></i></span>
-      <span>${escapeHtml(label)}</span>
-    </span>`;
+    <td class="text-center">
+      <span class="registrar-egace-milestone registrar-egace-milestone--no">
+        <span class="registrar-egace-milestone__icon" aria-hidden="true"><i class="bi bi-x-lg"></i></span>
+        <span>No</span>
+      </span>
+    </td>`;
+}
+
+function employmentCell(row) {
+  const yes = Boolean(row.employment);
+  const label = yes ? "Yes" : "No";
+  const stateClass = yes
+    ? "registrar-egace-milestone--yes"
+    : "registrar-egace-milestone--no";
+  const icon = yes
+    ? '<i class="bi bi-check-circle-fill" aria-hidden="true"></i>'
+    : '<span class="registrar-egace-milestone__icon" aria-hidden="true"><i class="bi bi-x-lg"></i></span>';
+
+  return `
+    <td class="text-center">
+      <button
+        type="button"
+        class="registrar-egace-milestone registrar-egace-milestone--clickable ${stateClass}"
+        data-employment-toggle
+        data-row-id="${escapeHtml(String(row.id))}"
+        data-employment="${yes ? "1" : "0"}"
+        aria-label="Employment: ${label}. Click to change."
+        title="Click to set employment manually"
+      >
+        ${icon}
+        <span>${label}</span>
+      </button>
+    </td>`;
+}
+
+function studentSubtitle(row) {
+  const course = row.course || "—";
+  const batch = (row.batchLabel || "").trim();
+  if (batch && batch !== "Unassigned") {
+    return `${course} · ${batch}`;
+  }
+  return course;
 }
 
 function renderRow(row) {
@@ -65,16 +102,37 @@ function renderRow(row) {
           <span class="registrar-egace-student__avatar" aria-hidden="true">${escapeHtml(initials)}</span>
           <div class="registrar-egace-student__text">
             <span class="registrar-egace-student__name">${escapeHtml(row.studentName)}</span>
-            <span class="registrar-egace-student__course">${escapeHtml(row.course)}</span>
+            <span class="registrar-egace-student__course">${escapeHtml(studentSubtitle(row))}</span>
           </div>
         </div>
       </td>
-      <td>${pillTrainerStatus(row.trainerStatus)}</td>
-      <td>${pillPayment(row.statementOfAccount)}</td>
-      <td>${milestoneCell(row.graduate, { auto: row.graduateAuto, round: true })}</td>
-      <td>${milestoneCell(row.assessment)}</td>
-      <td>${milestoneCell(row.certified)}</td>
+      ${milestoneCell(row.enrolled)}
+      ${milestoneCell(row.graduate)}
+      ${milestoneCell(row.assessment)}
+      ${milestoneCell(row.certificate ?? row.certified)}
+      ${employmentCell(row)}
     </tr>`;
+}
+
+function uniqueSorted(values) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" })
+  );
+}
+
+function batchOptionsForCourse(rows, course) {
+  const scoped = course ? rows.filter((row) => row.course === course) : rows;
+  const byId = new Map();
+  scoped.forEach((row) => {
+    const id = row.batchId || row.batchLabel || "";
+    const label = row.batchLabel || "Unassigned";
+    if (id && !byId.has(id)) {
+      byId.set(id, label);
+    }
+  });
+  return [...byId.entries()].sort((a, b) =>
+    a[1].localeCompare(b[1], undefined, { sensitivity: "base" })
+  );
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -82,8 +140,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const tbody = document.getElementById("egace-table-body");
   const countEl = document.getElementById("egace-row-count");
   const searchEl = document.getElementById("egace-search");
+  const courseEl = document.getElementById("egace-course-filter");
+  const batchEl = document.getElementById("egace-batch-filter");
   const emptyEl = document.getElementById("egace-empty");
-  const syncHintEl = document.getElementById("egace-sync-hint");
+  const egaceConfig = readEgaceConfig();
+  const employmentUrl = egaceConfig.employment_url || "";
 
   if (!tbody) return;
 
@@ -97,38 +158,176 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let searchQuery = "";
+  let courseFilter = "";
+  let batchFilter = "";
+  let savingEmployment = false;
+
+  function populateFilterOptions() {
+    const rows = getEgaceTableRows();
+    const courses = uniqueSorted(rows.map((row) => row.course).filter((c) => c && c !== "—"));
+
+    if (courseEl) {
+      const prevCourse = courseEl.value;
+      courseEl.innerHTML = [
+        `<option value="">All courses</option>`,
+        ...courses.map(
+          (course) =>
+            `<option value="${escapeHtml(course)}"${course === prevCourse ? " selected" : ""}>${escapeHtml(course)}</option>`
+        ),
+      ].join("");
+      if (prevCourse && courses.includes(prevCourse)) {
+        courseEl.value = prevCourse;
+      } else if (prevCourse && prevCourse !== "") {
+        courseEl.value = "";
+        courseFilter = "";
+      }
+    }
+
+    const activeCourse = courseEl?.value || "";
+    const batches = batchOptionsForCourse(rows, activeCourse);
+
+    if (batchEl) {
+      const prevBatch = batchEl.value;
+      batchEl.innerHTML = [
+        `<option value="">All batches</option>`,
+        ...batches.map(
+          ([id, label]) =>
+            `<option value="${escapeHtml(id)}"${id === prevBatch ? " selected" : ""}>${escapeHtml(label)}</option>`
+        ),
+      ].join("");
+      const validIds = new Set(batches.map(([id]) => id));
+      if (prevBatch && validIds.has(prevBatch)) {
+        batchEl.value = prevBatch;
+      } else {
+        batchEl.value = "";
+        batchFilter = "";
+      }
+      batchEl.disabled = batches.length === 0;
+    }
+  }
 
   function filteredRows() {
     const rows = getEgaceTableRows();
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.studentName?.toLowerCase().includes(q) ||
-        r.course?.toLowerCase().includes(q) ||
-        r.trainerStatus?.toLowerCase().includes(q)
-    );
+    return rows.filter((row) => {
+      if (courseFilter && row.course !== courseFilter) return false;
+      if (batchFilter) {
+        const rowBatchId = row.batchId || row.batchLabel || "";
+        if (rowBatchId !== batchFilter) return false;
+      }
+      if (!q) return true;
+      const haystack = [
+        row.studentName,
+        row.course,
+        row.batchLabel,
+        row.referenceId,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  async function toggleEmployment(rowId, nextValue) {
+    if (!employmentUrl) {
+      throw new Error("Employment save is not configured.");
+    }
+    const body = new URLSearchParams();
+    body.set("registration_id", rowId);
+    body.set("employment", nextValue ? "true" : "false");
+
+    const response = await fetch(employmentUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": getCsrfToken(),
+      },
+      body: body.toString(),
+      credentials: "same-origin",
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || "Could not save employment status.");
+    }
+    return Boolean(data.employment);
+  }
+
+  function bindEmploymentToggles() {
+    tbody.querySelectorAll("[data-employment-toggle]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (savingEmployment || btn.disabled) return;
+        const rowId = btn.dataset.rowId;
+        if (!rowId) return;
+
+        const current = btn.dataset.employment === "1";
+        const next = !current;
+        savingEmployment = true;
+        btn.disabled = true;
+
+        try {
+          const saved = await toggleEmployment(rowId, next);
+          patchEgaceRow(rowId, { employment: saved });
+          render();
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Could not save employment status.";
+          window.alert(message);
+          btn.disabled = false;
+        } finally {
+          savingEmployment = false;
+        }
+      });
+    });
   }
 
   function render() {
+    populateFilterOptions();
+    const allRows = getEgaceTableRows();
     const rows = filteredRows();
-    if (countEl) countEl.textContent = String(getEgaceTableRows().length);
-    if (syncHintEl) {
-      syncHintEl.textContent = `Synced from trainer module · ${new Date().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" })}`;
-    }
 
+    if (countEl) {
+      countEl.textContent =
+        rows.length === allRows.length
+          ? String(allRows.length)
+          : `${rows.length} of ${allRows.length}`;
+    }
     if (rows.length === 0) {
       tbody.innerHTML = "";
       emptyEl?.classList.remove("d-none");
+      const emptyText = emptyEl?.querySelector("p.fw-semibold");
+      if (emptyText) {
+        emptyText.textContent = allRows.length
+          ? "No students match your filters"
+          : "No records to display";
+      }
       return;
     }
 
     emptyEl?.classList.add("d-none");
+    const emptyText = emptyEl?.querySelector("p.fw-semibold");
+    if (emptyText) {
+      emptyText.textContent = "No records to display";
+    }
     tbody.innerHTML = rows.map(renderRow).join("");
+    bindEmploymentToggles();
   }
 
   searchEl?.addEventListener("input", (e) => {
     searchQuery = e.target.value;
+    render();
+  });
+
+  courseEl?.addEventListener("change", () => {
+    courseFilter = courseEl.value;
+    batchFilter = "";
+    if (batchEl) batchEl.value = "";
+    render();
+  });
+
+  batchEl?.addEventListener("change", () => {
+    batchFilter = batchEl.value;
     render();
   });
 

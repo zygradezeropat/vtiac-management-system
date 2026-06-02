@@ -13,6 +13,7 @@
 </header>
 
 <script id="trainer-egace-seed" type="application/json">{{ trainer_egace_seed_json|default:"[]"|safe }}</script>
+<script id="egace-config" type="application/json">{{ egace_config_json|default:"{}"|safe }}</script>
 
 <section class="registrar-panel mb-0">
   <div class="registrar-panel__head flex-wrap gap-3 border-0 pb-0">
@@ -26,12 +27,27 @@
       </div>
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2 ms-lg-auto">
-      <p id="egace-sync-hint" class="text-muted small mb-0 registrar-egace-sync-hint"></p>
+      <select
+        id="egace-course-filter"
+        class="form-select form-select-sm registrar-verification-search"
+        style="min-width: 12rem"
+        aria-label="Filter by course"
+      >
+        <option value="">All courses</option>
+      </select>
+      <select
+        id="egace-batch-filter"
+        class="form-select form-select-sm registrar-verification-search"
+        style="min-width: 10rem"
+        aria-label="Filter by batch"
+      >
+        <option value="">All batches</option>
+      </select>
       <input
         type="search"
         id="egace-search"
         class="form-control form-control-sm registrar-verification-search"
-        placeholder="Search student or course..."
+        placeholder="Search student..."
         autocomplete="off"
       />
     </div>
@@ -42,11 +58,11 @@
         <thead>
           <tr>
             <th scope="col">Student Name</th>
-            <th scope="col">Status</th>
-            <th scope="col">Statement of Account</th>
-            <th scope="col">Graduate</th>
-            <th scope="col">Assessment</th>
-            <th scope="col">Certified</th>
+            <th scope="col" class="text-center">Enrolled</th>
+            <th scope="col" class="text-center">Graduate</th>
+            <th scope="col" class="text-center">Assessment</th>
+            <th scope="col" class="text-center">Certificate</th>
+            <th scope="col" class="text-center">Employment</th>
           </tr>
         </thead>
         <tbody id="egace-table-body"></tbody>
@@ -57,8 +73,14 @@
       <p class="fw-semibold mt-3 mb-1">No records to display</p>
       <p class="text-muted small mb-0">Trainer module data will appear here when available.</p>
     </div>
-    <p class="text-muted small mb-0 mt-3">
-      <span id="egace-row-count">0</span> students · Employment status is maintained in the trainer module only and is not shown in this table.
+      <p class="text-muted small mb-0 mt-3">
+      <span id="egace-row-count">0</span> students ·
+      <strong>E</strong>nrolled,
+      <strong>G</strong>raduate,
+      <strong>A</strong>ssessment,
+      <strong>C</strong>ertificate,
+      <strong>E</strong>mployment.
+      Certificate is not automated yet. Click <strong>Employment</strong> to set Yes or No manually.
     </p>
   </div>
 </section>

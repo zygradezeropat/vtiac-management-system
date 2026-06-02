@@ -16,7 +16,7 @@ from backend.student.document_review import (
 )
 from backend.student.models import StudentEnrollmentProfile, StudentRegistration
 from backend.system_admin.program_config import enrollment_program_options
-from backend.trainer.egace_records import TRAINER_STUDENT_PROGRESS
+from backend.trainer.egace_records import egace_rows_for_registrar
 
 
 def _nc_level(program_name: str) -> str:
@@ -58,17 +58,18 @@ def _egace_metrics_by_course() -> dict[str, dict]:
     """Aggregate trainer EGACE records by canonical course name."""
     by_course: dict[str, dict] = defaultdict(_empty_metrics)
 
-    for record in TRAINER_STUDENT_PROGRESS:
+    for record in egace_rows_for_registrar():
         course = resolve_program(record.get("course") or "") or (record.get("course") or "Unspecified")
         metrics = by_course[course]
-        metrics["enrolled"] += 1
+        if record.get("enrolled"):
+            metrics["enrolled"] += 1
         if record.get("graduate"):
             metrics["graduated"] += 1
         if record.get("assessment"):
             metrics["assessed"] += 1
-        if record.get("certified"):
+        if record.get("certificate"):
             metrics["certified"] += 1
-        if (record.get("employmentStatus") or "").strip().lower() == "employed":
+        if record.get("employment"):
             metrics["employed"] += 1
 
     return by_course
