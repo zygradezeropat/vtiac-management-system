@@ -6,6 +6,7 @@ from backend.student.enrollment_requirements import REQUIREMENT_SPECS
 from backend.student.models import StudentEnrollmentProfile
 
 STUDENT_PENDING_URL = "/dashboard/student/enrollment/pending/"
+STUDENT_REQUIREMENTS_URL = "/dashboard/student/enrollment/requirements/"
 STUDENT_PAYMENTS_URL = "/dashboard/student/payments/"
 REGISTRAR_ENROLLMENT_URL = "/registrar/enrollment/"
 
@@ -64,7 +65,7 @@ def notify_student_document_rejected(
         category=PortalNotification.Category.DOCUMENT_REJECTED,
         title="Document needs correction",
         message=msg,
-        link_url=STUDENT_PENDING_URL,
+        link_url=STUDENT_REQUIREMENTS_URL,
         related_profile_id=profile.pk,
     )
 

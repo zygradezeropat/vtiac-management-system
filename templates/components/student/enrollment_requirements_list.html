@@ -72,8 +72,17 @@
 
   {% if row.uploaded %}
   <div class="student-req-card__status">
+    {% if row.is_rejected %}
+    <i class="bi bi-x-circle-fill text-danger" aria-hidden="true"></i>
+    {% else %}
     <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+    {% endif %}
     <span class="student-req-card__filename">{{ row.filename }}</span>
+    {% if row.registrar_status %}
+    <span class="badge {% if row.is_rejected %}text-bg-danger{% elif row.registrar_status == 'approved' %}text-bg-success{% else %}text-bg-secondary{% endif %} ms-2">
+      {{ row.registrar_status|title }}
+    </span>
+    {% endif %}
     {% if row.file_url %}
     <button
       type="button"
@@ -85,7 +94,25 @@
       <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
     </button>
     {% endif %}
+    {% if can_edit_requirements and row.is_rejected %}
+    <button
+      type="button"
+      class="btn btn-outline-danger btn-sm ms-2"
+      data-remove-rejected-document="{{ row.key }}"
+      data-remove-rejected-title="{{ row.title }}"
+      aria-label="Remove rejected {{ row.title }}"
+    >
+      <i class="bi bi-trash" aria-hidden="true"></i>
+      Remove rejected file
+    </button>
+    {% endif %}
   </div>
+  {% if row.is_rejected and row.rejection_reason %}
+  <p class="text-danger small mt-2 mb-0">
+    <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+    Rejected: {{ row.rejection_reason }}
+  </p>
+  {% endif %}
   {% endif %}
 
   {% if can_edit_requirements %}

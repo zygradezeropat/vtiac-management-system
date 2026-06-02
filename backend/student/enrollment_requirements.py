@@ -99,6 +99,13 @@ def build_requirements_rows(profile):
                 "filename": filename,
                 "file_url": file_url,
                 "id_type": doc.id_type if doc else "",
+                "registrar_status": doc.registrar_status if doc else "",
+                "rejection_reason": doc.rejection_reason if doc else "",
+                "is_rejected": bool(
+                    doc
+                    and doc.registrar_status
+                    == StudentEnrollmentProfile.PhotoRegistrarStatus.REJECTED
+                ),
             }
         )
     return rows
@@ -147,6 +154,40 @@ def save_enrollment_document(profile, document_type, uploaded_file, id_type=""):
         ]
     )
     return doc
+
+
+def remove_rejected_enrollment_document(profile, document_type):
+    if document_type not in VALID_DOC_KEYS:
+        raise ValueError("Invalid document type.")
+
+    doc = profile.documents.filter(document_type=document_type).first()
+    if not doc or not doc.file:
+        raise ValueError("No uploaded file found for this document.")
+    if doc.registrar_status != StudentEnrollmentProfile.PhotoRegistrarStatus.REJECTED:
+        raise ValueError("Only rejected documents can be removed.")
+
+    doc.file.delete(save=False)
+    doc.file = ""
+    doc.original_filename = ""
+    doc.registrar_status = StudentEnrollmentProfile.PhotoRegistrarStatus.PENDING
+    doc.rejection_reason = ""
+    doc.reviewed_at = None
+
+    profile.documents_review_released = False
+    profile.documents_review_released_at = None
+    profile.save(
+        update_fields=["documents_review_released", "documents_review_released_at", "updated_at"]
+    )
+
+    doc.save(
+        update_fields=[
+            "file",
+            "original_filename",
+            "registrar_status",
+            "rejection_reason",
+            "reviewed_at",
+        ]
+    )
 
 
 def validate_requirements_complete(profile):

@@ -66,6 +66,21 @@ function showPendingUpload(form, file) {
 
 document.addEventListener("DOMContentLoaded", () => {
   initFilePreviewTriggers(document);
+  const csrfToken = document.querySelector(
+    '.student-req-upload-form input[name="csrfmiddlewaretoken"]'
+  )?.value;
+  const removeRejectedModalEl = document.getElementById("removeRejectedModal");
+  const removeRejectedModalMessageEl = document.getElementById(
+    "removeRejectedModalMessage"
+  );
+  const removeRejectedModalConfirmBtn = document.getElementById(
+    "removeRejectedModalConfirmBtn"
+  );
+  const removeRejectedModal =
+    removeRejectedModalEl && window.bootstrap?.Modal
+      ? new window.bootstrap.Modal(removeRejectedModalEl)
+      : null;
+  let pendingRejectedDocType = "";
 
   document.querySelectorAll(".student-req-upload-form").forEach((form) => {
     const fileInput = form.querySelector(".student-req-file-input");
@@ -131,4 +146,51 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  document.querySelectorAll("[data-remove-rejected-document]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const docType = button.dataset.removeRejectedDocument || "";
+      const docTitle = button.dataset.removeRejectedTitle || "document";
+      if (!docType || !csrfToken) return;
+      pendingRejectedDocType = docType;
+
+      if (removeRejectedModal && removeRejectedModalMessageEl) {
+        removeRejectedModalMessageEl.textContent = `Remove the rejected file for ${docTitle}? You can upload a new file right away.`;
+        removeRejectedModal.show();
+        return;
+      }
+
+      // Fallback if Bootstrap modal is unavailable.
+      if (
+        window.confirm(
+          `Remove the rejected file for ${docTitle}? You can upload a new file right away.`
+        )
+      ) {
+        const form = document.createElement("form");
+        form.method = "post";
+        form.action = window.location.pathname;
+        form.innerHTML = `
+          <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+          <input type="hidden" name="action" value="remove_rejected">
+          <input type="hidden" name="document_type" value="${docType}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+      }
+    });
+  });
+
+  removeRejectedModalConfirmBtn?.addEventListener("click", () => {
+    if (!pendingRejectedDocType || !csrfToken) return;
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = window.location.pathname;
+    form.innerHTML = `
+      <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+      <input type="hidden" name="action" value="remove_rejected">
+      <input type="hidden" name="document_type" value="${pendingRejectedDocType}">
+    `;
+    document.body.appendChild(form);
+    form.submit();
+  });
 });

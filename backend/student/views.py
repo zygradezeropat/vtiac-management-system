@@ -10,6 +10,7 @@ from django.views.decorators.http import require_GET
 from backend.accounts.services import require_portal_access
 
 from .enrollment_requirements import (
+    remove_rejected_enrollment_document,
     save_enrollment_document,
     student_enrollment_requirements_context,
     submit_enrollment_requirements,
@@ -173,7 +174,11 @@ def enrollment(request):
 
     if registration_is_enrolled(request.user):
         return redirect("student_dashboard")
-    if profile and should_redirect_to_enrollment_pending(request.user):
+    if (
+        profile
+        and should_redirect_to_enrollment_pending(request.user)
+        and not can_edit_enrollment_application(request.user)
+    ):
         return redirect("student_enrollment_pending")
 
     return render(request, "student/enrollment.html", student_enrollment_context(request))
@@ -204,6 +209,15 @@ def enrollment_requirements(request):
                 messages.error(request, str(exc))
             return redirect("student_enrollment_requirements")
 
+        if action == "remove_rejected":
+            doc_type = request.POST.get("document_type", "")
+            try:
+                remove_rejected_enrollment_document(profile, doc_type)
+                messages.success(request, "Rejected file removed. You can upload a replacement.")
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            return redirect("student_enrollment_requirements")
+
         if action == "submit":
             errors = submit_enrollment_requirements(profile)
             if errors:
@@ -221,7 +235,10 @@ def enrollment_requirements(request):
 
     if registration_is_enrolled(request.user):
         return redirect("student_dashboard")
-    if should_redirect_to_enrollment_pending(request.user):
+    if (
+        should_redirect_to_enrollment_pending(request.user)
+        and not can_edit_enrollment_application(request.user)
+    ):
         return redirect("student_enrollment_pending")
 
     return render(
