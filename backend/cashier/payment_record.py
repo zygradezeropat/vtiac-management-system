@@ -109,15 +109,12 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
         payload.get("totalPayable") or sum(p["amount"] for p in cleaned_particulars),
         "total payable",
     )
-    paid_amount = _parse_decimal(payload.get("paidAmount", 0), "paid amount")
-    _validate_minimum_payment(paid_amount, total_payable)
+    amount_paid = _parse_decimal(payload.get("paidAmount", 0), "amount paid")
+    _validate_minimum_payment(amount_paid, total_payable)
 
-    amount_tendered = _parse_decimal(payload.get("amountTendered", paid_amount), "cash tendered")
-    if amount_tendered < paid_amount:
-        raise ValueError(
-            f"Cash tendered (₱{amount_tendered:,.2f}) is less than the amount to pay "
-            f"(₱{paid_amount:,.2f})."
-        )
+    credited_amount = min(amount_paid, total_payable)
+    change_due = max(Decimal("0"), amount_paid - total_payable)
+    paid_amount = credited_amount
 
     program = profile.selected_program or (reg.selected_program if reg else "")
     balance_before = fee_balance_for_profile(profile, program)
@@ -130,14 +127,14 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
                 f"balance (₱{remaining_due:,.2f})."
             )
 
-    remaining_balance = max(Decimal("0"), total_payable - paid_amount)
+    remaining_balance = max(Decimal("0"), total_payable - amount_paid)
 
     status = (payload.get("status") or "").strip()
     valid_statuses = {choice[0] for choice in CashierPayment.Status.choices}
     if status not in valid_statuses:
-        if paid_amount >= total_payable and total_payable > 0:
+        if amount_paid >= total_payable and total_payable > 0:
             status = CashierPayment.Status.FULL
-        elif paid_amount > 0:
+        elif amount_paid > 0:
             status = CashierPayment.Status.PARTIAL
         else:
             status = CashierPayment.Status.UNPAID
@@ -167,16 +164,14 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
 
     notify_payment_recorded(profile, payment)
 
-    change_due = amount_tendered - paid_amount
-
     return {
         "id": payment.pk,
         "controlNumber": payment.control_number,
         "status": payment.status,
         "paidAmount": float(payment.paid_amount),
+        "amountPaid": float(amount_paid),
         "totalPayable": float(payment.total_payable),
         "remainingBalance": float(payment.remaining_balance),
-        "amountTendered": float(amount_tendered),
         "changeDue": float(change_due),
         "cashierName": _cashier_display_name(user),
         **fee_balance_for_profile(profile, program),

@@ -123,7 +123,12 @@
         <h2 class="student-panel__title"><i class="bi bi-calendar-week" aria-hidden="true"></i>Class Schedule</h2>
       </div>
 
-      {% if schedule_selected %}
+      {% if not can_view_class_schedule %}
+      <p class="student-schedule-box mb-0">
+        Your class schedule will appear here after you finish enrollment — complete payment and receive registrar approval.
+      </p>
+
+      {% elif schedule_selected %}
       <div class="student-schedule-assigned mb-0">
         <p class="student-schedule-saved mb-3">
           <i class="bi bi-check-circle-fill text-success me-1" aria-hidden="true"></i>

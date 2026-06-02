@@ -4,7 +4,29 @@ from datetime import datetime
 
 from django.utils import timezone
 
-from .models import StudentEnrollmentProfile, StudentScheduleOption
+from .models import StudentEnrollmentProfile, StudentRegistration, StudentScheduleOption
+
+
+def student_may_view_class_schedule(profile, registration=None) -> bool:
+    """Students only see class schedule after registrar approves enrollment."""
+    if registration and registration.status == StudentRegistration.Status.APPROVED:
+        return True
+    if profile and profile.registration_id and profile.registration:
+        return profile.registration.status == StudentRegistration.Status.APPROVED
+    if profile and profile.user_id:
+        reg = getattr(profile.user, "registration_application", None)
+        return bool(reg and reg.status == StudentRegistration.Status.APPROVED)
+    return False
+
+
+def _registration_for_profile(profile):
+    if not profile:
+        return None
+    if profile.registration_id and profile.registration:
+        return profile.registration
+    if profile.user_id:
+        return getattr(profile.user, "registration_application", None)
+    return None
 
 
 def format_time_12h(time_24):
@@ -128,8 +150,11 @@ def replace_schedule_options(profile, options_data, *, assigned_by=""):
     return created
 
 
-def dashboard_schedule_context(profile):
-    if profile:
+def dashboard_schedule_context(profile, registration=None):
+    reg = registration or _registration_for_profile(profile)
+    can_view = student_may_view_class_schedule(profile, reg)
+
+    if profile and can_view:
         from backend.registrar.batch_schedule_sync import (
             ensure_profile_schedule_from_finalized_batch,
         )
@@ -137,10 +162,16 @@ def dashboard_schedule_context(profile):
         ensure_profile_schedule_from_finalized_batch(profile)
         profile.refresh_from_db(fields=["preferred_schedule", "schedule_selected_at"])
 
-    options = get_schedule_options_for_profile(profile)
-    preferred = profile.preferred_schedule if profile else None
+    if can_view and profile:
+        options = get_schedule_options_for_profile(profile)
+        preferred = profile.preferred_schedule
+    else:
+        options = []
+        preferred = None
+
     selected = schedule_option_to_dict(preferred, selected=True) if preferred else {}
     return {
+        "can_view_class_schedule": can_view,
         "schedule_options": options,
         "has_schedule_options": bool(options),
         "schedule_selected": preferred is not None,

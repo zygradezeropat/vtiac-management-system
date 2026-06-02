@@ -1502,10 +1502,38 @@
   margin: 0.15rem 0;
 }
 
+.service-invoice__issued-label {
+  font-size: 0.52rem;
+  font-weight: 600;
+}
+
+.service-invoice__issued-name {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--si-border);
+  padding: 0.2rem 0 0.35rem;
+  min-height: 1.1rem;
+}
+
+.service-invoice__issued-role {
+  font-size: 0.52rem;
+  text-align: center;
+  margin-top: 0.15rem;
+}
+
 .service-invoice__issued small {
   display: block;
   text-align: center;
   font-size: 0.52rem;
+}
+
+.service-invoice__cash-meta {
+  font-size: 0.52rem;
+  font-weight: 600;
 }
 
 .service-invoice__totals {

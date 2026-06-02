@@ -61,15 +61,17 @@ def template_to_option_data(template: RegistrarScheduleTemplate) -> dict:
 
 
 def profiles_for_finalized_course(course_name: str):
-    """Enrollment profiles for approved students in this program."""
-    user_ids = StudentRegistration.objects.filter(
+    """Enrollment profiles for registrar-approved (enrolled) students in this program."""
+    approved_regs = StudentRegistration.objects.filter(
         status=StudentRegistration.Status.APPROVED,
         selected_program=course_name,
-    ).exclude(user__isnull=True).values_list("user_id", flat=True)
+    )
+    user_ids = approved_regs.exclude(user__isnull=True).values_list("user_id", flat=True)
+    registration_ids = approved_regs.values_list("pk", flat=True)
 
     return (
         StudentEnrollmentProfile.objects.filter(
-            Q(user_id__in=user_ids) | Q(selected_program=course_name)
+            Q(user_id__in=user_ids) | Q(registration_id__in=registration_ids)
         )
         .distinct()
         .select_related("user", "preferred_schedule")
@@ -125,8 +127,13 @@ def assign_finalized_template_to_profile(
 
 
 def ensure_profile_schedule_from_finalized_batch(profile: StudentEnrollmentProfile) -> bool:
-    """Backfill: if a finalized batch exists for this program, assign it to the student."""
+    """Backfill: if a finalized batch exists for this program, assign it to enrolled students only."""
     if not profile or profile.preferred_schedule_id:
+        return False
+
+    from backend.student.schedule_assignment import student_may_view_class_schedule
+
+    if not student_may_view_class_schedule(profile):
         return False
     template = (
         RegistrarScheduleTemplate.objects.filter(

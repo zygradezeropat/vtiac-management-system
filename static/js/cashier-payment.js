@@ -42,9 +42,9 @@ async function recordPaymentOnServer(txn) {
       registrationId: txn.registrationId,
       particulars: txn.particulars,
       totalPayable: txn.totalPayable,
-      paidAmount: txn.paidAmount,
-      amountTendered: txn.amountTendered,
+      paidAmount: txn.amountPaid ?? txn.paidAmount,
       status: txn.status,
+      cashierName: txn.cashierName,
     }),
   });
   const data = await res.json().catch(() => ({}));
@@ -145,25 +145,19 @@ function showPaymentMessage({
   openModal(modal);
 }
 
-function updateChangeDue() {
-  const paid = parseFloat(document.getElementById("paidAmount")?.value) || 0;
-  const tendered = parseFloat(document.getElementById("amountTendered")?.value);
-  const changeEl = document.getElementById("changeDue");
-  if (!changeEl) return;
-
-  if (!Number.isFinite(tendered)) {
-    changeEl.textContent = formatPeso(0);
-    return;
-  }
-
-  const change = Math.max(0, tendered - paid);
-  changeEl.textContent = formatPeso(change);
+function paymentAmounts(totalPayable, amountPaid) {
+  const total = Number(totalPayable) || 0;
+  const paid = Number(amountPaid) || 0;
+  const credited = Math.min(paid, total);
+  const remaining = Math.max(0, total - paid);
+  const change = Math.max(0, paid - total);
+  return { total, paid, credited, remaining, change };
 }
 
 function validateMinimumPayment(paidAmount, totalPayable) {
   const minPay = getMinPaymentAmount();
   if (paidAmount <= 0) {
-    return "Enter the amount the student is paying now.";
+    return "Enter the amount paid by the student.";
   }
   if (totalPayable < minPay) {
     if (paidAmount + 0.009 < totalPayable) {
@@ -213,24 +207,26 @@ function computeTotalPayable() {
 
 function updateTotals() {
   const total = computeTotalPayable();
-  const paid = parseFloat(document.getElementById("paidAmount")?.value) || 0;
-  const remaining = Math.max(0, total - paid);
+  const amountPaid = parseFloat(document.getElementById("paidAmount")?.value) || 0;
+  const { remaining, change } = paymentAmounts(total, amountPaid);
 
   const totalEl = document.getElementById("totalPayable");
   const balanceEl = document.getElementById("remainingBalance");
+  const changeEl = document.getElementById("changeDue");
   const badge = document.getElementById("paymentStatusBadge");
 
   if (totalEl) totalEl.textContent = formatPeso(total);
   if (balanceEl) balanceEl.textContent = formatPeso(remaining);
+  if (changeEl) changeEl.textContent = formatPeso(change);
 
   if (badge) {
     if (total <= 0) {
       badge.textContent = "No Amount";
       badge.className = "badge bg-secondary";
-    } else if (remaining <= 0 && paid >= total) {
+    } else if (remaining <= 0 && amountPaid >= total) {
       badge.textContent = "Full Payment";
       badge.className = "badge cashier-badge-full";
-    } else if (paid > 0) {
+    } else if (amountPaid > 0) {
       badge.textContent = "Partial Payment";
       badge.className = "badge cashier-badge-partial";
     } else {
@@ -238,7 +234,6 @@ function updateTotals() {
       badge.className = "badge bg-secondary";
     }
   }
-  updateChangeDue();
 }
 
 function syncRemoveButtons() {
@@ -396,13 +391,11 @@ async function applyStudentFees(student) {
   selectedStudentBalance = feeData;
 
   const paidInput = document.getElementById("paidAmount");
-  const tenderedInput = document.getElementById("amountTendered");
   if (paidInput) {
     const due = Number(feeData?.totalRemaining) || 0;
     paidInput.value = due > 0 ? "" : "0";
     paidInput.placeholder = due > 0 ? `Up to ${formatPeso(due)}` : "0.00";
   }
-  if (tenderedInput) tenderedInput.value = "";
   updateTotals();
 }
 
@@ -504,8 +497,6 @@ function resetPaymentForm() {
   renderPaymentList([]);
   hideBalanceSummary();
   hideStudentDropdown();
-  const tenderedInput = document.getElementById("amountTendered");
-  if (tenderedInput) tenderedInput.value = "";
   updateTotals();
 }
 
@@ -605,7 +596,11 @@ function formatInvoiceMoney(amount) {
 function buildServiceInvoiceHtml(txn) {
   const logos = getReceiptLogoUrls();
   const lineItems = buildAssessmentLineItems(txn.particulars);
-  distributePaymentAcrossRows(lineItems, txn.totalPayable, txn.paidAmount);
+  const credited =
+    txn.creditedAmount != null
+      ? txn.creditedAmount
+      : Math.min(txn.amountPaid ?? txn.paidAmount, txn.totalPayable);
+  distributePaymentAcrossRows(lineItems, txn.totalPayable, credited);
 
   const filledRows = lineItems
     .map(
@@ -632,7 +627,8 @@ function buildServiceInvoiceHtml(txn) {
     )
     .join("");
 
-  const isFullPayment = txn.paidAmount >= txn.totalPayable && txn.totalPayable > 0;
+  const amountPaid = txn.amountPaid ?? txn.paidAmount;
+  const isFullPayment = amountPaid >= txn.totalPayable && txn.totalPayable > 0;
 
   return `
     <article class="service-invoice" aria-label="Service invoice">
@@ -705,7 +701,7 @@ function buildServiceInvoiceHtml(txn) {
           <p class="service-invoice__received">
             <span class="service-invoice__box" aria-hidden="true"></span>
             Received the amount of:
-            <span class="service-invoice__amount-line">${escapeHtml(isFullPayment ? formatPeso(txn.paidAmount) : "")}</span>
+            <span class="service-invoice__amount-line">${escapeHtml(isFullPayment ? formatPeso(amountPaid) : "")}</span>
           </p>
           <div class="service-invoice__id-sign">
             <div>
@@ -718,18 +714,15 @@ function buildServiceInvoiceHtml(txn) {
             </div>
           </div>
           <div class="service-invoice__issued">
-            <span>Issued by:</span>
-            <span class="service-invoice__issued-line">${escapeHtml(txn.cashierName || "")}</span>
-            <small>Cashier/Authorized Representative</small>
+            <p class="service-invoice__issued-label mb-0"><span>Issued by:</span></p>
+            <p class="service-invoice__issued-name mb-0">${escapeHtml(txn.cashierName || "—")}</p>
+            <p class="service-invoice__issued-role mb-0">Cashier / Authorized Representative</p>
+            ${
+              (txn.changeDue || 0) > 0
+                ? `<p class="service-invoice__cash-meta mb-0 mt-1"><span>Sukli (change):</span> ${escapeHtml(formatPeso(txn.changeDue))}</p>`
+                : ""
+            }
           </div>
-          ${
-            txn.amountTendered > 0
-              ? `<p class="service-invoice__cash-meta mb-0 mt-2">
-            <span>Cash tendered:</span> ${escapeHtml(formatPeso(txn.amountTendered))}
-            · <span>Sukli:</span> ${escapeHtml(formatPeso(txn.changeDue || 0))}
-          </p>`
-              : ""
-          }
         </div>
         <table class="service-invoice__totals">
           <tbody>
@@ -802,11 +795,7 @@ function buildArReceiptHtml(txn) {
       <p><strong>Student:</strong> ${escapeHtml(txn.studentName)}</p>
       <p><strong>Date:</strong> ${escapeHtml(txn.dateTime)}</p>
       <p><strong>Cashier:</strong> ${escapeHtml(txn.cashierName || "—")}</p>
-      ${
-        txn.amountTendered > 0
-          ? `<p><strong>Cash tendered:</strong> ${formatPeso(txn.amountTendered)} · <strong>Sukli:</strong> ${formatPeso(txn.changeDue || 0)}</p>`
-          : ""
-      }
+      ${(txn.changeDue || 0) > 0 ? `<p><strong>Sukli (change):</strong> ${formatPeso(txn.changeDue)}</p>` : ""}
       <table class="table table-sm mt-3">
         <thead><tr><th>Particular</th><th class="text-end">Amount</th></tr></thead>
         <tbody>${particularsRows}</tbody>
@@ -844,9 +833,8 @@ function buildPaymentConfirmSummary(txn) {
     <dl>
       <dt>Student</dt><dd>${escapeHtml(txn.studentName)}</dd>
       <dt>Control No.</dt><dd>${escapeHtml(txn.controlNumber)}</dd>
-      <dt>Amount to pay</dt><dd>${formatPeso(txn.paidAmount)}</dd>
-      <dt>Cash tendered</dt><dd>${formatPeso(txn.amountTendered)}</dd>
-      <dt>Sukli (change)</dt><dd>${formatPeso(txn.changeDue)}</dd>
+      <dt>Amount paid</dt><dd>${formatPeso(txn.amountPaid ?? txn.paidAmount)}</dd>
+      <dt>Sukli (change)</dt><dd>${formatPeso(txn.changeDue || 0)}</dd>
       <dt>Remaining balance</dt><dd>${formatPeso(txn.remainingBalance)}</dd>
       <dt>Cashier</dt><dd>${escapeHtml(txn.cashierName)}</dd>
     </dl>
@@ -858,19 +846,21 @@ function collectPaymentPayload(form) {
   const studentName = document.getElementById("studentSearchInput")?.value?.trim();
   const particulars = readParticulars();
   const totalPayable = computeTotalPayable();
-  const paidAmount = parseFloat(document.getElementById("paidAmount")?.value) || 0;
-  const amountTendered = parseFloat(document.getElementById("amountTendered")?.value);
+  const amountPaid = parseFloat(document.getElementById("paidAmount")?.value) || 0;
   const receiptType = form.querySelector('input[name="receiptType"]:checked')?.value || "OR";
   const studentId = document.getElementById("selectedStudentId")?.value;
   const registrationId = document.getElementById("selectedRegistrationId")?.value;
+  const amounts = paymentAmounts(totalPayable, amountPaid);
 
   return {
     controlNumber,
     studentName,
     particulars,
     totalPayable,
-    paidAmount,
-    amountTendered: Number.isFinite(amountTendered) ? amountTendered : paidAmount,
+    amountPaid,
+    creditedAmount: amounts.credited,
+    remainingBalance: amounts.remaining,
+    changeDue: amounts.change,
     receiptType,
     studentId,
     registrationId,
@@ -883,8 +873,7 @@ function validatePaymentPayload(payload) {
     studentName,
     particulars,
     totalPayable,
-    paidAmount,
-    amountTendered,
+    amountPaid,
     studentId,
     registrationId,
   } = payload;
@@ -899,15 +888,8 @@ function validatePaymentPayload(payload) {
     return "Add at least one particular with an amount.";
   }
 
-  const minMsg = validateMinimumPayment(paidAmount, totalPayable);
+  const minMsg = validateMinimumPayment(amountPaid, totalPayable);
   if (minMsg) return minMsg;
-
-  if (!Number.isFinite(amountTendered) || amountTendered <= 0) {
-    return "Enter the cash amount tendered by the student.";
-  }
-  if (amountTendered + 0.009 < paidAmount) {
-    return `Cash tendered (${formatPeso(amountTendered)}) is less than the amount to pay (${formatPeso(paidAmount)}).`;
-  }
 
   const accountDue = Number(selectedStudentBalance?.totalRemaining);
   if (accountDue > 0 && totalPayable > accountDue + 0.01) {
@@ -923,17 +905,18 @@ async function savePaymentTransaction(form, payload) {
     studentName,
     particulars,
     totalPayable,
-    paidAmount,
-    amountTendered,
+    amountPaid,
+    creditedAmount,
+    remainingBalance,
+    changeDue,
     receiptType,
     studentId,
     registrationId,
   } = payload;
 
-  const remainingBalance = Math.max(0, totalPayable - paidAmount);
   let status = "Unpaid";
-  if (paidAmount >= totalPayable && totalPayable > 0) status = "Full Payment";
-  else if (paidAmount > 0) status = "Partial Payment";
+  if (amountPaid >= totalPayable && totalPayable > 0) status = "Full Payment";
+  else if (amountPaid > 0) status = "Partial Payment";
 
   const now = new Date();
   const txn = {
@@ -946,9 +929,10 @@ async function savePaymentTransaction(form, payload) {
     registrationId: registrationId || null,
     particulars,
     totalPayable,
-    paidAmount,
-    amountTendered,
-    changeDue: Math.max(0, amountTendered - paidAmount),
+    amountPaid,
+    paidAmount: creditedAmount,
+    creditedAmount,
+    changeDue,
     remainingBalance,
     status,
     cashierName: getCashierName(),
@@ -969,6 +953,12 @@ async function savePaymentTransaction(form, payload) {
     const saved = await recordPaymentOnServer(txn);
     txn.serverPaymentId = saved?.id;
     if (saved?.cashierName) txn.cashierName = saved.cashierName;
+    if (saved?.changeDue != null) txn.changeDue = saved.changeDue;
+    if (saved?.amountPaid != null) txn.amountPaid = saved.amountPaid;
+    if (saved?.paidAmount != null) {
+      txn.paidAmount = saved.paidAmount;
+      txn.creditedAmount = saved.paidAmount;
+    }
     addTransaction(txn);
     closeModal(document.getElementById("paymentModal"));
     resetPaymentForm();
@@ -1018,16 +1008,7 @@ export function initPaymentModal() {
   });
 
   addRowBtn?.addEventListener("click", addParticularRow);
-  paidInput?.addEventListener("input", () => {
-    updateTotals();
-    const tenderedEl = document.getElementById("amountTendered");
-    const paid = parseFloat(paidInput?.value) || 0;
-    if (tenderedEl && (!tenderedEl.value || parseFloat(tenderedEl.value) < paid)) {
-      tenderedEl.value = paid > 0 ? String(paid) : "";
-    }
-    updateChangeDue();
-  });
-  document.getElementById("amountTendered")?.addEventListener("input", updateChangeDue);
+  paidInput?.addEventListener("input", updateTotals);
 
   getParticularRows().forEach(bindParticularRow);
   syncRemoveButtons();
@@ -1073,15 +1054,12 @@ export function initPaymentModal() {
       return;
     }
 
-    const remainingBalance = Math.max(0, payload.totalPayable - payload.paidAmount);
-    const changeDue = Math.max(0, payload.amountTendered - payload.paidAmount);
     const previewTxn = {
       studentName: payload.studentName,
       controlNumber: payload.controlNumber,
-      paidAmount: payload.paidAmount,
-      amountTendered: payload.amountTendered,
-      changeDue,
-      remainingBalance,
+      amountPaid: payload.amountPaid,
+      changeDue: payload.changeDue,
+      remainingBalance: payload.remainingBalance,
       cashierName: getCashierName(),
     };
 

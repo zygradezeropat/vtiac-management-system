@@ -851,7 +851,7 @@ def student_dashboard_context(request=None):
     if registration and registration.status == StudentRegistration.Status.APPROVED:
         app_status = "Enrolled"
 
-    schedule_ctx = dashboard_schedule_context(profile)
+    schedule_ctx = dashboard_schedule_context(profile, registration)
     user = request.user if request and request.user.is_authenticated else None
     show_upload_btn = show_upload_requirements_button(user, profile)
 

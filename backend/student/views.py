@@ -110,6 +110,11 @@ def dashboard(request):
         option_id = request.POST.get("schedule_option_id", "")
         if not profile:
             messages.warning(request, "Complete your enrollment profile before selecting a schedule.")
+        elif not registration_is_enrolled(request.user):
+            messages.info(
+                request,
+                "Your class schedule will be available after enrollment is fully approved.",
+            )
         elif not option_id:
             messages.error(request, "Please choose a schedule option.")
         else:
