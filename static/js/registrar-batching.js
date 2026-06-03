@@ -915,10 +915,12 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         return;
       }
+      const availableStudents = course.batches?.[0]?.students ?? [];
       const batchPayload = {
         courseName: course.name,
         batchLabel: tpl.batchLabel || "Batch 1",
         studentCount: tpl.studentCount ?? activeBatchStudentCount(course),
+        students: availableStudents,
       };
       showFinalizeBatchConfirm(batchPayload, async () => {
         await finalizeTemplateForCourse(course.id, templateId);

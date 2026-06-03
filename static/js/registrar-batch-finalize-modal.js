@@ -38,8 +38,14 @@ export function initFinalizeBatchConfirmModal() {
   });
 }
 
+function formatStudentLine(student) {
+  const first = (student.firstName || student.first_name || "").trim();
+  const last = (student.lastName || student.last_name || "").trim();
+  return [first, last].filter(Boolean).join(" ") || "—";
+}
+
 /**
- * @param {{ courseName: string, batchLabel: string, studentCount: number }} batch
+ * @param {{ courseName: string, batchLabel: string, studentCount: number, students?: Array<{firstName?: string, lastName?: string}> }} batch
  * @param {() => void | Promise<void>} onConfirm
  */
 export function showFinalizeBatchConfirm(batch, onConfirm) {
@@ -47,13 +53,27 @@ export function showFinalizeBatchConfirm(batch, onConfirm) {
 
   const courseEl = document.getElementById("batch-finalize-confirm-course");
   const bodyEl = document.getElementById("batch-finalize-confirm-body");
-  const count = batch.studentCount ?? 0;
+  const listEl = document.getElementById("batch-finalize-confirm-students");
+  const students = Array.isArray(batch.students) ? batch.students : [];
+  const count = batch.studentCount ?? students.length ?? 0;
 
   if (courseEl) {
     courseEl.textContent = `${batch.courseName} — ${batch.batchLabel || "Batch 1"}`;
   }
   if (bodyEl) {
-    bodyEl.textContent = `This will lock the schedule and snapshot ${count} student${count === 1 ? "" : "s"}. You will not be able to edit it afterward.`;
+    bodyEl.textContent =
+      `This will lock the schedule and assign class times to every unassigned approved student listed below (${count}). You will not be able to edit the batch afterward.`;
+  }
+  if (listEl) {
+    if (students.length) {
+      listEl.innerHTML = students
+        .map((s) => `<li><i class="bi bi-person-fill me-1" aria-hidden="true"></i>${formatStudentLine(s)}</li>`)
+        .join("");
+      listEl.classList.remove("d-none");
+    } else {
+      listEl.innerHTML = "";
+      listEl.classList.add("d-none");
+    }
   }
 
   confirmHandler = onConfirm;
