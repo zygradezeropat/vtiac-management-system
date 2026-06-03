@@ -36,13 +36,18 @@
           <h2 id="batching-detail-title" class="registrar-panel__title mb-0"></h2>
           <span id="batching-duration-badge" class="registrar-pill registrar-pill--primary d-none"></span>
         </div>
-        <p class="registrar-panel__subtitle mb-0">Create recurring schedule templates for this program</p>
+        <p class="registrar-panel__subtitle mb-0">Create or update the class schedule for this program</p>
       </div>
       <button type="button" id="batching-detail-close" class="btn btn-outline-secondary btn-sm">Close</button>
     </div>
 
-    <form id="schedule-template-form" class="registrar-schedule-template-form panel-light rounded-3 p-3 p-md-4 mb-4" novalidate>
-      <p class="registrar-schedule-template-form__eyebrow mb-4">New schedule template</p>
+    <form id="schedule-template-form" class="registrar-schedule-template-form panel-light rounded-3 p-3 p-md-4 mb-2" novalidate>
+      <p class="registrar-schedule-template-form__eyebrow mb-1">Class schedule</p>
+      <p class="text-muted small mb-4">
+        Saved schedules appear on
+        <a href="/registrar/finalized-batches/">Finalized Batches</a>
+        where you can review, edit, and finalize.
+      </p>
 
       <div class="mb-4">
         <span class="form-label fw-semibold d-block mb-2">Schedule type</span>
@@ -86,6 +91,8 @@
         </div>
       </div>
 
+      <div id="template-schedule-conflict" class="alert alert-warning py-2 px-3 small d-none mb-3" role="alert"></div>
+
       <div class="mb-4">
         <label class="form-label fw-semibold" for="template-trainer">Assigned Trainer <span class="text-danger">*</span></label>
         <select id="template-trainer" class="form-select form-select-vtiac" required>
@@ -94,42 +101,15 @@
         <small id="template-trainer-hint" class="text-muted d-block mt-1"></small>
       </div>
 
-      <div class="row g-3 mb-4">
-        <div class="col-md-4">
-          <label class="form-label fw-semibold" for="template-assessment-at">Assessment Date &amp; Time <span class="text-danger">*</span></label>
-          <input type="datetime-local" id="template-assessment-at" class="form-control form-control-vtiac" required />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold" for="template-examiner-name">Examiner <span class="text-danger">*</span></label>
-          <input type="text" id="template-examiner-name" class="form-control form-control-vtiac" placeholder="Type examiner name" required />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold" for="template-examination-course">Examination <span class="text-danger">*</span></label>
-          <select id="template-examination-course" class="form-select form-select-vtiac" required>
-            <option value="">Select examination</option>
-            <option value="Driving NC II">Driving NC II</option>
-            <option value="Driving NC III (Passenger Bus / Straight Truck)">Driving NC III (Passenger Bus / Straight Truck)</option>
-            <option value="Automotive Servicing NC I">Automotive Servicing NC I</option>
-            <option value="Automotive Servicing (Engine Repair) NC II">Automotive Servicing (Engine Repair) NC II</option>
-            <option value="Rice Machinery Operations NC II">Rice Machinery Operations NC II</option>
-          </select>
-        </div>
-      </div>
-
       <div class="d-flex flex-wrap justify-content-end gap-2 pt-2">
         <button type="button" id="schedule-template-cancel" class="btn btn-outline-secondary px-4">Cancel</button>
-        <button type="submit" id="schedule-template-save" class="btn btn-outline-dark px-4 fw-semibold">Save template</button>
+        <button type="submit" id="schedule-template-save" class="btn btn-outline-dark px-4 fw-semibold">Save schedule</button>
       </div>
     </form>
-
-    <section id="schedule-templates-section" class="registrar-schedule-templates-list">
-      <h3 class="h6 fw-semibold mb-3">Saved templates</h3>
-      <div id="schedule-templates-list" class="d-flex flex-column gap-2"></div>
-      <p id="schedule-templates-empty" class="text-muted small mb-0 d-none">No templates yet. Create one above.</p>
-    </section>
   </div>
 </div>
 
+{% include "components/registrar/schedule_saved_confirm_modal.html" %}
 {% include "components/registrar/finalize_batch_confirm_modal.html" %}
 
 {% include "components/registrar/layout_end.html" %}

@@ -6,7 +6,7 @@ from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
-from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.dateparse import parse_date
 from django.utils.text import slugify
 from django.views.decorators.http import require_http_methods
 
@@ -142,29 +142,6 @@ def _format_optional_date(value) -> str:
     return parsed.isoformat() if parsed else str(value).strip()
 
 
-def _parse_optional_datetime(raw):
-    if not raw:
-        return None
-    value = str(raw).strip()
-    if not value:
-        return None
-    parsed = parse_datetime(value)
-    if not parsed:
-        return None
-    if timezone.is_naive(parsed):
-        return timezone.make_aware(parsed, timezone.get_current_timezone())
-    return parsed
-
-
-def _format_optional_datetime_local(value) -> str:
-    if not value:
-        return ""
-    dt = value
-    if timezone.is_aware(dt):
-        dt = timezone.localtime(dt, timezone.get_current_timezone())
-    return dt.strftime("%Y-%m-%dT%H:%M")
-
-
 def _parse_template_db_id(raw: str) -> int | None:
     """Return integer pk only; ignore client-only ids such as tpl-1234567890."""
     value = (raw or "").strip()
@@ -290,9 +267,6 @@ def _serialize_template(t: RegistrarScheduleTemplate):
         "dailyHours": float(t.daily_hours or 0),
         "availableFrom": _format_optional_date(t.available_from),
         "availableUntil": _format_optional_date(t.available_until),
-        "assessmentAt": _format_optional_datetime_local(t.assessment_at),
-        "examinerName": t.examiner_name or "",
-        "examinationCourse": t.examination_course or "",
         "trainerId": str(t.trainer_request_id) if t.trainer_request_id else "",
         "trainerName": t.trainer_name or "",
         "batchLabel": t.batch_label or "Batch 1",
@@ -475,9 +449,9 @@ def batching_template_upsert(request):
     obj.daily_hours = Decimal(data.get("daily_hours", "0") or "0")
     obj.available_from = _parse_optional_date(data.get("available_from"))
     obj.available_until = _parse_optional_date(data.get("available_until"))
-    obj.assessment_at = _parse_optional_datetime(data.get("assessment_at"))
-    obj.examiner_name = data.get("examiner_name", "").strip()
-    obj.examination_course = data.get("examination_course", "").strip()
+    obj.assessment_at = None
+    obj.examiner_name = ""
+    obj.examination_course = ""
     obj.trainer_request = trainer
     obj.trainer_name = data.get("trainer_name", "").strip()
 

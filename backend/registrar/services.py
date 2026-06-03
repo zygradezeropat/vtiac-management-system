@@ -44,7 +44,7 @@ REGISTRAR_MODULES = {
         "label": "Batching & Scheduling",
         "icon_bi": "bi-calendar-week",
         "title": "Batching & Scheduling Management",
-        "subtitle": "View program batches and create recurring schedule templates",
+        "subtitle": "View program batches and save class schedules",
         "template": "registrar/batching_scheduling.html",
     },
     "finalized-batches": {

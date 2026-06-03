@@ -1,8 +1,8 @@
 /**
- * Registrar — batching & scheduling: course overview + schedule template builder.
+ * Registrar — batching & scheduling: course overview + class schedule builder.
  */
 
-import { showFinalizeBatchConfirm } from "./registrar-batch-finalize-modal.js";
+import { showScheduleSavedConfirm } from "./registrar-schedule-saved-modal.js";
 import {
   DAY_CODES,
   DAY_LABELS,
@@ -12,9 +12,12 @@ import {
   createEmptyTemplateForm,
   daysForScheduleType,
   daysSummary,
+  formatBatchConflictLabel,
   formatTime12h,
+  schedulesConflict,
   scheduleTypeLabel,
   templateDisplayTitle,
+  trainerMatchesBatch,
 } from "./registrar-schedule-templates.js";
 
 const MIN_STUDENTS_TO_FINALIZE = 3;
@@ -142,18 +145,6 @@ function escapeHtml(text) {
 
 function courseDurationDays(course) {
   return course.durationDays ?? COURSE_DURATIONS[course.name] ?? 0;
-}
-
-function formatDateTimeLocal(value) {
-  if (!value) return "";
-  const dt = new Date(value);
-  if (Number.isNaN(dt.getTime())) return value;
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, "0");
-  const d = String(dt.getDate()).padStart(2, "0");
-  const hh = String(dt.getHours()).padStart(2, "0");
-  const mm = String(dt.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d} ${hh}:${mm}`;
 }
 
 function activeBatchStudentCount(course) {
@@ -300,12 +291,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const availableUntilEl = document.getElementById("template-available-until");
   const trainerEl = document.getElementById("template-trainer");
   const trainerHintEl = document.getElementById("template-trainer-hint");
-  const assessmentAtEl = document.getElementById("template-assessment-at");
-  const examinerNameEl = document.getElementById("template-examiner-name");
-  const examinationCourseEl = document.getElementById("template-examination-course");
+  const scheduleConflictEl = document.getElementById("template-schedule-conflict");
   const cancelBtn = document.getElementById("schedule-template-cancel");
-  const templatesListEl = document.getElementById("schedule-templates-list");
-  const templatesEmptyEl = document.getElementById("schedule-templates-empty");
 
   if (!coursesEl) return;
 
@@ -337,6 +324,13 @@ document.addEventListener("DOMContentLoaded", () => {
     templatesByCourse[courseId] = templates;
   }
 
+  /** Latest editable draft for this course (templates are ordered newest first). */
+  function getDraftForCourse(courseId) {
+    return (
+      getTemplatesForCourse(courseId).find((t) => t.status !== "finalized") || null
+    );
+  }
+
   async function upsertTemplateForCourse(courseId, template) {
     const body = new URLSearchParams();
     if (isPersistedTemplateId(template.id)) {
@@ -352,9 +346,6 @@ document.addEventListener("DOMContentLoaded", () => {
     body.set("daily_hours", String(template.dailyHours ?? 0));
     body.set("available_from", template.availableFrom || "");
     body.set("available_until", template.availableUntil || "");
-    body.set("assessment_at", template.assessmentAt || "");
-    body.set("examiner_name", template.examinerName || "");
-    body.set("examination_course", template.examinationCourse || "");
     body.set("trainer_request_id", template.trainerId || "");
     body.set("trainer_name", template.trainerName || "");
 
@@ -369,50 +360,8 @@ document.addEventListener("DOMContentLoaded", () => {
       body: body.toString(),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Could not save template.");
+    if (!res.ok) throw new Error(data.error || "Could not save schedule.");
     return data.template;
-  }
-
-  async function finalizeTemplateForCourse(courseId, templateId) {
-    const res = await fetch(
-      `/registrar/api/batching/template/finalize/${encodeURIComponent(templateId)}/`,
-      {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": getCsrfToken(),
-          Accept: "application/json",
-        },
-        credentials: "same-origin",
-      }
-    );
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Could not finalize batch.");
-    const saved = data.batch;
-    const list = getTemplatesForCourse(courseId);
-    const idx = list.findIndex((t) => t.id === templateId);
-    if (idx >= 0) {
-      list[idx] = { ...list[idx], ...saved, id: saved.id };
-    }
-    setTemplatesForCourse(courseId, list);
-    return saved;
-  }
-
-  async function deleteTemplateForCourse(courseId, templateId) {
-    const res = await fetch(`/registrar/api/batching/template/delete/${encodeURIComponent(templateId)}/`, {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": getCsrfToken(),
-        Accept: "application/json",
-      },
-      credentials: "same-origin",
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Could not delete template.");
-    setTemplatesForCourse(
-      courseId,
-      getTemplatesForCourse(courseId).filter((t) => t.id !== templateId)
-    );
-    return data;
   }
 
   function renderDayPills() {
@@ -447,15 +396,106 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function getFinalizedBatches() {
+    const rows = [];
+    Object.values(templatesByCourse).forEach((list) => {
+      if (!Array.isArray(list)) return;
+      list.forEach((tpl) => {
+        if (tpl.status === "finalized") rows.push(tpl);
+      });
+    });
+    return rows;
+  }
+
+  function draftScheduleFromForm() {
+    return {
+      scheduleType: formState.scheduleType,
+      days: [...formState.days],
+      timeFrom: formState.timeFrom,
+      timeTo: formState.timeTo,
+      availableFrom: formState.availableFrom,
+      availableUntil: formState.availableUntil,
+    };
+  }
+
+  function hasMinimumScheduleForConflictCheck() {
+    return Boolean(formState.days.length && formState.timeFrom && formState.timeTo);
+  }
+
+  function findTrainerScheduleConflict(trainer, excludeTemplateId = null) {
+    if (!trainer || !hasMinimumScheduleForConflictCheck()) return null;
+    const draft = draftScheduleFromForm();
+    for (const batch of getFinalizedBatches()) {
+      if (excludeTemplateId && String(batch.id) === String(excludeTemplateId)) continue;
+      if (!trainerMatchesBatch(trainer, batch)) continue;
+      if (schedulesConflict(draft, batch)) return batch;
+    }
+    return null;
+  }
+
+  function trainersForScheduleForm(course) {
+    const qualified = qualifiedTrainersForCourse(course);
+    if (!hasMinimumScheduleForConflictCheck()) {
+      return { selectable: qualified, hidden: [], needsScheduleFields: true };
+    }
+    const excludeId = isPersistedTemplateId(editingTemplateId) ? editingTemplateId : null;
+    const selectable = [];
+    const hidden = [];
+    qualified.forEach((trainer) => {
+      const conflict = findTrainerScheduleConflict(trainer, excludeId);
+      if (conflict) hidden.push({ trainer, conflict });
+      else selectable.push(trainer);
+    });
+    return { selectable, hidden, needsScheduleFields: false };
+  }
+
+  function updateScheduleConflictNotice() {
+    if (!scheduleConflictEl) return;
+    const course = selectedCourse();
+    if (!course || !detailEl || detailEl.classList.contains("d-none")) {
+      scheduleConflictEl.classList.add("d-none");
+      scheduleConflictEl.textContent = "";
+      return;
+    }
+
+    const { needsScheduleFields } = trainersForScheduleForm(course);
+
+    if (needsScheduleFields) {
+      scheduleConflictEl.classList.add("d-none");
+      scheduleConflictEl.textContent = "";
+      return;
+    }
+
+    const excludeId = isPersistedTemplateId(editingTemplateId) ? editingTemplateId : null;
+    const selected = qualifiedTrainersForCourse(course).find((t) => t.id === formState.trainerId);
+    const selectedConflict = selected
+      ? findTrainerScheduleConflict(selected, excludeId)
+      : null;
+
+    if (selectedConflict) {
+      scheduleConflictEl.classList.remove("d-none");
+      scheduleConflictEl.innerHTML = `<i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i><strong>Schedule conflict:</strong> ${escapeHtml(selected.name)} is already assigned to <strong>${escapeHtml(formatBatchConflictLabel(selectedConflict))}</strong> on overlapping days, times, or dates. Change the schedule or pick another trainer.`;
+      return;
+    }
+
+    scheduleConflictEl.classList.add("d-none");
+    scheduleConflictEl.textContent = "";
+  }
+
+  function refreshTrainerScheduleUI() {
+    renderTrainerOptions();
+    updateScheduleConflictNotice();
+  }
+
   function renderTrainerOptions() {
     if (!trainerEl) return;
     const course = selectedCourse();
-    const available = qualifiedTrainersForCourse(course);
+    const { selectable, hidden, needsScheduleFields } = trainersForScheduleForm(course);
     const current = formState.trainerId || "";
-    const hasCurrent = available.some((t) => t.id === current);
+    const hasCurrent = selectable.some((t) => t.id === current);
 
     const options = ['<option value="">Select trainer</option>'];
-    available.forEach((trainer) => {
+    selectable.forEach((trainer) => {
       const selected = trainer.id === current ? " selected" : "";
       options.push(
         `<option value="${escapeHtml(trainer.id)}"${selected}>${escapeHtml(trainer.name)}</option>`
@@ -472,12 +512,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (trainerHintEl) {
       if (!course) {
         trainerHintEl.textContent = "";
-      } else if (!available.length) {
+      } else if (!qualifiedTrainersForCourse(course).length) {
         trainerHintEl.textContent = "No qualified trainer available for this course yet.";
+      } else if (needsScheduleFields) {
+        trainerHintEl.textContent =
+          "Set days and class times to hide trainers with conflicting finalized schedules.";
+      } else if (!selectable.length) {
+        trainerHintEl.textContent =
+          "All qualified trainers have a conflicting finalized schedule for these days/times.";
       } else {
-        trainerHintEl.textContent = `${available.length} qualified trainer${
-          available.length === 1 ? "" : "s"
-        } available.`;
+        trainerHintEl.textContent = `${selectable.length} trainer${selectable.length === 1 ? "" : "s"} available for this schedule.`;
       }
     }
   }
@@ -487,14 +531,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (timeToEl) timeToEl.value = formState.timeTo;
     if (availableFromEl) availableFromEl.value = formState.availableFrom;
     if (availableUntilEl) availableUntilEl.value = formState.availableUntil;
-    if (assessmentAtEl) assessmentAtEl.value = formState.assessmentAt || "";
-    if (examinerNameEl) examinerNameEl.value = formState.examinerName || "";
-    if (examinationCourseEl) examinationCourseEl.value = formState.examinationCourse || "";
-    renderTrainerOptions();
-    if (trainerEl) trainerEl.value = formState.trainerId || "";
     updateTypePills();
     renderDayPills();
     updateDailyHoursField();
+    refreshTrainerScheduleUI();
     daysErrorEl?.classList.add("d-none");
   }
 
@@ -503,9 +543,6 @@ document.addEventListener("DOMContentLoaded", () => {
     formState.timeTo = timeToEl?.value || "";
     formState.availableFrom = availableFromEl?.value || "";
     formState.availableUntil = availableUntilEl?.value || "";
-    formState.assessmentAt = assessmentAtEl?.value || "";
-    formState.examinerName = examinerNameEl?.value || "";
-    formState.examinationCourse = examinationCourseEl?.value || "";
     formState.trainerId = trainerEl?.value || "";
     if (formState.trainerId) {
       const selected = qualifiedTrainersForCourse(selectedCourse()).find(
@@ -527,6 +564,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateTypePills();
     renderDayPills();
+    refreshTrainerScheduleUI();
   }
 
   function toggleDay(code) {
@@ -539,12 +577,24 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
     renderDayPills();
+    refreshTrainerScheduleUI();
   }
 
   function resetForm() {
     editingTemplateId = null;
     formState = createEmptyTemplateForm();
     applyFormToInputs();
+  }
+
+  function loadDraftForSelectedCourse() {
+    const course = selectedCourse();
+    if (!course) {
+      resetForm();
+      return;
+    }
+    const draft = getDraftForCourse(course.id);
+    if (draft) loadTemplateIntoForm(draft);
+    else resetForm();
   }
 
   function loadTemplateIntoForm(template) {
@@ -557,9 +607,6 @@ document.addEventListener("DOMContentLoaded", () => {
       timeTo: template.timeTo,
       availableFrom: template.availableFrom || "",
       availableUntil: template.availableUntil || "",
-      assessmentAt: template.assessmentAt || "",
-      examinerName: template.examinerName || "",
-      examinationCourse: template.examinationCourse || "",
       trainerId: template.trainerId || "",
       trainerName: template.trainerName || "",
     };
@@ -593,84 +640,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!formState.trainerId) {
       alert("Please select a qualified trainer for this schedule.");
       ok = false;
-    }
-    if (!formState.assessmentAt) {
-      alert("Please set the assessment date and time.");
-      ok = false;
-    }
-    if (!formState.examinerName) {
-      alert("Please enter the examiner name.");
-      ok = false;
-    }
-    if (!formState.examinationCourse) {
-      alert("Please select the examination.");
-      ok = false;
+    } else {
+      const course = selectedCourse();
+      const trainer = qualifiedTrainersForCourse(course).find((t) => t.id === formState.trainerId);
+      const excludeId = isPersistedTemplateId(editingTemplateId) ? editingTemplateId : null;
+      const conflict = trainer ? findTrainerScheduleConflict(trainer, excludeId) : null;
+      if (conflict) {
+        alert(
+          `Schedule conflict: ${trainer.name} is already assigned to ${formatBatchConflictLabel(conflict)} on overlapping days, times, or dates.`
+        );
+        refreshTrainerScheduleUI();
+        ok = false;
+      }
     }
     return ok;
-  }
-
-  function renderSavedTemplates() {
-    const course = selectedCourse();
-    if (!course || !templatesListEl) return;
-
-    const templates = getTemplatesForCourse(course.id);
-    templatesEmptyEl?.classList.toggle("d-none", templates.length > 0);
-
-    templatesListEl.innerHTML = templates
-      .map((tpl) => {
-        const hours = tpl.dailyHours ?? computeDailyHours(tpl.timeFrom, tpl.timeTo);
-        const title = tpl.name || templateDisplayTitle(tpl);
-        const avail =
-          tpl.availableFrom || tpl.availableUntil
-            ? `<span class="text-muted"> · ${escapeHtml(tpl.availableFrom || "…")} – ${escapeHtml(tpl.availableUntil || "open")}</span>`
-            : "";
-        const trainer =
-          tpl.trainerName
-            ? `<span class="text-muted"> · Trainer: ${escapeHtml(tpl.trainerName)}</span>`
-            : "";
-        const assessmentAt = tpl.assessmentAt
-          ? `<span class="text-muted"> · Assessment: ${escapeHtml(formatDateTimeLocal(tpl.assessmentAt))}</span>`
-          : "";
-        const examiner = tpl.examinerName
-          ? `<span class="text-muted"> · Examiner: ${escapeHtml(tpl.examinerName)}</span>`
-          : "";
-        const examination = tpl.examinationCourse
-          ? `<span class="text-muted"> · Exam: ${escapeHtml(tpl.examinationCourse)}</span>`
-          : "";
-        const isFinal = tpl.status === "finalized";
-        const availableCount = activeBatchStudentCount(course);
-        const canFinalize = availableCount >= MIN_STUDENTS_TO_FINALIZE;
-        const statusTag = isFinal
-          ? `<span class="registrar-schedule-tag registrar-schedule-tag--green ms-1">Finalized</span>`
-          : `<span class="registrar-schedule-tag registrar-schedule-tag--amber ms-1">Draft</span>`;
-        const finalizeDisabled = canFinalize
-          ? ""
-          : ` disabled title="At least ${MIN_STUDENTS_TO_FINALIZE} unassigned students required to finalize"`;
-        const actions = isFinal
-          ? `<a href="/registrar/finalized-batches/" class="btn btn-sm btn-outline-primary">View in repository</a>`
-          : `<button type="button" class="btn btn-sm btn-outline-secondary" data-edit-template="${escapeHtml(tpl.id)}">Edit</button>
-              <button type="button" class="btn btn-sm btn-success" data-finalize-template="${escapeHtml(tpl.id)}"${finalizeDisabled}>Finalize</button>
-              <button type="button" class="btn btn-sm btn-outline-danger" data-delete-template="${escapeHtml(tpl.id)}">Delete</button>`;
-        return `
-          <div class="registrar-schedule-template-card">
-            <div class="registrar-schedule-template-card__body">
-              <h4 class="registrar-schedule-template-card__title mb-1">${escapeHtml(title)}${statusTag}</h4>
-              <p class="registrar-schedule-template-card__meta small text-muted mb-0">
-                <span class="registrar-schedule-tag registrar-schedule-tag--blue">${escapeHtml(scheduleTypeLabel(tpl.scheduleType))}</span>
-                ${escapeHtml(daysSummary(tpl.days))} · ${hours} hrs/day
-                ${avail}
-                ${trainer}
-                ${assessmentAt}
-                ${examiner}
-                ${examination}
-              </p>
-            </div>
-            <div class="registrar-schedule-template-card__actions d-flex flex-wrap gap-1">
-              ${actions}
-            </div>
-          </div>`;
-      })
-      .join("");
   }
 
   function renderCategoryTabs() {
@@ -712,7 +695,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const needed = studentsNeeded(course);
       const batchCount = course.batches.length;
       const days = courseDurationDays(course);
-      const templateCount = getTemplatesForCourse(course.id).length;
+      const hasDraft = Boolean(getDraftForCourse(course.id));
       const locked = count < MIN_STUDENTS_TO_FINALIZE;
       const alert =
         needed > 0
@@ -728,7 +711,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return `
         <div class="col-md-6 col-lg-4">
           <button type="button" class="registrar-batch-card w-100 text-start${selectedCourseId === course.id ? " is-selected" : ""}${lockedClass}" data-course-id="${course.id}" aria-label="Open ${escapeHtml(course.name)} scheduling"${disabledAttr}${titleAttr}>
-            <p class="registrar-batch-card__meta mb-1">${batchCount} Batch${batchCount === 1 ? "" : "es"} · ${days} day${days === 1 ? "" : "s"} · ${templateCount} template${templateCount === 1 ? "" : "s"}</p>
+            <p class="registrar-batch-card__meta mb-1">${batchCount} Batch${batchCount === 1 ? "" : "es"} · ${days} day${days === 1 ? "" : "s"} · ${hasDraft ? "Schedule saved" : "No schedule yet"}</p>
             <h3 class="registrar-batch-card__title">${escapeHtml(course.name)}</h3>
             <p class="registrar-batch-card__count mb-2"><i class="bi bi-people me-1" aria-hidden="true"></i>Available for batch: <strong>${count} / ${BATCH_CAPACITY}</strong></p>
             <div class="registrar-batch-card__bar" aria-hidden="true"><span class="registrar-batch-card__bar-fill ${barClass}" style="width:${pct}%"></span></div>
@@ -739,12 +722,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }).join("");
   }
 
-  function showDetail(courseId) {
+  function showDetail(courseId, { loadDraft = true } = {}) {
     const course = getCourse(courseId);
     if (!course) return;
 
     selectedCourseId = courseId;
-    resetForm();
 
     placeholderEl?.classList.add("d-none");
     detailEl?.classList.remove("d-none");
@@ -756,8 +738,8 @@ document.addEventListener("DOMContentLoaded", () => {
       durationBadgeEl.classList.remove("d-none");
     }
 
+    if (loadDraft) loadDraftForSelectedCourse();
     renderCourseCards();
-    renderSavedTemplates();
     templateForm?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
@@ -784,7 +766,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   closeBtn?.addEventListener("click", hideDetail);
-  cancelBtn?.addEventListener("click", resetForm);
+  cancelBtn?.addEventListener("click", loadDraftForSelectedCourse);
 
   typePillsEl?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-schedule-type]");
@@ -801,31 +783,23 @@ document.addEventListener("DOMContentLoaded", () => {
   timeFromEl?.addEventListener("change", () => {
     formState.timeFrom = timeFromEl.value;
     updateDailyHoursField();
+    refreshTrainerScheduleUI();
   });
 
   timeToEl?.addEventListener("change", () => {
     formState.timeTo = timeToEl.value;
     updateDailyHoursField();
+    refreshTrainerScheduleUI();
   });
 
   availableFromEl?.addEventListener("change", () => {
     formState.availableFrom = availableFromEl.value;
+    refreshTrainerScheduleUI();
   });
 
   availableUntilEl?.addEventListener("change", () => {
     formState.availableUntil = availableUntilEl.value;
-  });
-
-  assessmentAtEl?.addEventListener("change", () => {
-    formState.assessmentAt = assessmentAtEl.value;
-  });
-
-  examinerNameEl?.addEventListener("input", () => {
-    formState.examinerName = examinerNameEl.value;
-  });
-
-  examinationCourseEl?.addEventListener("change", () => {
-    formState.examinationCourse = examinationCourseEl.value;
+    refreshTrainerScheduleUI();
   });
 
   trainerEl?.addEventListener("change", () => {
@@ -834,6 +808,7 @@ document.addEventListener("DOMContentLoaded", () => {
       (t) => t.id === formState.trainerId
     );
     formState.trainerName = selected?.name || "";
+    updateScheduleConflictNotice();
   });
 
   templateForm?.addEventListener("submit", async (e) => {
@@ -849,9 +824,6 @@ document.addEventListener("DOMContentLoaded", () => {
       dailyHours: computeDailyHours(formState.timeFrom, formState.timeTo),
       availableFrom: formState.availableFrom,
       availableUntil: formState.availableUntil,
-      assessmentAt: formState.assessmentAt,
-      examinerName: formState.examinerName,
-      examinationCourse: formState.examinationCourse,
       trainerId: formState.trainerId,
       trainerName: formState.trainerName,
       courseId: course.id,
@@ -859,96 +831,28 @@ document.addEventListener("DOMContentLoaded", () => {
       createdAt: new Date().toISOString(),
     };
     template.name = templateDisplayTitle(template);
+    const draft = getDraftForCourse(course.id);
     if (isPersistedTemplateId(editingTemplateId)) {
       template.id = editingTemplateId;
+    } else if (draft && isPersistedTemplateId(draft.id)) {
+      template.id = draft.id;
     }
     try {
       const saved = await upsertTemplateForCourse(course.id, template);
       const list = getTemplatesForCourse(course.id);
-      const replaceId = editingTemplateId || saved.id;
+      const replaceId = template.id || saved.id;
       const idx = list.findIndex(
         (t) => t.id === replaceId || t.id === saved.id
       );
       if (idx >= 0) list[idx] = saved;
-      else list.push(saved);
+      else list.unshift(saved);
       setTemplatesForCourse(course.id, list);
-      resetForm();
-      renderSavedTemplates();
+      loadTemplateIntoForm(saved);
+      refreshTrainerScheduleUI();
       renderCourseCards();
+      showScheduleSavedConfirm({ courseName: course.name });
     } catch (err) {
-      window.alert(err.message || "Could not save template.");
-    }
-  });
-
-  templatesListEl?.addEventListener("click", (e) => {
-    const course = selectedCourse();
-    if (!course) return;
-
-    const editBtn = e.target.closest("[data-edit-template]");
-    const finalizeBtn = e.target.closest("[data-finalize-template]");
-    const deleteBtn = e.target.closest("[data-delete-template]");
-
-    if (editBtn) {
-      const tpl = getTemplatesForCourse(course.id).find((t) => t.id === editBtn.dataset.editTemplate);
-      if (tpl?.status === "finalized") {
-        window.alert("This batch is finalized. View it in Finalized Batches.");
-        return;
-      }
-      if (tpl) loadTemplateIntoForm(tpl);
-      return;
-    }
-
-    if (finalizeBtn) {
-      if (finalizeBtn.disabled) {
-        window.alert(
-          `At least ${MIN_STUDENTS_TO_FINALIZE} unassigned students are required before finalizing. Save draft templates anytime; finalize when enough students are available.`
-        );
-        return;
-      }
-      const templateId = finalizeBtn.dataset.finalizeTemplate;
-      const tpl = getTemplatesForCourse(course.id).find((t) => t.id === templateId);
-      if (!tpl) return;
-      const availableCount = activeBatchStudentCount(course);
-      if (availableCount < MIN_STUDENTS_TO_FINALIZE) {
-        window.alert(
-          `This course has ${availableCount} unassigned student${availableCount === 1 ? "" : "s"}. At least ${MIN_STUDENTS_TO_FINALIZE} are required to finalize.`
-        );
-        return;
-      }
-      const batchPayload = {
-        courseName: course.name,
-        batchLabel: tpl.batchLabel || "Batch 1",
-        studentCount: tpl.studentCount ?? activeBatchStudentCount(course),
-      };
-      showFinalizeBatchConfirm(batchPayload, async () => {
-        await finalizeTemplateForCourse(course.id, templateId);
-        if (editingTemplateId === templateId) resetForm();
-        renderSavedTemplates();
-        renderCourseCards();
-      });
-      return;
-    }
-
-    if (deleteBtn) {
-      const deleteId = deleteBtn.dataset.deleteTemplate;
-      if (!isPersistedTemplateId(deleteId)) {
-        setTemplatesForCourse(
-          course.id,
-          getTemplatesForCourse(course.id).filter((t) => t.id !== deleteId)
-        );
-        if (editingTemplateId === deleteId) resetForm();
-        renderSavedTemplates();
-        renderCourseCards();
-        return;
-      }
-      if (!window.confirm("Delete this schedule template?")) return;
-      deleteTemplateForCourse(course.id, deleteId)
-        .then(() => {
-          if (editingTemplateId === deleteId) resetForm();
-          renderSavedTemplates();
-          renderCourseCards();
-        })
-        .catch((err) => window.alert(err.message || "Could not delete template."));
+      window.alert(err.message || "Could not save schedule.");
     }
   });
 
@@ -974,13 +878,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const templateParam = urlParams.get("template");
   if (courseParam && getCourse(courseParam)) {
-    showDetail(courseParam);
+    showDetail(courseParam, { loadDraft: !templateParam });
     if (templateParam) {
       const tpl = getTemplatesForCourse(courseParam).find((t) => t.id === templateParam);
       if (tpl?.status === "finalized") {
-        window.alert("This batch is already finalized and cannot be edited.");
+        window.alert("This batch is finalized. View it on Finalized Batches.");
+        loadDraftForSelectedCourse();
       } else if (tpl) {
         loadTemplateIntoForm(tpl);
+      } else {
+        loadDraftForSelectedCourse();
       }
     }
   }

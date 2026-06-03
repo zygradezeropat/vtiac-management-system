@@ -103,9 +103,6 @@ export function createEmptyTemplateForm() {
     timeTo: "12:00",
     availableFrom: "",
     availableUntil: "",
-    assessmentAt: "",
-    examinerName: "",
-    examinationCourse: "",
     trainerId: "",
     trainerName: "",
   };
@@ -115,4 +112,67 @@ export function daysForScheduleType(scheduleType) {
   if (scheduleType === "weekdays") return [...WEEKDAY_CODES];
   if (scheduleType === "weekends") return [...WEEKEND_CODES];
   return [];
+}
+
+/** Effective day codes for conflict checks (matches registrar batching API). */
+export function effectiveScheduleDays(scheduleType, days) {
+  const stype = String(scheduleType || "").trim().toLowerCase();
+  if (stype === "weekdays") return new Set(WEEKDAY_CODES);
+  if (stype === "weekends") return new Set(WEEKEND_CODES);
+  return new Set(
+    (Array.isArray(days) ? days : [])
+      .map((d) => String(d).trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function parseTime24(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const [h, m] = raw.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+function dateRangesOverlap(fromA, untilA, fromB, untilB) {
+  if (!fromA || !untilA || !fromB || !untilB) return true;
+  return fromA <= untilB && fromB <= untilA;
+}
+
+/** True when two class schedules overlap (days, times, and date range). */
+export function schedulesConflict(a, b) {
+  if (!dateRangesOverlap(a.availableFrom, a.availableUntil, b.availableFrom, b.availableUntil)) {
+    return false;
+  }
+  const daysA = effectiveScheduleDays(a.scheduleType, a.days);
+  const daysB = effectiveScheduleDays(b.scheduleType, b.days);
+  let shared = false;
+  for (const d of daysA) {
+    if (daysB.has(d)) {
+      shared = true;
+      break;
+    }
+  }
+  if (!shared) return false;
+
+  const startA = parseTime24(a.timeFrom);
+  const endA = parseTime24(a.timeTo);
+  const startB = parseTime24(b.timeFrom);
+  const endB = parseTime24(b.timeTo);
+  if (startA == null || endA == null || startB == null || endB == null) return true;
+  return startA < endB && startB < endA;
+}
+
+export function trainerMatchesBatch(trainer, batch) {
+  if (!trainer || !batch) return false;
+  if (batch.trainerId && String(trainer.id) === String(batch.trainerId)) return true;
+  const a = String(trainer.name || "").trim().toLowerCase();
+  const b = String(batch.trainerName || batch.trainer || "").trim().toLowerCase();
+  return Boolean(a && b && a === b);
+}
+
+export function formatBatchConflictLabel(batch) {
+  const course = batch.courseName || "another program";
+  const label = batch.batchLabel || "Batch 1";
+  return `${course} (${label})`;
 }
