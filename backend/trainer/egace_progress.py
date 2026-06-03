@@ -209,6 +209,42 @@ def _batch_info(
     return {"batchId": _batch_filter_id(program, "Unassigned"), "batchLabel": "Unassigned"}
 
 
+def grade_payload_for_registration(reg: StudentRegistration) -> dict | None:
+    """Latest trainer grading payload for an approved registration, if any."""
+    program = (reg.selected_program or "").strip()
+    if not program:
+        return None
+    by_key, by_name_program = _latest_grades_index()
+    grade = _grade_for_registration(reg, program, by_key, by_name_program)
+    if grade and isinstance(grade.payload, dict):
+        return grade.payload
+    return None
+
+
+def registration_needs_national_assessment(
+    reg: StudentRegistration, payload: dict | None = None
+) -> bool:
+    """
+    True when this student should appear on National Competency batching.
+
+    Assessment-only clients always use national batching for their program.
+    Training students appear when institutional training is complete (Graduate)
+    but national assessment is not yet Competent.
+    """
+    program = (reg.selected_program or "").strip()
+    if not program:
+        return False
+    if reg.program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
+        return True
+    if reg.program_type != StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT:
+        return False
+    if payload is None:
+        payload = grade_payload_for_registration(reg)
+    return student_is_graduate(payload, program) and not student_is_assessment_competent(
+        payload
+    )
+
+
 def _grade_for_registration(
     reg: StudentRegistration,
     program: str,

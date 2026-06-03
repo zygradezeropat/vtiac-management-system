@@ -223,18 +223,15 @@ function getCsrfToken() {
 }
 
 function batchingCourseCategory(course) {
-  let fromServer = course?.category;
+  if (course?.batchKind === "national_assessment") {
+    return "national";
+  }
+  const fromServer = course?.category;
   if (fromServer === "assessment") {
-    fromServer = "national";
+    return "national";
   }
   if (fromServer && BATCH_CATEGORY_TABS.some((t) => t.key === fromServer)) {
     return fromServer;
-  }
-  const name = String(course?.name || "").trim();
-  if (!name) return "institutional";
-  const lower = name.toLowerCase();
-  if (lower === "assessment" || lower === "competency assessment" || lower.includes("assessment")) {
-    return "national";
   }
   return "institutional";
 }
@@ -277,6 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const placeholderEl = document.getElementById("batching-placeholder");
   const detailEl = document.getElementById("batching-detail");
   const detailTitleEl = document.getElementById("batching-detail-title");
+  const detailSubtitleEl = document.getElementById("batching-detail-subtitle");
   const durationBadgeEl = document.getElementById("batching-duration-badge");
   const closeBtn = document.getElementById("batching-detail-close");
 
@@ -326,8 +324,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /** Latest editable draft for this course (templates are ordered newest first). */
   function getDraftForCourse(courseId) {
+    const course = getCourse(courseId);
+    const kind = course?.batchKind || "training";
     return (
-      getTemplatesForCourse(courseId).find((t) => t.status !== "finalized") || null
+      getTemplatesForCourse(courseId).find(
+        (t) => t.status !== "finalized" && (t.batchKind || "training") === kind
+      ) || null
     );
   }
 
@@ -338,6 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     body.set("course_id", courseId);
     body.set("course_name", template.courseName || "");
+    body.set("batch_kind", template.batchKind || "training");
     body.set("name", template.name || "");
     body.set("schedule_type", template.scheduleType || "");
     (template.days || []).forEach((d) => body.append("days", d));
@@ -609,6 +612,7 @@ document.addEventListener("DOMContentLoaded", () => {
       availableUntil: template.availableUntil || "",
       trainerId: template.trainerId || "",
       trainerName: template.trainerName || "",
+      batchKind: template.batchKind || "training",
     };
     applyFormToInputs();
   }
@@ -731,10 +735,18 @@ document.addEventListener("DOMContentLoaded", () => {
     placeholderEl?.classList.add("d-none");
     detailEl?.classList.remove("d-none");
     if (detailTitleEl) detailTitleEl.textContent = course.name;
+    const isNational = batchingCourseCategory(course) === "national";
+    if (detailSubtitleEl) {
+      detailSubtitleEl.textContent = isNational
+        ? "National competency assessment schedule (assessment-only clients and EGACE graduates pending assessment)."
+        : "Class training schedule for this program.";
+    }
 
     const days = courseDurationDays(course);
     if (durationBadgeEl) {
-      durationBadgeEl.textContent = `${days} training day${days === 1 ? "" : "s"}`;
+      durationBadgeEl.textContent = isNational
+        ? "National assessment"
+        : `${days} training day${days === 1 ? "" : "s"}`;
       durationBadgeEl.classList.remove("d-none");
     }
 
@@ -828,6 +840,7 @@ document.addEventListener("DOMContentLoaded", () => {
       trainerName: formState.trainerName,
       courseId: course.id,
       courseName: course.name,
+      batchKind: course.batchKind || "training",
       createdAt: new Date().toISOString(),
     };
     template.name = templateDisplayTitle(template);

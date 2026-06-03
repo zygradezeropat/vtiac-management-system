@@ -44,7 +44,7 @@ REGISTRAR_MODULES = {
         "label": "Batching & Scheduling",
         "icon_bi": "bi-calendar-week",
         "title": "Batching & Scheduling Management",
-        "subtitle": "View program batches and save class schedules",
+        "subtitle": "Institutional training schedules and national competency (EGACE) assessment batches",
         "template": "registrar/batching_scheduling.html",
     },
     "finalized-batches": {

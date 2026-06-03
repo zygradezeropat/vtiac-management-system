@@ -11,6 +11,10 @@ class RegistrarScheduleTemplate(models.Model):
         DRAFT = "draft", "Draft"
         FINALIZED = "finalized", "Finalized"
 
+    class BatchKind(models.TextChoices):
+        TRAINING = "training", "Training"
+        NATIONAL_ASSESSMENT = "national_assessment", "National assessment"
+
     course_id = models.CharField(max_length=80, db_index=True)
     course_name = models.CharField(max_length=200)
     name = models.CharField(max_length=200, blank=True)
@@ -33,6 +37,12 @@ class RegistrarScheduleTemplate(models.Model):
     )
     trainer_name = models.CharField(max_length=150, blank=True)
     batch_label = models.CharField(max_length=64, default="Batch 1")
+    batch_kind = models.CharField(
+        max_length=32,
+        choices=BatchKind.choices,
+        default=BatchKind.TRAINING,
+        db_index=True,
+    )
     status = models.CharField(
         max_length=16,
         choices=Status.choices,

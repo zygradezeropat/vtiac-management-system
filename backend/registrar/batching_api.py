@@ -16,6 +16,8 @@ from backend.trainer.models import TrainerAccountRequest
 
 from .batching_student_pool import available_students_for_course
 from .models import RegistrarScheduleTemplate
+
+BatchKind = RegistrarScheduleTemplate.BatchKind
 from .services import REGISTRAR_ROLE
 
 MIN_STUDENTS_TO_FINALIZE = 3
@@ -50,24 +52,8 @@ DEFAULT_BATCHING_COURSES = (
     "Assessment",
 )
 
-BATCHING_CATEGORY_ASSESSMENT = "assessment"
 BATCHING_CATEGORY_INSTITUTIONAL = "institutional"
 BATCHING_CATEGORY_NATIONAL = "national"
-
-
-def batching_course_category(name: str) -> str:
-    """Classify a program for registrar batching tabs.
-
-    Institutional: training programs (including NC I/II/III qualifications).
-    National: assessment-only programs.
-    """
-    text = (name or "").strip()
-    if not text:
-        return BATCHING_CATEGORY_INSTITUTIONAL
-    lower = text.lower()
-    if lower in ("assessment", "competency assessment") or "assessment" in lower:
-        return BATCHING_CATEGORY_NATIONAL
-    return BATCHING_CATEGORY_INSTITUTIONAL
 
 
 def _course_catalog():
@@ -94,31 +80,60 @@ def _course_catalog():
     return sorted(out)
 
 
-def _course_id(name: str) -> str:
-    return slugify(name)[:80] or "course"
+def _course_id(name: str, *, batch_kind: str = BatchKind.TRAINING) -> str:
+    base = slugify(name)[:80] or "course"
+    if batch_kind == BatchKind.NATIONAL_ASSESSMENT:
+        suffix = "-national-assessment"
+        return f"{base[: max(1, 80 - len(suffix))]}{suffix}"
+    return base
 
 
 def batching_courses_payload():
     courses = []
     for name in _course_catalog():
-        cid = _course_id(name)
-        available = available_students_for_course(name)
-        courses.append(
-            {
-                "id": cid,
-                "name": name,
-                "category": batching_course_category(name),
-                "durationDays": COURSE_DURATIONS.get(name, 0),
-                "batches": [
-                    {
-                        "id": "b1",
-                        "label": "Batch 1",
-                        "studentCount": len(available),
-                        "students": available,
-                    }
-                ],
-            }
+        training_students = available_students_for_course(
+            name, batch_kind=BatchKind.TRAINING
         )
+        if training_students:
+            courses.append(
+                {
+                    "id": _course_id(name, batch_kind=BatchKind.TRAINING),
+                    "name": name,
+                    "category": BATCHING_CATEGORY_INSTITUTIONAL,
+                    "batchKind": BatchKind.TRAINING.value,
+                    "durationDays": COURSE_DURATIONS.get(name, 0),
+                    "batches": [
+                        {
+                            "id": "b1",
+                            "label": "Batch 1",
+                            "studentCount": len(training_students),
+                            "students": training_students,
+                        }
+                    ],
+                }
+            )
+
+        national_students = available_students_for_course(
+            name, batch_kind=BatchKind.NATIONAL_ASSESSMENT
+        )
+        if national_students:
+            courses.append(
+                {
+                    "id": _course_id(name, batch_kind=BatchKind.NATIONAL_ASSESSMENT),
+                    "name": name,
+                    "category": BATCHING_CATEGORY_NATIONAL,
+                    "batchKind": BatchKind.NATIONAL_ASSESSMENT.value,
+                    "durationDays": COURSE_DURATIONS.get(name, 1),
+                    "batches": [
+                        {
+                            "id": "b1",
+                            "label": "Batch 1",
+                            "studentCount": len(national_students),
+                            "students": national_students,
+                        }
+                    ],
+                }
+            )
     return courses
 
 
@@ -240,9 +255,11 @@ def _conflicting_finalized_batch(
     return None
 
 
-def _students_for_course(course_name: str) -> list[dict]:
-    """Students eligible to be placed in the next batch (excludes scheduled / in training)."""
-    return available_students_for_course(course_name)
+def _students_for_course(
+    course_name: str, *, batch_kind: str = BatchKind.TRAINING
+) -> list[dict]:
+    """Students eligible to be placed in the next batch."""
+    return available_students_for_course(course_name, batch_kind=batch_kind)
 
 
 def _students_for_template(t: RegistrarScheduleTemplate) -> list[dict]:
@@ -250,7 +267,7 @@ def _students_for_template(t: RegistrarScheduleTemplate) -> list[dict]:
         t.students_snapshot, list
     ):
         return t.students_snapshot
-    return _students_for_course(t.course_name)
+    return _students_for_course(t.course_name, batch_kind=t.batch_kind)
 
 
 def _serialize_template(t: RegistrarScheduleTemplate):
@@ -270,6 +287,12 @@ def _serialize_template(t: RegistrarScheduleTemplate):
         "trainerId": str(t.trainer_request_id) if t.trainer_request_id else "",
         "trainerName": t.trainer_name or "",
         "batchLabel": t.batch_label or "Batch 1",
+        "batchKind": t.batch_kind or BatchKind.TRAINING.value,
+        "category": (
+            BATCHING_CATEGORY_NATIONAL
+            if t.batch_kind == BatchKind.NATIONAL_ASSESSMENT
+            else BATCHING_CATEGORY_INSTITUTIONAL
+        ),
         "status": t.status,
         "finalizedAt": t.finalized_at.isoformat() if t.finalized_at else "",
         "durationDays": COURSE_DURATIONS.get(t.course_name, 0),
@@ -307,6 +330,8 @@ def _serialize_batch_card(t: RegistrarScheduleTemplate):
         "status": data["status"],
         "finalizedAt": data["finalizedAt"],
         "name": data["name"],
+        "batchKind": data["batchKind"],
+        "category": data["category"],
     }
 
 
@@ -351,7 +376,7 @@ def batching_template_finalize(request, template_id):
     if obj.status == RegistrarScheduleTemplate.Status.FINALIZED:
         return JsonResponse({"error": "This batch is already finalized."}, status=400)
 
-    students = _students_for_course(obj.course_name)
+    students = _students_for_course(obj.course_name, batch_kind=obj.batch_kind)
     if len(students) < MIN_STUDENTS_TO_FINALIZE:
         return JsonResponse(
             {
@@ -439,8 +464,13 @@ def batching_template_upsert(request):
     if obj is None:
         obj = RegistrarScheduleTemplate(created_by=request.user)
 
+    batch_kind = (data.get("batch_kind") or BatchKind.TRAINING).strip()
+    if batch_kind not in {BatchKind.TRAINING, BatchKind.NATIONAL_ASSESSMENT}:
+        batch_kind = BatchKind.TRAINING
+
     obj.course_id = course_id
     obj.course_name = course_name
+    obj.batch_kind = batch_kind
     obj.name = data.get("name", "").strip()
     obj.schedule_type = data.get("schedule_type", "").strip()
     obj.days = data.getlist("days")
