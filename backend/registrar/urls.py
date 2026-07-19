@@ -84,4 +84,5 @@ urlpatterns = [
         batching_template_delete,
         name="registrar_batching_template_delete",
     ),
+
 ]

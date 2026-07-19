@@ -733,8 +733,8 @@ def student_enrollment_context(request):
     return _student_portal_base(
         request,
         active_menu="Enrollment",
-        page_title="Enrollment Process",
-        page_subtitle="Complete your enrollment step by step",
+        page_title="Registration Process",
+        page_subtitle="Complete your registration step by step",
         enrollment_step_label=(
             "Step 1: TESDA Application Form"
             if is_assessment_only

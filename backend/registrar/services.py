@@ -221,7 +221,21 @@ def module_page_context(module, request=None):
     if module == "dashboard":
         from .dashboard_stats import registrar_dashboard_stats
 
-        ctx["registrar_dashboard_stats"] = registrar_dashboard_stats()
+        year = ""
+        start = ""
+        end = ""
+        if request is not None:
+            year = (request.GET.get("year") or "").strip()
+            start = (request.GET.get("start_date") or "").strip()
+            end = (request.GET.get("end_date") or "").strip()
+        stats = registrar_dashboard_stats(
+            year=year or None,
+            start_date=start or None,
+            end_date=end or None,
+        )
+        ctx["registrar_dashboard_stats"] = stats
+        ctx["dashboard_filter_start"] = stats.get("filterStart") or start
+        ctx["dashboard_filter_end"] = stats.get("filterEnd") or end
     return ctx
 
 

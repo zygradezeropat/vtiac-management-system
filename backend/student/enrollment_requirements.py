@@ -257,8 +257,8 @@ def student_enrollment_requirements_context(request):
     return _student_portal_base(
         request,
         active_menu="Enrollment",
-        page_title="Enrollment Process",
-        page_subtitle="Complete your enrollment step by step",
+        page_title="Registration Process",
+        page_subtitle="Complete your registration step by step",
         progress_percent=progress,
         enrollment_step_label="Step 2: Upload Requirements",
         enrollment_step_icon="bi-cloud-upload",

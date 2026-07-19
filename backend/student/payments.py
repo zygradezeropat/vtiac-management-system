@@ -137,8 +137,8 @@ def student_enrollment_pending_context(request):
     return _student_portal_base(
         request,
         active_menu="Enrollment",
-        page_title="Enrollment Process",
-        page_subtitle="Complete your enrollment step by step",
+        page_title="Registration Process",
+        page_subtitle="Complete your registration step by step",
         progress_percent=enrollment_progress_percent(profile),
         awaiting_registrar=awaiting_registrar,
         awaiting_document_approval=awaiting_document_approval,

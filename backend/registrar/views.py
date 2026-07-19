@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-
+from django.http import JsonResponse
 from backend.accounts.services import require_portal_access
 
 from .services import (
@@ -11,11 +11,14 @@ from .services import (
 )
 
 
+
 @login_required(login_url="/")
 def dashboard_redirect(request):
     denied = require_portal_access(request, REGISTRAR_ROLE)
     if denied:
         return denied
+
+    
     return redirect("registrar_module", module="dashboard")
 
 
@@ -24,6 +27,7 @@ def module_page(request, module):
     denied = require_portal_access(request, REGISTRAR_ROLE)
     if denied:
         return denied
+
 
     module = normalize_module(module)
     return render(

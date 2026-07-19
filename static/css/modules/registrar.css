@@ -401,6 +401,20 @@
   color: #1d4ed8;
 }
 
+.registrar-year-select {
+  border: none;
+  cursor: pointer;
+  appearance: auto;
+  line-height: 1.2;
+  padding-right: 0.5rem;
+  padding-left: 0.625rem;
+}
+
+.registrar-year-select:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 .registrar-pill--success {
   background: #dcfce7;
   color: #047857;
