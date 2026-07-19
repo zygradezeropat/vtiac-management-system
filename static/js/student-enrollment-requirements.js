@@ -83,6 +83,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let pendingRejectedDocType = "";
 
   document.querySelectorAll(".student-req-upload-form").forEach((form) => {
+    if (form.dataset.approved === "1") return;
+
     const fileInput = form.querySelector(".student-req-file-input");
     if (!fileInput) return;
 

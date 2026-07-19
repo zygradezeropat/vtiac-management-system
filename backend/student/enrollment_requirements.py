@@ -92,6 +92,11 @@ def build_requirements_rows(profile):
             filename = ""
             file_url = ""
             uploaded = False
+        is_approved = bool(
+            doc
+            and doc.registrar_status
+            == StudentEnrollmentProfile.PhotoRegistrarStatus.APPROVED
+        )
         rows.append(
             {
                 **spec,
@@ -106,6 +111,7 @@ def build_requirements_rows(profile):
                     and doc.registrar_status
                     == StudentEnrollmentProfile.PhotoRegistrarStatus.REJECTED
                 ),
+                "is_approved": is_approved,
             }
         )
     return rows
@@ -123,6 +129,14 @@ def save_enrollment_document(profile, document_type, uploaded_file, id_type=""):
         valid_ids = {c[0] for c in ID_TYPE_CHOICES}
         if id_type not in valid_ids:
             raise ValueError("Please select a valid ID type.")
+
+    existing = profile.documents.filter(document_type=document_type).first()
+    if (
+        existing
+        and existing.registrar_status
+        == StudentEnrollmentProfile.PhotoRegistrarStatus.APPROVED
+    ):
+        raise ValueError("This document was already approved and cannot be changed.")
 
     doc, _created = StudentEnrollmentDocument.objects.get_or_create(
         profile=profile,
