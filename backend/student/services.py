@@ -44,6 +44,7 @@ STUDENT_SIDEBAR = (
     {"label": "Dashboard", "icon_bi": "bi-house", "route_name": "student_dashboard"},
     {"label": "Enrollment", "icon_bi": "bi-journal-bookmark", "route_name": "student_enrollment"},
     {"label": "My Profile", "icon_bi": "bi-person-vcard", "route_name": "student_my_profile"},
+    {"label": "Trainer Evaluation", "icon_bi": "bi-person-check", "route_name": "student_trainer_evaluation"},
     {"label": "Payments", "icon_bi": "bi-credit-card", "route_name": "student_payments"},
     {"label": "Documents", "icon_bi": "bi-file-earmark-text", "route_name": "student_documents"},
     {"label": "Settings", "icon_bi": "bi-gear", "route_name": "student_settings"},
@@ -885,6 +886,28 @@ def student_dashboard_context(request=None):
         "enrollment_steps": enrollment_steps,
         "announcements": announcements,
         **schedule_ctx,
+        **base,
+    }
+
+def student_trainer_evaluation_context(request):
+    """
+    Context for the Student Trainer Evaluation page.
+    """
+
+    base = _student_portal_base(
+        request,
+        active_menu="Trainer Evaluation",
+        page_title="Trainer Evaluation",
+        page_subtitle="Help us improve our training programs by evaluating your trainer.",
+    )
+
+    return {
+        # Temporary placeholder data
+        "trainer_name": "Juan Dela Cruz",
+        "program": "Automotive Servicing NC I",
+        "batch": "Morning Batch A",
+        "training_schedule": "July 1 - July 20, 2026",
+
         **base,
     }
 

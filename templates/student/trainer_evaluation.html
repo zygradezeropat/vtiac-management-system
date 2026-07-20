@@ -1,0 +1,267 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header mb-4">
+    <div>
+        <h1 class="student-page-title">Trainer Evaluation</h1>
+        <p class="student-page-subtitle">
+            Help us improve our training programs by evaluating your trainer.
+        </p>
+    </div>
+</header>
+
+<!-- Training Information -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-person-workspace me-2"></i>
+            Training Information
+        </h5>
+    </div>
+
+    <div class="card-body">
+
+        <div class="row">
+
+            <div class="col-md-6 mb-3">
+                <label class="text-muted small">Trainer</label>
+                <h6>Juan Dela Cruz</h6>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="text-muted small">Program</label>
+                <h6>Automotive Servicing NC I</h6>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="text-muted small">Batch</label>
+                <h6>Morning Batch A</h6>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <label class="text-muted small">Training Schedule</label>
+                <h6>July 1 - July 20, 2026</h6>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- Evaluation Card -->
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-clipboard-check me-2"></i>
+            Trainer Evaluation
+        </h5>
+    </div>
+
+    <div class="card-body">
+
+        <div class="alert alert-light border">
+
+            <strong>Instructions</strong>
+
+            <p class="mb-2 mt-2">
+                Please evaluate your trainer by selecting one rating for every statement.
+            </p>
+
+            <div class="row text-center">
+
+                <div class="col"><strong>5</strong><br>Excellent</div>
+                <div class="col"><strong>4</strong><br>Very Good</div>
+                <div class="col"><strong>3</strong><br>Good</div>
+                <div class="col"><strong>2</strong><br>Fair</div>
+                <div class="col"><strong>1</strong><br>Poor</div>
+
+            </div>
+
+        </div>
+
+        <div class="table-responsive">
+
+            <table class="table table-bordered align-middle">
+
+                <thead class="table-light text-center">
+
+                    <tr>
+
+                        <th class="text-start" width="55%">
+                            Evaluation Criteria
+                        </th>
+
+                        <th>1</th>
+                        <th>2</th>
+                        <th>3</th>
+                        <th>4</th>
+                        <th>5</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>
+                            Trainer arrives on time.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q1"></td>
+                        <td class="text-center"><input type="radio" name="q1"></td>
+                        <td class="text-center"><input type="radio" name="q1"></td>
+                        <td class="text-center"><input type="radio" name="q1"></td>
+                        <td class="text-center"><input type="radio" name="q1"></td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Trainer is prepared for every session.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q2"></td>
+                        <td class="text-center"><input type="radio" name="q2"></td>
+                        <td class="text-center"><input type="radio" name="q2"></td>
+                        <td class="text-center"><input type="radio" name="q2"></td>
+                        <td class="text-center"><input type="radio" name="q2"></td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Trainer explains lessons clearly.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q3"></td>
+                        <td class="text-center"><input type="radio" name="q3"></td>
+                        <td class="text-center"><input type="radio" name="q3"></td>
+                        <td class="text-center"><input type="radio" name="q3"></td>
+                        <td class="text-center"><input type="radio" name="q3"></td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Trainer answers questions effectively.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q4"></td>
+                        <td class="text-center"><input type="radio" name="q4"></td>
+                        <td class="text-center"><input type="radio" name="q4"></td>
+                        <td class="text-center"><input type="radio" name="q4"></td>
+                        <td class="text-center"><input type="radio" name="q4"></td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Trainer demonstrates mastery of the subject.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q5"></td>
+                        <td class="text-center"><input type="radio" name="q5"></td>
+                        <td class="text-center"><input type="radio" name="q5"></td>
+                        <td class="text-center"><input type="radio" name="q5"></td>
+                        <td class="text-center"><input type="radio" name="q5"></td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Trainer treats students with respect.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q6"></td>
+                        <td class="text-center"><input type="radio" name="q6"></td>
+                        <td class="text-center"><input type="radio" name="q6"></td>
+                        <td class="text-center"><input type="radio" name="q6"></td>
+                        <td class="text-center"><input type="radio" name="q6"></td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Trainer encourages participation.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q7"></td>
+                        <td class="text-center"><input type="radio" name="q7"></td>
+                        <td class="text-center"><input type="radio" name="q7"></td>
+                        <td class="text-center"><input type="radio" name="q7"></td>
+                        <td class="text-center"><input type="radio" name="q7"></td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>
+                            Overall satisfaction with the trainer.
+                        </td>
+
+                        <td class="text-center"><input type="radio" name="q8"></td>
+                        <td class="text-center"><input type="radio" name="q8"></td>
+                        <td class="text-center"><input type="radio" name="q8"></td>
+                        <td class="text-center"><input type="radio" name="q8"></td>
+                        <td class="text-center"><input type="radio" name="q8"></td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Comments -->
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-chat-left-text me-2"></i>
+            Additional Comments
+        </h5>
+    </div>
+
+    <div class="card-body">
+
+        <textarea
+            class="form-control"
+            rows="5"
+            placeholder="Write your comments or suggestions here..."></textarea>
+
+    </div>
+
+</div>
+
+<!-- Buttons -->
+<div class="d-flex justify-content-end gap-2 mb-5">
+
+    <button class="btn btn-outline-secondary">
+        Cancel
+    </button>
+
+    <button class="btn btn-success">
+        Submit Evaluation
+    </button>
+
+</div>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}

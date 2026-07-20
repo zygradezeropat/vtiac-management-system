@@ -46,4 +46,9 @@ urlpatterns = [
         document_views.document_download,
         name="student_document_download",
     ),
+    path(
+        "dashboard/student/trainer-evaluation/",
+        views.trainer_evaluation,
+        name="student_trainer_evaluation",
+    ),
 ]

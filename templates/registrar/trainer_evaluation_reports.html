@@ -1,0 +1,305 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+
+<header class="registrar-page-header mb-4">
+    <div>
+        <h1 class="registrar-page-title">Trainer Evaluations</h1>
+        <p class="registrar-page-subtitle">
+            Monitor trainer performance based on student evaluations.
+        </p>
+    </div>
+</header>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Trainers</h6>
+                <h2 class="fw-bold">12</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Evaluated</h6>
+                <h2 class="fw-bold text-success">10</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Average Rating</h6>
+                <h2 class="fw-bold text-warning">4.8 ★</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body text-center">
+                <h6 class="text-muted">Total Evaluations</h6>
+                <h2 class="fw-bold">186</h2>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white">
+        <strong>Filters</strong>
+    </div>
+
+    <div class="card-body">
+
+        <div class="row g-3">
+
+            <div class="col-md-3">
+                <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Search trainer">
+            </div>
+
+            <div class="col-md-3">
+                <select class="form-select">
+                    <option>All Programs</option>
+                    <option>Automotive NC I</option>
+                    <option>SMAW NC II</option>
+                    <option>Dressmaking NC II</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <select class="form-select">
+                    <option>All Batches</option>
+                    <option>Morning</option>
+                    <option>Afternoon</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <button class="btn btn-success w-100">
+                    Apply Filter
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Trainer Evaluation Table -->
+<div class="card shadow-sm border-0">
+
+    <div class="card-header bg-white">
+        <strong>Trainer Performance</strong>
+    </div>
+
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle">
+
+                <thead class="table-light">
+
+                    <tr>
+                        <th>Trainer</th>
+                        <th>Program</th>
+                        <th>Batch</th>
+                        <th class="text-center">Students</th>
+                        <th class="text-center">Rating</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>Juan Dela Cruz</td>
+                        <td>Automotive Servicing NC I</td>
+                        <td>Morning A</td>
+                        <td class="text-center">30</td>
+                        <td class="text-center">
+                            <span class="badge bg-success">
+                                ★ 4.9
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <button
+                                class="btn btn-outline-primary btn-sm"
+                                data-bs-toggle="modal"
+                                data-bs-target="#evaluationModal">
+                                View
+                            </button>
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Maria Santos</td>
+                        <td>SMAW NC II</td>
+                        <td>Afternoon B</td>
+                        <td class="text-center">25</td>
+                        <td class="text-center">
+                            <span class="badge bg-success">
+                                ★ 4.8
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <button
+                                class="btn btn-outline-primary btn-sm"
+                                data-bs-toggle="modal"
+                                data-bs-target="#evaluationModal">
+                                View
+                            </button>
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Pedro Reyes</td>
+                        <td>Dressmaking NC II</td>
+                        <td>Weekend</td>
+                        <td class="text-center">18</td>
+                        <td class="text-center">
+                            <span class="badge bg-warning text-dark">
+                                ★ 4.5
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <button
+                                class="btn btn-outline-primary btn-sm"
+                                data-bs-toggle="modal"
+                                data-bs-target="#evaluationModal">
+                                View
+                            </button>
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Evaluation Details Modal -->
+<div
+    class="modal fade"
+    id="evaluationModal"
+    tabindex="-1">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">
+                    Trainer Evaluation Details
+                </h5>
+
+                <button
+                    class="btn-close"
+                    data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <h5>Juan Dela Cruz</h5>
+
+                <hr>
+
+                <table class="table">
+
+                    <tbody>
+
+                        <tr>
+                            <td>Professionalism</td>
+                            <td class="text-end fw-bold">4.9</td>
+                        </tr>
+
+                        <tr>
+                            <td>Teaching Skills</td>
+                            <td class="text-end fw-bold">4.8</td>
+                        </tr>
+
+                        <tr>
+                            <td>Communication</td>
+                            <td class="text-end fw-bold">4.9</td>
+                        </tr>
+
+                        <tr>
+                            <td>Knowledge</td>
+                            <td class="text-end fw-bold">5.0</td>
+                        </tr>
+
+                        <tr>
+                            <td>Time Management</td>
+                            <td class="text-end fw-bold">4.8</td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+                <hr>
+
+                <h6>Recent Anonymous Feedback</h6>
+
+                <div class="border rounded p-3 mb-3">
+                    Very patient and explains lessons clearly.
+                </div>
+
+                <div class="border rounded p-3 mb-3">
+                    Excellent trainer. Highly recommended.
+                </div>
+
+                <div class="border rounded p-3">
+                    More hands-on activities would be appreciated.
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal">
+                    Close
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}

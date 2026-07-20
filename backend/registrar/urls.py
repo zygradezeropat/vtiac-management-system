@@ -84,5 +84,10 @@ urlpatterns = [
         batching_template_delete,
         name="registrar_batching_template_delete",
     ),
+    path(
+        "registrar/trainer-evaluations/",
+        views.trainer_evaluations,
+        name="registrar_trainer_evaluations",
+    ),
 
 ]

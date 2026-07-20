@@ -1,0 +1,172 @@
+{% extends "trainer/base.html" %}
+{% load static %}
+
+{% block body %}
+{% include "components/trainer/layout_start.html" %}
+
+<header class="trainer-page-header mb-4">
+    <div>
+        <h1 class="trainer-page-title">
+            Trainer Evaluations
+        </h1>
+
+        <p class="trainer-page-subtitle">
+            View feedback and evaluation results from your students.
+        </p>
+    </div>
+</header>
+
+<!-- Overall Rating -->
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-body text-center">
+
+        <h6 class="text-muted">
+            Overall Rating
+        </h6>
+
+        <h1 class="display-4 text-success">
+            ★★★★☆
+        </h1>
+
+        <h2 class="fw-bold">
+            4.8 / 5.0
+        </h2>
+
+        <p class="text-muted">
+            Based on 42 student evaluations
+        </p>
+
+    </div>
+
+</div>
+
+<!-- Summary -->
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white">
+        <strong>Evaluation Summary</strong>
+    </div>
+
+    <div class="card-body">
+
+        <table class="table">
+
+            <tbody>
+
+                <tr>
+                    <td>Professionalism</td>
+                    <td class="text-end fw-bold">4.9</td>
+                </tr>
+
+                <tr>
+                    <td>Teaching Skills</td>
+                    <td class="text-end fw-bold">4.8</td>
+                </tr>
+
+                <tr>
+                    <td>Communication</td>
+                    <td class="text-end fw-bold">4.7</td>
+                </tr>
+
+                <tr>
+                    <td>Knowledge</td>
+                    <td class="text-end fw-bold">4.9</td>
+                </tr>
+
+                <tr>
+                    <td>Time Management</td>
+                    <td class="text-end fw-bold">4.8</td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<!-- Student Comments -->
+<div class="card shadow-sm border-0 mb-4">
+
+    <div class="card-header bg-white">
+        <strong>Recent Student Feedback</strong>
+    </div>
+
+    <div class="card-body">
+
+        <div class="border rounded p-3 mb-3">
+            <p class="mb-0">
+                "The trainer explains every lesson clearly and answers our questions patiently."
+            </p>
+        </div>
+
+        <div class="border rounded p-3 mb-3">
+            <p class="mb-0">
+                "Very approachable and knowledgeable."
+            </p>
+        </div>
+
+        <div class="border rounded p-3">
+            <p class="mb-0">
+                "Would appreciate more hands-on activities."
+            </p>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- History -->
+<div class="card shadow-sm border-0">
+
+    <div class="card-header bg-white">
+        <strong>Evaluation History</strong>
+    </div>
+
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table class="table table-hover">
+
+                <thead>
+
+                    <tr>
+                        <th>Batch</th>
+                        <th>Program</th>
+                        <th>Evaluations</th>
+                        <th>Average Rating</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+                        <td>Morning Batch A</td>
+                        <td>Automotive Servicing NC I</td>
+                        <td>20</td>
+                        <td>4.9</td>
+                    </tr>
+
+                    <tr>
+                        <td>Afternoon Batch B</td>
+                        <td>Automotive Servicing NC I</td>
+                        <td>22</td>
+                        <td>4.7</td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% include "components/trainer/layout_end.html" %}
+{% endblock %}

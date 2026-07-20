@@ -35,3 +35,14 @@ def module_page(request, module):
         module_template(module),
         module_page_context(module, request),
     )
+
+@login_required
+def trainer_evaluations(request):
+    return render(
+        request,
+        "registrar/trainer_evaluations.html",
+        {
+            "page_title": "Trainer Evaluations",
+            "page_subtitle": "Monitor trainer performance.",
+        },
+    )

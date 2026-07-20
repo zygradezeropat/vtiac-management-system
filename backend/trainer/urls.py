@@ -26,4 +26,9 @@ urlpatterns = [
         name="trainer_grading_records_api",
     ),
     path("trainer/<str:module>/", views.module_page, name="trainer_module"),
+    path(
+        "dashboard/trainer/evaluations/",
+        views.evaluations,
+        name="trainer_evaluations",
+    ),
 ]

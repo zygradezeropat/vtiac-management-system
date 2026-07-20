@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET
 
+
 from backend.accounts.services import require_portal_access
 
 from .enrollment_requirements import (
@@ -416,3 +417,21 @@ def settings(request):
     if denied:
         return denied
     return render(request, "student/settings.html", student_settings_context(request))
+
+
+
+
+@login_required
+def trainer_evaluation(request):
+    
+    from backend.student.services import student_trainer_evaluation_context
+    
+    denied = require_portal_access(request, STUDENT_ROLE)
+    if denied:
+        return denied
+
+    return render(
+        request,
+        "student/trainer_evaluation.html",
+        student_trainer_evaluation_context(request),
+    )

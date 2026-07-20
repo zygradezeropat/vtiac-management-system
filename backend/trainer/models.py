@@ -83,3 +83,76 @@ class TrainerStudentGrade(models.Model):
 
     def __str__(self):
         return f"{self.student_name} — {self.program}"
+
+class TrainerEvaluation(models.Model):
+    """
+    One evaluation submitted by one student for one trainer.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    trainer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="received_evaluations",
+    )
+
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="submitted_trainer_evaluations",
+    )
+
+    overall_rating = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=0
+    )
+
+    comments = models.TextField(blank=True)
+
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-submitted_at"]
+
+    def __str__(self):
+        return f"{self.student} → {self.trainer}"
+
+class TrainerEvaluationQuestion(models.Model):
+
+    question = models.CharField(max_length=255)
+
+    order = models.PositiveIntegerField(default=1)
+
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return self.question
+
+class TrainerEvaluationResponse(models.Model):
+
+    evaluation = models.ForeignKey(
+        TrainerEvaluation,
+        on_delete=models.CASCADE,
+        related_name="responses",
+    )
+
+    question = models.ForeignKey(
+        TrainerEvaluationQuestion,
+        on_delete=models.CASCADE,
+    )
+
+    rating = models.PositiveSmallIntegerField()
+
+    class Meta:
+        unique_together = (
+            "evaluation",
+            "question",
+        )
+
+    def __str__(self):
+        return f"{self.question} ({self.rating})"

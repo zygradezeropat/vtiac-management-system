@@ -136,3 +136,14 @@ def grading_records_api(request):
 
     records = list_trainer_grade_records(request.user)
     return JsonResponse({"ok": True, "records": records})
+
+@login_required
+def evaluations(request):
+    return render(
+        request,
+        "trainer/evaluations.html",
+        {
+            "page_title": "Trainer Evaluations",
+            "page_subtitle": "View student evaluation results.",
+        },
+    )
