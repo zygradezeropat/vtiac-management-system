@@ -1,0 +1,31 @@
+<div id="enrollment-step-7" class="student-enroll-wizard-step hidden-step" data-enrollment-step="7" data-step-title="Name of Course / Qualification">
+  <section class="student-panel student-enroll-card" id="enrollment-program-section">
+    <h3 class="student-enroll-section__title">7. Name of Course / Qualification</h3>
+    <input type="hidden" name="selected_program" id="field-selected-program" value="{{ program_name }}" />
+
+    <div id="program-display-view">
+      <div class="student-program-card">
+        <p class="student-program-card__label">Selected Course</p>
+        <p class="student-program-card__name" id="program-display-name">{{ program_name }}</p>
+        <p class="student-program-card__type">{{ program_type_label }}</p>
+      </div>
+      <button type="button" class="btn student-program-edit-btn student-program-edit-btn--secondary mt-2" id="program-change-btn">
+        <i class="bi bi-pencil" aria-hidden="true"></i> Change course / qualification
+      </button>
+    </div>
+
+    <div id="program-edit-view" class="d-none mt-2">
+      <p class="student-enroll-section__hint mb-2">Choose the correct course if you selected the wrong one during registration.</p>
+      <label class="student-enroll-label" for="field-selected-program-select">Course / Qualification</label>
+      <select id="field-selected-program-select" class="student-enroll-input student-enroll-select mb-3">
+        {% for program in enrollment_program_options %}
+        <option value="{{ program }}"{% if program == program_name %} selected{% endif %}>{{ program }}</option>
+        {% endfor %}
+      </select>
+      <div class="student-program-edit-actions">
+        <button type="button" class="btn student-program-edit-btn student-program-edit-btn--primary" id="program-done-btn">Done</button>
+        <button type="button" class="btn student-program-edit-btn student-program-edit-btn--secondary" id="program-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </section>
+</div>

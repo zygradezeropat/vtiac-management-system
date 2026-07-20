@@ -6,6 +6,8 @@ This system uses **PostgreSQL** as its database (via `psycopg2` and Django’s P
 
 **Repository:** [github.com/zygradezeropat/vtiac-management-system](https://github.com/zygradezeropat/vtiac-management-system)
 
+**Architecture guide:** See [ARCHITECTURE.md](./ARCHITECTURE.md) for system structure, data model, enrollment pipeline, route map, and debugging cheat sheet.
+
 ## Requirements
 
 - **Python 3.12+**

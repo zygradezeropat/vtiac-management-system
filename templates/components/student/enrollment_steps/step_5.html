@@ -1,0 +1,20 @@
+<div id="enrollment-step-5" class="student-enroll-wizard-step hidden-step" data-enrollment-step="5" data-step-title="Type of Disability">
+  <section class="student-panel student-enroll-card">
+    <h3 class="student-enroll-section__title">5. Type of Disability</h3>
+    <p class="student-enroll-section__hint">For persons with disability only — select all that apply (leave blank if not applicable)</p>
+    <div class="row g-2 student-enroll-classifications" id="disability-types-group">
+      {% for label in disability_types %}
+      <div class="col-md-4">
+        <div class="form-check student-enroll-check">
+          <input class="form-check-input" type="checkbox" name="disability_type" value="{{ label }}" id="disability-type-{{ forloop.counter }}" data-disability-type{% if label == "Multiple Disabilities" %} data-multiple-disabilities="1"{% endif %}{% if label in fi.selected_disability_types %} checked{% endif %} />
+          <label class="form-check-label" for="disability-type-{{ forloop.counter }}">{{ label }}</label>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mt-3{% if 'Multiple Disabilities' not in fi.selected_disability_types %} d-none{% endif %}" id="disability-other-wrap">
+      <label class="student-enroll-label" for="field-disability-other">If multiple disabilities, please specify</label>
+      <input id="field-disability-other" name="disability_other_specify" type="text" class="student-enroll-input" placeholder="Specify disability types" value="{{ fi.disability_other_specify|default:'' }}" />
+    </div>
+  </section>
+</div>

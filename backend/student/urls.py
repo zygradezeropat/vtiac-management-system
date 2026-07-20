@@ -17,6 +17,12 @@ urlpatterns = [
         views.enrollment_pending,
         name="student_enrollment_pending",
     ),
+    path("dashboard/student/my-profile/", views.my_profile, name="student_my_profile"),
+    path(
+        "dashboard/student/my-profile/requirements/",
+        views.my_profile_requirements,
+        name="student_my_profile_requirements",
+    ),
     path("dashboard/student/payments/", views.payments, name="student_payments"),
     path("dashboard/student/documents/", document_views.documents, name="student_documents"),
     path("dashboard/student/settings/", views.settings, name="student_settings"),

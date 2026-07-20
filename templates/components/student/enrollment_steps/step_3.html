@@ -1,0 +1,67 @@
+<div id="enrollment-step-3" class="student-enroll-wizard-step hidden-step" data-enrollment-step="3" data-step-title="Personal Information">
+  <section class="student-panel student-enroll-card">
+    <h3 class="student-enroll-section__title">3. Personal Information</h3>
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-sex">Sex <span class="student-enroll-required">*</span></label>
+        <select id="field-sex" name="sex" class="student-enroll-input student-enroll-select" required data-required>
+          <option value="">Select sex</option>
+          <option value="male"{% if fi.sex == "male" %} selected{% endif %}>Male</option>
+          <option value="female"{% if fi.sex == "female" %} selected{% endif %}>Female</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-civil-status">Civil Status <span class="student-enroll-required">*</span></label>
+        <select id="field-civil-status" name="civil_status" class="student-enroll-input student-enroll-select" required data-required>
+          <option value="">Select status</option>
+          {% for value, label in civil_status_choices %}
+          <option value="{{ value }}"{% if fi.civil_status == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-employment">Employment Status (before training) <span class="student-enroll-required">*</span></label>
+        <select id="field-employment" name="employment_status" class="student-enroll-input student-enroll-select" required data-required>
+          <option value="">Select status</option>
+          {% for value, label in employment_status_choices %}
+          <option value="{{ value }}"{% if fi.employment_status == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6" id="employment-type-wrap">
+        <label class="student-enroll-label" for="field-employment-type">Employment Type <span class="student-enroll-required" id="employment-type-required-mark">*</span></label>
+        <select id="field-employment-type" name="employment_type" class="student-enroll-input student-enroll-select">
+          {% for value, label in employment_type_choices %}
+          <option value="{{ value }}"{% if fi.employment_type == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <span class="student-enroll-hint">Required if wage-employed or underemployed</span>
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-birthdate">Birthdate <span class="student-enroll-required">*</span></label>
+        <input id="field-birthdate" name="birth_date" type="date" class="student-enroll-input" value="{{ fi.birth_date|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-birthplace">Birthplace (City/Municipality, Province) <span class="student-enroll-required">*</span></label>
+        <input id="field-birthplace" name="birthplace" type="text" class="student-enroll-input" placeholder="City/Municipality, Province" value="{{ fi.birthplace|default:'' }}" required data-required />
+      </div>
+      <div class="col-12">
+        <label class="student-enroll-label" for="field-education">Educational Attainment Before the Training <span class="student-enroll-required">*</span></label>
+        <select id="field-education" name="educational_attainment" class="student-enroll-input student-enroll-select" required data-required>
+          <option value="">Select educational attainment</option>
+          {% for value, label in educational_attainment_choices %}
+          <option value="{{ value }}"{% if fi.educational_attainment == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-guardian-name">Parent / Guardian Name <span class="student-enroll-required">*</span></label>
+        <input id="field-guardian-name" name="parent_guardian_name" type="text" class="student-enroll-input" placeholder="Complete name" value="{{ fi.parent_guardian_name|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-guardian-address">Parent / Guardian Complete Address <span class="student-enroll-required">*</span></label>
+        <input id="field-guardian-address" name="parent_guardian_address" type="text" class="student-enroll-input" placeholder="Complete address" value="{{ fi.parent_guardian_address|default:'' }}" required data-required />
+      </div>
+    </div>
+  </section>
+</div>

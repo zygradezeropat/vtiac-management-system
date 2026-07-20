@@ -117,7 +117,7 @@ def build_requirements_rows(profile):
     return rows
 
 
-def save_enrollment_document(profile, document_type, uploaded_file, id_type=""):
+def save_enrollment_document(profile, document_type, uploaded_file, id_type="", *, records_mode=False):
     if document_type not in VALID_DOC_KEYS:
         raise ValueError("Invalid document type.")
 
@@ -132,7 +132,8 @@ def save_enrollment_document(profile, document_type, uploaded_file, id_type=""):
 
     existing = profile.documents.filter(document_type=document_type).first()
     if (
-        existing
+        not records_mode
+        and existing
         and existing.registrar_status
         == StudentEnrollmentProfile.PhotoRegistrarStatus.APPROVED
     ):
@@ -281,6 +282,8 @@ def student_enrollment_requirements_context(request):
         requirements_submitted=bool(profile and profile.requirements_submitted),
         can_edit_requirements=can_edit_enrollment_application(request.user),
         enrollment_under_review=enrollment_pending_review(request.user),
+        records_mode=False,
+        requirements_post_url_name="student_enrollment_requirements",
         is_assessment_only=is_assessment_only_program(
             enrollment_program_type_for_user(request.user)
         ),

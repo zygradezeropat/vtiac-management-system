@@ -1,0 +1,91 @@
+{% extends "student/base.html" %}
+{% load static %}
+
+{% block body %}
+{% include "components/student/layout_start.html" %}
+
+<header class="student-page-header">
+  <div>
+    <h1 class="student-page-title">{{ page_title }}</h1>
+    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
+</header>
+
+{% include "components/student/my_profile_tabs.html" %}
+
+{% if messages %}
+<div class="mb-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="alert alert-light border d-flex align-items-start gap-2 mb-4" role="status">
+  <i class="bi bi-info-circle text-success flex-shrink-0 mt-1" aria-hidden="true"></i>
+  <span>Replace any enrollment document below. Updated files are marked for registrar review and your previous approval may be reset.</span>
+</div>
+
+<h2 class="student-enroll-step-title">
+  <i class="bi {{ enrollment_step_icon|default:'bi-cloud-upload' }}" aria-hidden="true"></i>
+  {{ enrollment_step_label }}
+</h2>
+<p class="student-req-intro mb-3">
+  Upload or replace documents (PDF, JPEG, or PNG — max 5MB each).
+</p>
+
+<div class="student-enroll-list" id="requirements-list">
+  {% include "components/student/enrollment_requirements_list.html" %}
+</div>
+
+<div class="modal fade" id="removeRejectedModal" tabindex="-1" aria-labelledby="removeRejectedModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content student-confirm-modal">
+      <div class="modal-body p-4">
+        <h3 class="h5 fw-bold mb-2" id="removeRejectedModalLabel">Remove rejected file?</h3>
+        <p class="text-secondary mb-4" id="removeRejectedModalMessage">
+          You can upload a replacement file right away after removing this rejected document.
+        </p>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary flex-grow-1 fw-bold" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger flex-grow-1 fw-bold" id="removeRejectedModalConfirmBtn">Yes, Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/student-enrollment-requirements.js' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
+{% endblock %}

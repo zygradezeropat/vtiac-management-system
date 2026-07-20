@@ -1,0 +1,16 @@
+<div id="enrollment-step-6" class="student-enroll-wizard-step hidden-step" data-enrollment-step="6" data-step-title="Causes of Disability">
+  <section class="student-panel student-enroll-card">
+    <h3 class="student-enroll-section__title">6. Causes of Disability</h3>
+    <p class="student-enroll-section__hint">For persons with disability only — select all that apply (leave blank if not applicable)</p>
+    <div class="row g-2 student-enroll-classifications" id="disability-causes-group">
+      {% for label in disability_causes %}
+      <div class="col-md-4">
+        <div class="form-check student-enroll-check">
+          <input class="form-check-input" type="checkbox" name="disability_cause" value="{{ label }}" id="disability-cause-{{ forloop.counter }}"{% if label in fi.selected_disability_causes %} checked{% endif %} />
+          <label class="form-check-label" for="disability-cause-{{ forloop.counter }}">{{ label }}</label>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>

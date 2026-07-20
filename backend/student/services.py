@@ -43,6 +43,7 @@ STUDENT_ROLE = "student"
 STUDENT_SIDEBAR = (
     {"label": "Dashboard", "icon_bi": "bi-house", "route_name": "student_dashboard"},
     {"label": "Enrollment", "icon_bi": "bi-journal-bookmark", "route_name": "student_enrollment"},
+    {"label": "My Profile", "icon_bi": "bi-person-vcard", "route_name": "student_my_profile"},
     {"label": "Payments", "icon_bi": "bi-credit-card", "route_name": "student_payments"},
     {"label": "Documents", "icon_bi": "bi-file-earmark-text", "route_name": "student_documents"},
     {"label": "Settings", "icon_bi": "bi-gear", "route_name": "student_settings"},
@@ -155,17 +156,25 @@ def get_enrollment_profile(user):
 def _student_sidebar_menu(user=None):
     from django.urls import reverse
 
-    hide_enrollment = (
+    from .my_profile import can_access_my_profile
+
+    enrolled = (
         user is not None
         and getattr(user, "is_authenticated", False)
         and registration_is_enrolled(user)
     )
+    show_my_profile = can_access_my_profile(user)
 
     menu = []
     for item in STUDENT_SIDEBAR:
-        if hide_enrollment and item.get("route_name") == "student_enrollment":
+        route_name = item["route_name"]
+        if enrolled and route_name == "student_enrollment":
             continue
-        route = reverse(item["route_name"]) if item["route_name"] else "#"
+        if not show_my_profile and route_name == "student_my_profile":
+            continue
+        if not enrolled and route_name == "student_my_profile":
+            continue
+        route = reverse(route_name) if route_name else "#"
         menu.append({**item, "route": route})
     return menu
 
@@ -854,12 +863,16 @@ def student_dashboard_context(request=None):
     schedule_ctx = dashboard_schedule_context(profile, registration)
     user = request.user if request and request.user.is_authenticated else None
     show_upload_btn = show_upload_requirements_button(user, profile)
+    from .my_profile import can_access_my_profile
+
+    show_my_profile_link = can_access_my_profile(user)
 
     return {
         "progress_ring_circumference": ring_circ,
         "progress_ring_offset": ring_offset,
         "application_status": app_status,
         "show_upload_requirements_button": show_upload_btn,
+        "show_my_profile_link": show_my_profile_link,
         "payment_status": payment_status,
         "payment_balance": statement["balance_display"],
         "payment_badge": payment_badge,

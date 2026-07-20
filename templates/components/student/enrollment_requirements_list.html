@@ -8,12 +8,12 @@
   {% if can_edit_requirements %}
   <form
     method="post"
-    action="{% url 'student_enrollment_requirements' %}"
+    action="{% url requirements_post_url_name %}"
     enctype="multipart/form-data"
     class="student-req-upload-form"
     id="form-{{ row.key }}"
     {% if row.has_id_type %}data-requires-id-type="1"{% endif %}
-    {% if row.is_approved %}data-approved="1"{% endif %}
+    {% if row.is_approved and not records_mode %}data-approved="1"{% endif %}
   >
     {% csrf_token %}
     <input type="hidden" name="action" value="upload" />
@@ -32,7 +32,7 @@
     </div>
     {% if can_edit_requirements %}
     <div class="student-req-card__actions">
-      {% if row.is_approved %}
+      {% if row.is_approved and not records_mode %}
       <span
         class="student-req-upload-btn student-req-upload-btn--disabled"
         id="upload-label-{{ row.key }}"
@@ -69,7 +69,7 @@
   {% if row.has_id_type %}
   <div class="mt-3">
     <label class="student-enroll-label" for="id-type-{{ row.key }}">ID Type <span class="student-enroll-required">*</span></label>
-    {% if can_edit_requirements and not row.is_approved %}
+    {% if can_edit_requirements and records_mode or can_edit_requirements and not row.is_approved %}
     <select id="id-type-{{ row.key }}" name="id_type" class="student-enroll-input student-enroll-select" required>
       <option value="">Select ID type</option>
       {% for value, label in id_type_choices %}

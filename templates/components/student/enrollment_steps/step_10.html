@@ -1,0 +1,31 @@
+<div id="enrollment-step-10" class="student-enroll-wizard-step hidden-step" data-enrollment-step="10" data-step-title="Applicant's Signature">
+  <section class="student-panel student-enroll-card">
+    <h3 class="student-enroll-section__title">10. Applicant's Signature</h3>
+    <p class="student-enroll-section__hint">This is to certify that the information stated above is true and correct.</p>
+    <div class="row g-3 align-items-end student-enroll-signature-row">
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-signature">Applicant's Signature (Type Full Name) <span class="student-enroll-required">*</span></label>
+        <input id="field-signature" name="signature" type="text" class="student-enroll-input" placeholder="Auto-filled from your name" value="{{ fi.signature|default:'' }}" required data-required readonly aria-readonly="true" />
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-date-accomplished">Date Accomplished</label>
+        <input id="field-date-accomplished" type="text" class="student-enroll-input" value="{{ date_accomplished_display }}" readonly />
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-photo">Upload 1×1 Photo {% if not has_existing_photo %}<span class="student-enroll-required">*</span>{% endif %}</label>
+        <div class="student-file-upload-row" data-file-preview-root>
+          <input
+            id="field-photo"
+            name="photo"
+            type="file"
+            class="student-enroll-input student-enroll-file"
+            accept="image/jpeg,image/png"
+            data-preview-existing-url="{{ fi.existing_photo_url|default:'' }}"
+            data-preview-existing-name="{{ fi.existing_photo_name|default:'1×1 Photo' }}"
+            {% if not has_existing_photo %} required data-required{% endif %}
+          />
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

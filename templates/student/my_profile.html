@@ -12,13 +12,19 @@
   <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
 </header>
 
-<div class="student-enroll-progress mb-3" aria-label="Overall enrollment progress {{ progress_percent }} percent">
-  <div class="student-enroll-progress__label">
-    <span>Overall progress: <strong>{{ progress_percent }}%</strong></span>
-  </div>
-  <div class="student-enroll-progress__track" role="progressbar" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
-    <div class="student-enroll-progress__fill" style="width: {{ progress_percent }}%"></div>
-  </div>
+{% include "components/student/my_profile_tabs.html" %}
+
+{% if messages %}
+<div class="mb-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="alert alert-light border d-flex align-items-start gap-2 mb-4" role="status">
+  <i class="bi bi-info-circle text-success flex-shrink-0 mt-1" aria-hidden="true"></i>
+  <span>You are enrolled. Update your learner profile here anytime. Changes to critical fields or documents may be reviewed by the registrar.</span>
 </div>
 
 {% if not is_assessment_only %}
@@ -37,26 +43,11 @@
 
 <h2 class="student-enroll-step-title" id="enrollment-wizard-step-title">{{ enrollment_step_label }}</h2>
 
-{% if messages %}
-<div class="mb-3">
-  {% for message in messages %}
-  <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
-  {% endfor %}
-</div>
-{% endif %}
-
-{% if enrollment_under_review %}
-<div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="status">
-  <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
-  <span>Your application is pending registrar approval. You can still review and update this form until it is finalized.</span>
-</div>
-{% endif %}
-
 <form
   id="student-enrollment-form"
   class="student-enroll-form"
   method="post"
-  action="{% url 'student_enrollment' %}"
+  action="{% url 'student_my_profile' %}"
   enctype="multipart/form-data"
   novalidate
   data-static-base="{% static '' %}"
@@ -85,43 +76,16 @@
             <i class="bi bi-chevron-right" aria-hidden="true"></i>
           </button>
           <button type="submit" class="student-enroll-wizard-nav__btn student-enroll-submit d-none" id="enrollment-continue-btn">
-            {% if enrollment_under_review %}
-            Save changes
-            <i class="bi bi-check-lg" aria-hidden="true"></i>
-            {% elif can_continue_to_requirements %}
             Save Changes
-            <i class="bi bi-chevron-right" aria-hidden="true"></i>
-            {% else %}
-            Continue to Upload Requirements
-            <i class="bi bi-chevron-right" aria-hidden="true"></i>
-            {% endif %}
+            <i class="bi bi-check-lg" aria-hidden="true"></i>
           </button>
         </div>
       </div>
-      {% endif %}
-
-      {% if enrollment_under_review %}
-      <div class="student-pending-card__actions student-pending-card__actions--inline mb-2">
-        <a href="{% url 'student_enrollment_requirements' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
-          Edit requirements
-        </a>
-        <a href="{% url 'student_enrollment_pending' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
-          Back to pending status
-        </a>
-      </div>
       {% else %}
-      {% if can_continue_to_requirements %}
-      <a href="{% url 'student_enrollment_requirements' %}" class="student-enroll-submit text-decoration-none mb-2">
-        Continue to Upload Requirements
-        <i class="bi bi-chevron-right" aria-hidden="true"></i>
-      </a>
-      {% endif %}
-      {% if is_assessment_only %}
       <button type="submit" class="student-enroll-submit" id="enrollment-continue-btn">
-        {% if can_continue_to_requirements %}Save Changes{% else %}Continue to Upload Requirements{% endif %}
-        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        Save Changes
+        <i class="bi bi-check-lg" aria-hidden="true"></i>
       </button>
-      {% endif %}
       {% endif %}
 
       <div id="enrollment-form-alert" class="student-enroll-alert d-none" role="alert">

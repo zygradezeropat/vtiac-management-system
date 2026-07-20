@@ -8,6 +8,7 @@ import { initMiddleNameField } from "./middle-name-field.js";
 import { initAssessmentTables } from "./student-enrollment-assessment-tables.js";
 import { initEnrollmentProgramChange } from "./student-enrollment-program.js";
 import { initMonthYearInputs } from "./month-year-input.js";
+import { initEnrollmentWizard } from "./student-enrollment-wizard.js";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const PH_MOBILE_RE = /^09\d{9}$/;
@@ -264,10 +265,21 @@ function shouldValidateRequiredField(form, el) {
   return true;
 }
 
-function updateRequiredFieldStates(form) {
+function getWizardStepEl(form, step) {
+  return form.querySelector(`[data-enrollment-step="${step}"]`);
+}
+
+function fieldInWizardStep(form, el, step) {
+  if (!step) return true;
+  const stepEl = getWizardStepEl(form, step);
+  return Boolean(stepEl?.contains(el));
+}
+
+function updateRequiredFieldStates(form, scopeStep = null) {
   const variant = form.dataset.formVariant || "training";
 
   form.querySelectorAll("[data-required]").forEach((el) => {
+    if (!fieldInWizardStep(form, el, scopeStep)) return;
     if (!shouldValidateRequiredField(form, el)) {
       el.classList.remove("is-invalid");
       return;
@@ -282,22 +294,25 @@ function updateRequiredFieldStates(form) {
   });
 
   const contact = form.querySelector("#field-contact");
-  if (contact) {
+  if (contact && fieldInWizardStep(form, contact, scopeStep)) {
     const contactInvalid = isEmpty(contact) || !isValidContactNumber(form);
     contact.classList.toggle("is-invalid", contactInvalid);
   }
 
   const photo = form.querySelector("#field-photo");
   const hasExistingPhoto = form.dataset.hasPhoto === "1";
-  const photoInvalid =
-    photo &&
-    ((!hasExistingPhoto && isEmpty(photo)) || (photo.files?.[0] && !isValidPhotoField(form)));
-  photo?.classList.toggle("is-invalid", Boolean(photoInvalid));
+  if (photo && fieldInWizardStep(form, photo, scopeStep)) {
+    const photoInvalid =
+      (!hasExistingPhoto && isEmpty(photo)) || (photo.files?.[0] && !isValidPhotoField(form));
+    photo.classList.toggle("is-invalid", Boolean(photoInvalid));
+  }
 
-  ADDRESS_FIELD_IDS.forEach((id) => {
-    const el = document.getElementById(id);
-    el?.classList.toggle("is-invalid", isEmpty(el));
-  });
+  if (!scopeStep || scopeStep === 2) {
+    ADDRESS_FIELD_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      el?.classList.toggle("is-invalid", isEmpty(el));
+    });
+  }
 
   if (variant === "assessment_only") {
     const typeGroup = document.getElementById("assessment-type-group");
@@ -313,13 +328,123 @@ function updateRequiredFieldStates(form) {
     return;
   }
 
-  const classGroup = document.getElementById("client-classifications-group");
-  if (classGroup) {
-    classGroup.classList.toggle(
-      "student-enroll-classifications--invalid",
-      !hasClassificationSelected(form)
-    );
+  if (!scopeStep || scopeStep === 4) {
+    const classGroup = document.getElementById("client-classifications-group");
+    if (classGroup) {
+      classGroup.classList.toggle(
+        "student-enroll-classifications--invalid",
+        !hasClassificationSelected(form)
+      );
+    }
   }
+}
+
+function validateWizardStep(form, step) {
+  const variant = form.dataset.formVariant || "training";
+  if (variant === "assessment_only") return true;
+
+  const stepEl = getWizardStepEl(form, step);
+  if (!stepEl) return true;
+
+  if (step === 1 || step === 6 || step === 7 || step === 8) {
+    return true;
+  }
+
+  const requiredInStep = stepEl.querySelectorAll("[data-required]");
+  for (const el of requiredInStep) {
+    if (!shouldValidateRequiredField(form, el)) continue;
+    if (el.type === "radio") {
+      if (!hasRadioGroupSelected(form, el.name)) return false;
+      continue;
+    }
+    if (isEmpty(el)) return false;
+  }
+
+  if (step === 2) {
+    if (!isAddressComplete()) return false;
+    if (!isValidContactNumber(form)) return false;
+  }
+
+  if (step === 3 && employmentTypeRequired(form)) {
+    const employmentType = form.querySelector("#field-employment-type");
+    if (employmentType && isEmpty(employmentType)) return false;
+  }
+
+  if (step === 4 && !hasClassificationSelected(form)) {
+    return false;
+  }
+
+  if (step === 5) {
+    const multipleChecked = form.querySelector(
+      'input[name="disability_type"][data-multiple-disabilities="1"]:checked'
+    );
+    if (multipleChecked) {
+      const other = form.querySelector("#field-disability-other");
+      if (other && isEmpty(other)) return false;
+    }
+  }
+
+  if (step === 10) {
+    const photo = form.querySelector("#field-photo");
+    const hasExistingPhoto = form.dataset.hasPhoto === "1";
+    if (!hasExistingPhoto && isEmpty(photo)) return false;
+    if (!isValidPhotoField(form)) return false;
+  }
+
+  return true;
+}
+
+function collectWizardStepIssues(form, step) {
+  const issues = [];
+  if (validateWizardStep(form, step)) return issues;
+
+  if (step === 2) {
+    if (!isAddressComplete()) {
+      issues.push("complete your Region, Province, City, and Barangay");
+    }
+    if (!isValidContactNumber(form)) {
+      issues.push("enter a valid contact number (11 digits starting with 09)");
+    }
+  }
+
+  if (step === 3 && employmentTypeRequired(form)) {
+    const employmentType = form.querySelector("#field-employment-type");
+    if (employmentType && isEmpty(employmentType)) {
+      issues.push("select an employment type");
+    }
+  }
+
+  if (step === 4 && !hasClassificationSelected(form)) {
+    issues.push("select at least one client classification");
+  }
+
+  if (step === 5) {
+    const multipleChecked = form.querySelector(
+      'input[name="disability_type"][data-multiple-disabilities="1"]:checked'
+    );
+    if (multipleChecked) {
+      const other = form.querySelector("#field-disability-other");
+      if (other && isEmpty(other)) {
+        issues.push("specify disability types when Multiple Disabilities is selected");
+      }
+    }
+  }
+
+  if (step === 10) {
+    const photo = form.querySelector("#field-photo");
+    const hasExistingPhoto = form.dataset.hasPhoto === "1";
+    if (photo && !hasExistingPhoto && isEmpty(photo)) {
+      issues.push("upload a 1×1 photo (JPEG or PNG)");
+    } else if (photo?.files?.[0] && !isValidPhotoField(form)) {
+      issues.push("use a JPEG or PNG photo no larger than 5MB");
+    }
+  }
+
+  if (issues.length === 0) {
+    issues.push("complete all required fields on this page");
+  }
+
+  return issues;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -384,8 +509,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const alertTextEl = document.getElementById("enrollment-form-alert-text");
 
-  const refreshValidation = () => {
-    updateRequiredFieldStates(form);
+  const validationHelpers = {
+    validateWizardStep,
+    collectWizardStepIssues,
+    updateRequiredFieldStates,
+  };
+
+  const wizard = initEnrollmentWizard(form, validationHelpers);
+
+  const refreshValidation = (scopeStep = null) => {
+    updateRequiredFieldStates(form, scopeStep);
     if (validateForm(form)) {
       alertEl?.classList.add("d-none");
     }
@@ -434,13 +567,17 @@ document.addEventListener("DOMContentLoaded", () => {
             : "Please complete all required fields before proceeding.";
       }
       alertEl?.classList.remove("d-none");
-      const firstInvalid = form.querySelector(
-        ".is-invalid, .student-enroll-classifications--invalid"
-      );
-      if (firstInvalid) {
-        firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (wizard) {
+        wizard.goToFirstInvalidStep(form);
       } else {
-        alertEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        const firstInvalid = form.querySelector(
+          ".is-invalid, .student-enroll-classifications--invalid"
+        );
+        if (firstInvalid) {
+          firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else {
+          alertEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
       }
       return;
     }

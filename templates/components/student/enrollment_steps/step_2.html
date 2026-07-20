@@ -1,0 +1,73 @@
+<div id="enrollment-step-2" class="student-enroll-wizard-step hidden-step" data-enrollment-step="2" data-step-title="Learner / Manpower Profile">
+  <section class="student-panel student-enroll-card">
+    <h3 class="student-enroll-section__title">2. Learner / Manpower Profile</h3>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-last-name">Last Name <span class="student-enroll-required">*</span></label>
+        <input id="field-last-name" name="last_name" type="text" class="student-enroll-input" placeholder="Enter last name" value="{{ fi.last_name|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-first-name">First Name <span class="student-enroll-required">*</span></label>
+        <input id="field-first-name" name="first_name" type="text" class="student-enroll-input" placeholder="Enter first name" value="{{ fi.first_name|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-middle-name">Middle Name</label>
+        <input id="field-middle-name" name="middle_name" type="text" class="student-enroll-input" placeholder="Enter middle name" value="{{ fi.middle_name|default:'' }}" />
+        <div class="form-check student-enroll-check mt-1">
+          <input class="form-check-input" type="checkbox" id="field-no-middle-name" />
+          <label class="form-check-label" for="field-no-middle-name">I don't have a middle name</label>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="student-enroll-label" for="field-extension">Extension (Jr., Sr.)</label>
+        <select id="field-extension" name="name_extension" class="student-enroll-input student-enroll-select">
+          <option value="">Select</option>
+          {% for ext in name_extensions %}
+          {% if ext %}
+          <option value="{{ ext }}"{% if fi.name_extension == ext %} selected{% endif %}>{{ ext }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <p class="student-enroll-section__hint mb-2">Complete Permanent Mailing Address</p>
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-street">Number, Street <span class="student-enroll-required">*</span></label>
+        <input id="field-street" name="street_house" type="text" class="student-enroll-input" placeholder="House no., street name" value="{{ fi.street_house|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-district">District</label>
+        <input id="field-district" name="district" type="text" class="student-enroll-input" placeholder="District (if applicable)" value="{{ fi.district|default:'' }}" />
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-barangay">Barangay <span class="student-enroll-required">*</span></label>
+        <select id="field-barangay" name="barangay_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-city">City / Municipality <span class="student-enroll-required">*</span></label>
+        <select id="field-city" name="city_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-province">Province <span class="student-enroll-required">*</span></label>
+        <select id="field-province" name="province_code" class="student-enroll-input student-enroll-select" disabled required data-required></select>
+      </div>
+      <div class="col-md-6">
+        <label class="student-enroll-label" for="field-region">Region <span class="student-enroll-required">*</span></label>
+        <select id="field-region" name="region_code" class="student-enroll-input student-enroll-select" required data-required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-email">Email Address / Facebook Account <span class="student-enroll-required">*</span></label>
+        <input id="field-email" name="email" type="email" class="student-enroll-input" placeholder="Enter email or Facebook account" value="{{ fi.email|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-contact">Contact No. <span class="student-enroll-required">*</span></label>
+        <input id="field-contact" name="contact_number" type="tel" class="student-enroll-input" placeholder="09171234567" value="{{ fi.contact_number|default:'' }}" required data-required />
+      </div>
+      <div class="col-md-4">
+        <label class="student-enroll-label" for="field-nationality">Nationality <span class="student-enroll-required">*</span></label>
+        <input id="field-nationality" name="nationality" type="text" class="student-enroll-input" value="{{ fi.nationality|default:'Filipino' }}" required data-required />
+      </div>
+    </div>
+  </section>
+</div>

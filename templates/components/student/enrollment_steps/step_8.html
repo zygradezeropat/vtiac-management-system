@@ -1,0 +1,11 @@
+<div id="enrollment-step-8" class="student-enroll-wizard-step hidden-step" data-enrollment-step="8" data-step-title="Scholarship Package">
+  <section class="student-panel student-enroll-card">
+    <h3 class="student-enroll-section__title">8. Scholarship Package (TWSP, PESFA, STEP, others)</h3>
+    <label class="student-enroll-label" for="field-scholarship">If scholar, select type (if applicable)</label>
+    <select id="field-scholarship" name="scholarship_type" class="student-enroll-input student-enroll-select">
+      {% for value, label in scholarship_type_choices %}
+      <option value="{{ value }}"{% if fi.scholarship_type == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </section>
+</div>

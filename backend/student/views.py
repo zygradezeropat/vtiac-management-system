@@ -40,6 +40,11 @@ from backend.student.services import (
     validate_enrollment_data,
     validate_registration_data,
 )
+from .my_profile import (
+    my_profile_guard,
+    student_my_profile_context,
+    student_my_profile_requirements_context,
+)
 from backend.system_admin.program_config import enrollment_is_open, enrollment_program_options
 
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -171,14 +176,14 @@ def enrollment(request):
             messages.success(request, "Learner profile saved successfully.")
         profile = get_enrollment_profile(request.user)
         if registration_is_enrolled(request.user):
-            messages.success(request, "Your enrollment has been approved.")
-            return redirect("student_dashboard")
+            messages.success(request, "Your profile has been updated successfully.")
+            return redirect("student_my_profile")
         if profile and should_redirect_to_enrollment_pending(request.user):
             return redirect("student_enrollment_pending")
         return redirect("student_enrollment_requirements")
 
     if registration_is_enrolled(request.user):
-        return redirect("student_dashboard")
+        return redirect("student_my_profile")
     if (
         profile
         and should_redirect_to_enrollment_pending(request.user)
@@ -239,7 +244,7 @@ def enrollment_requirements(request):
             return redirect("student_enrollment_pending")
 
     if registration_is_enrolled(request.user):
-        return redirect("student_dashboard")
+        return redirect("student_my_profile")
     if (
         should_redirect_to_enrollment_pending(request.user)
         and not can_edit_enrollment_application(request.user)
@@ -267,11 +272,7 @@ def enrollment_pending(request):
         return redirect("student_enrollment_requirements")
 
     if registration_is_enrolled(request.user):
-        messages.success(
-            request,
-            "Your enrollment has been approved. You are now listed as enrolled.",
-        )
-        return redirect("student_dashboard")
+        return redirect("student_my_profile")
 
     return render(
         request,
@@ -313,6 +314,100 @@ def payments(request):
         return redirect("student_payments")
 
     return render(request, "student/payments.html", student_payments_context(request))
+
+
+@login_required(login_url="/")
+def my_profile(request):
+    denied = require_portal_access(request, STUDENT_ROLE)
+    if denied:
+        return denied
+
+    blocked = my_profile_guard(request)
+    if blocked:
+        return blocked
+
+    profile = get_enrollment_profile(request.user)
+
+    if request.method == "POST":
+        program_type = enrollment_program_type_for_user(request.user)
+        data = parse_enrollment_post(
+            request.POST, request.FILES, program_type=program_type
+        )
+        errors = validate_enrollment_data(
+            data,
+            require_photo=not (profile and profile.photo),
+            program_type=program_type,
+        )
+
+        if errors:
+            for msg in errors:
+                messages.error(request, msg)
+            return redirect("student_my_profile")
+
+        try:
+            save_enrollment_profile(request.user, data)
+        except (ValueError, TypeError) as exc:
+            messages.error(request, f"Could not save profile: {exc}")
+            return redirect("student_my_profile")
+        except IntegrityError:
+            messages.error(
+                request,
+                "Could not save profile. Please try again or contact support.",
+            )
+            return redirect("student_my_profile")
+
+        messages.success(request, "Your profile has been updated successfully.")
+        return redirect("student_my_profile")
+
+    return render(request, "student/my_profile.html", student_my_profile_context(request))
+
+
+@login_required(login_url="/")
+def my_profile_requirements(request):
+    denied = require_portal_access(request, STUDENT_ROLE)
+    if denied:
+        return denied
+
+    blocked = my_profile_guard(request)
+    if blocked:
+        return blocked
+
+    profile = get_enrollment_profile(request.user)
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+
+        if action == "upload":
+            doc_type = request.POST.get("document_type", "")
+            uploaded = request.FILES.get("file")
+            id_type = request.POST.get("id_type", "")
+            try:
+                save_enrollment_document(
+                    profile,
+                    doc_type,
+                    uploaded,
+                    id_type=id_type,
+                    records_mode=True,
+                )
+                messages.success(request, "Document updated successfully.")
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            return redirect("student_my_profile_requirements")
+
+        if action == "remove_rejected":
+            doc_type = request.POST.get("document_type", "")
+            try:
+                remove_rejected_enrollment_document(profile, doc_type)
+                messages.success(request, "Rejected file removed. You can upload a replacement.")
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            return redirect("student_my_profile_requirements")
+
+    return render(
+        request,
+        "student/my_profile_requirements.html",
+        student_my_profile_requirements_context(request),
+    )
 
 
 @login_required(login_url="/")

@@ -750,6 +750,142 @@
   gap: 1rem;
 }
 
+.student-enroll-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.student-enroll-wizard-step .student-enroll-card {
+  margin-bottom: 0;
+}
+
+.student-enroll-form-progress .student-enroll-form-progress__fill {
+  background: #00a859;
+}
+
+.student-enroll-wizard-nav__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+.student-enroll-wizard-nav__buttons--step-first {
+  grid-template-columns: 1fr;
+}
+
+.student-enroll-wizard-nav__buttons--step-first .student-enroll-wizard-nav__col--back {
+  display: none;
+}
+
+.student-enroll-wizard-nav__buttons--step-first .student-enroll-wizard-nav__col--forward {
+  grid-column: 1;
+}
+
+.student-enroll-wizard-nav__col {
+  min-width: 0;
+  display: flex;
+}
+
+.student-enroll-wizard-nav__col .student-enroll-wizard-nav__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+}
+
+.student-enroll-wizard-nav__col--back {
+  grid-column: 1;
+}
+
+.student-enroll-wizard-nav__col--forward {
+  grid-column: 2;
+}
+
+.student-enroll-wizard-nav__col--back .student-enroll-wizard-nav__btn.d-none {
+  display: none;
+}
+
+.student-enroll-wizard-nav__col .student-enroll-wizard-nav__btn {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.875rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.student-enroll-wizard-nav__col .student-program-edit-btn--secondary {
+  min-height: 3rem;
+  padding: 0.875rem 1.25rem;
+  font-size: 1rem;
+  border-radius: 0.75rem;
+}
+
+/* —— My Profile (post-enrollment) —— */
+
+.student-my-profile-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  background: #f1f5f9;
+  border-radius: 0.875rem;
+}
+
+.student-my-profile-tabs__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 0.625rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--student-muted);
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.student-my-profile-tabs__link:hover {
+  color: var(--student-text);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.student-my-profile-tabs__link.is-active {
+  color: var(--student-text);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.student-my-profile-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.student-upload-btn--secondary {
+  background: #0f172a;
+}
+
+.student-upload-btn--secondary:hover {
+  background: #1e293b;
+  color: #fff;
+}
+
+.student-upload-btn--outline {
+  background: transparent;
+  color: var(--student-text);
+  border: 1px solid #cbd5e1;
+}
+
+.student-upload-btn--outline:hover {
+  background: #f8fafc;
+  color: var(--student-text);
+}
+
 .student-enroll-card {
   padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
   margin-bottom: 0;
@@ -1168,7 +1304,7 @@
 
 
 .student-req-card__filename {
-  font-size: 0.875rem;
+  font-size: 0.875rem; 
   font-weight: 600;
   color: #047857;
   word-break: break-all;

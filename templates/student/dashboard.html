@@ -74,6 +74,18 @@
             Upload Requirements
           </a>
           {% endif %}
+          {% if show_my_profile_link %}
+          <div class="student-my-profile-cta mt-3">
+            <a href="{% url 'student_my_profile' %}" class="student-upload-btn student-upload-btn--secondary text-decoration-none">
+              <i class="bi bi-person-vcard" aria-hidden="true"></i>
+              Edit Learner Profile
+            </a>
+            <a href="{% url 'student_my_profile_requirements' %}" class="student-upload-btn student-upload-btn--outline text-decoration-none mt-2">
+              <i class="bi bi-cloud-upload" aria-hidden="true"></i>
+              Manage Requirements
+            </a>
+          </div>
+          {% endif %}
         </div>
         <div>
           <div class="student-panel__head">

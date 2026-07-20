@@ -1,0 +1,23 @@
+<nav class="student-my-profile-tabs mb-4" aria-label="My Profile sections">
+  <a
+    href="{% url 'student_my_profile' %}"
+    class="student-my-profile-tabs__link{% if my_profile_tab == 'profile' %} is-active{% endif %}"
+  >
+    <i class="bi bi-person-vcard" aria-hidden="true"></i>
+    Learner Profile
+  </a>
+  <a
+    href="{% url 'student_my_profile_requirements' %}"
+    class="student-my-profile-tabs__link{% if my_profile_tab == 'requirements' %} is-active{% endif %}"
+  >
+    <i class="bi bi-cloud-upload" aria-hidden="true"></i>
+    Requirements
+  </a>
+  <a
+    href="{% url 'student_documents' %}"
+    class="student-my-profile-tabs__link"
+  >
+    <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+    Issued Documents
+  </a>
+</nav>

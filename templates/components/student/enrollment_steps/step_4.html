@@ -1,0 +1,16 @@
+<div id="enrollment-step-4" class="student-enroll-wizard-step hidden-step" data-enrollment-step="4" data-step-title="Learner / Trainee / Student (Client) Classification">
+  <section class="student-panel student-enroll-card">
+    <h3 class="student-enroll-section__title">4. Learner / Trainee / Student (Client) Classification</h3>
+    <p class="student-enroll-section__hint">Select all that apply <span class="student-enroll-required">*</span> (at least one)</p>
+    <div class="row g-2 student-enroll-classifications" id="client-classifications-group" data-required-group="client_classification">
+      {% for label in client_classifications %}
+      <div class="col-md-4">
+        <div class="form-check student-enroll-check">
+          <input class="form-check-input" type="checkbox" name="client_classification" value="{{ label }}" id="class-{{ forloop.counter }}"{% if label in fi.selected_classifications %} checked{% endif %} />
+          <label class="form-check-label" for="class-{{ forloop.counter }}">{{ label }}</label>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
