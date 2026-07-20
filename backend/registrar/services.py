@@ -13,6 +13,7 @@ REGISTRAR_MODULE_ORDER = (
     "finalized-batches",
     "scholarship",
     "egace-table",
+    "trainer-evaluations",
     "reports",
     "settings",
 )
@@ -67,6 +68,13 @@ REGISTRAR_MODULES = {
         "title": "E.G.A.C.E Table",
         "subtitle": "Enrolled · Graduate · Assessment · Certificate · Employment tracking",
         "template": "registrar/egace_table.html",
+    },
+    "trainer-evaluations": {
+        "label": "Trainer Evaluations",
+        "icon_bi": "bi-person-check-fill",
+        "title": "Trainer Evaluations",
+        "subtitle": "View trainer evaluations",
+        "template": "registrar/trainer_evaluation_reports.html",
     },
     "reports": {
         "label": "Reports",
