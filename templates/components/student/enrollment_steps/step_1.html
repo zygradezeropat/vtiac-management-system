@@ -8,8 +8,15 @@
         <span class="student-enroll-hint">Auto-generated</span>
       </div>
       <div class="col-md-4">
-        <label class="student-enroll-label" for="field-uli">Unique Learner Identifier (ULI)</label>
-        <input id="field-uli" name="uli" type="text" class="student-enroll-input" placeholder="Enter ULI if available" value="{{ fi.uli|default:'' }}" />
+       
+          <label class="student-enroll-label fw-bold text-dark" for="field-uli">
+            <i class="bi bi-info-circle-fill text-warning me-1"></i> Unique Learner Identifier
+          </label>
+          <input id="field-uli" name="uli" type="text" class="student-enroll-input bg-white" placeholder="Enter ULI if available" value="{{ fi.uli|default:'' }}" />
+          <div class="form-text text-danger fw-semibold mt-1" style="font-size: 0.8rem;">
+            * To be filled in by the registrar
+          </div>
+          
       </div>
       <div class="col-md-4">
         <label class="student-enroll-label" for="field-entry-date">Entry Date (MM/DD/YY)</label>
