@@ -28,7 +28,8 @@ TRAINER_ROLE = "trainer"
 TRAINER_MODULE_ORDER = (
     "dashboard",
     "students",
-    "sheets",
+    "sheets",   
+    "evaluations",
     "reports",
     "settings",
 )
@@ -57,6 +58,14 @@ TRAINER_MODULES = {
         "title": "Record Sheets",
         "subtitle": "Grading, assessment, and achievement tracking",
         "template": "trainer/sheets.html",
+        "sidebar": True,
+    },
+    "evaluations": {
+        "label": "Evaluations",
+        "icon_bi": "bi-person-check-fill",
+        "title": "Evaluations",
+        "subtitle": "View student evaluations",
+        "template": "trainer/evaluation.html",
         "sidebar": True,
     },
     "reports": {
