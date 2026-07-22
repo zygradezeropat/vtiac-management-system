@@ -89,12 +89,15 @@ def _course_id(name: str, *, batch_kind: str = BatchKind.TRAINING) -> str:
 
 
 def batching_courses_payload():
+    from .pending_enrollment import pending_programs_by_type
+
+    pending_training, pending_assessment = pending_programs_by_type()
     courses = []
     for name in _course_catalog():
         training_students = available_students_for_course(
             name, batch_kind=BatchKind.TRAINING
         )
-        if training_students:
+        if training_students or name in pending_training:
             courses.append(
                 {
                     "id": _course_id(name, batch_kind=BatchKind.TRAINING),
@@ -116,7 +119,7 @@ def batching_courses_payload():
         national_students = available_students_for_course(
             name, batch_kind=BatchKind.NATIONAL_ASSESSMENT
         )
-        if national_students:
+        if national_students or name in pending_assessment:
             courses.append(
                 {
                     "id": _course_id(name, batch_kind=BatchKind.NATIONAL_ASSESSMENT),

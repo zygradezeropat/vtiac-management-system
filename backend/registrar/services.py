@@ -212,10 +212,12 @@ def module_page_context(module, request=None):
         ctx["enrollment_pipeline_json"] = json.dumps(list(ENROLLMENT_PIPELINE))
     if module == "batching-scheduling":
         from .batching_api import batching_courses_payload, batching_templates_payload
+        from .pending_enrollment import pending_enrollments_payload
 
         ctx["batching_trainers"] = batching_trainers_payload()
         ctx["batching_courses"] = batching_courses_payload()
         ctx["batching_templates"] = batching_templates_payload()
+        ctx["pending_enrollments"] = pending_enrollments_payload()
     if module == "enrollment":
         from .pending_enrollment import pending_enrollment_count, pending_enrollments_payload
 

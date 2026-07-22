@@ -1841,6 +1841,19 @@
   background: #ecfdf5;
 }
 
+.registrar-batching-approval-table__check {
+  width: 2.75rem;
+  vertical-align: middle;
+}
+
+.registrar-batching-approval-table .form-check-input {
+  margin: 0;
+}
+
+.registrar-batching-approval-table tbody td {
+  vertical-align: middle;
+}
+
 .registrar-schedule-tag {
   display: inline-block;
   font-size: 0.6875rem;

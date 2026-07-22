@@ -8,6 +8,7 @@
 {% if batching_trainers %}{{ batching_trainers|json_script:"batching-trainers-data" }}{% endif %}
 {% if batching_courses %}{{ batching_courses|json_script:"batching-courses-data" }}{% endif %}
 {% if batching_templates %}{{ batching_templates|json_script:"batching-templates-data" }}{% endif %}
+{% if pending_enrollments %}{{ pending_enrollments|json_script:"batching-pending-enrollments-data" }}{% endif %}
 
 <header class="registrar-page-header">
   <div>
@@ -40,6 +41,35 @@
       </div>
       <button type="button" id="batching-detail-close" class="btn btn-outline-secondary btn-sm">Close</button>
     </div>
+
+    <section id="batching-enrollment-approval" class="registrar-batching-approval panel-light rounded-3 p-3 p-md-4 mb-4 d-none">
+      <div class="registrar-batching-approval__head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+        <div>
+          <p class="registrar-schedule-template-form__eyebrow mb-1">Enrollment approval</p>
+          <h3 class="h6 fw-semibold mb-1">Approve students for this program</h3>
+          <p class="text-muted small mb-0">Select applicants who are ready to enroll. Approved students become available for batching.</p>
+        </div>
+        <button type="button" id="batching-bulk-approve-btn" class="btn btn-success btn-sm fw-semibold px-3" disabled>
+          <i class="bi bi-check2-all me-1" aria-hidden="true"></i>
+          Approve selected (<span id="batching-bulk-approve-count">0</span>)
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table registrar-table registrar-batching-table registrar-batching-approval-table mb-0">
+          <thead>
+            <tr>
+              <th scope="col" class="registrar-batching-approval-table__check">
+                <input type="checkbox" id="batching-select-all" class="form-check-input" aria-label="Select all approvable students" />
+              </th>
+              <th scope="col">Student</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody id="batching-pending-students"></tbody>
+        </table>
+      </div>
+      <p id="batching-pending-empty" class="text-muted small text-center py-3 mb-0 d-none">No pending enrollments for this program.</p>
+    </section>
 
     <form id="schedule-template-form" class="registrar-schedule-template-form panel-light rounded-3 p-3 p-md-4 mb-2" novalidate>
       <p class="registrar-schedule-template-form__eyebrow mb-1">Class schedule</p>

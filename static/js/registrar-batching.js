@@ -210,6 +210,42 @@ function loadBatchingTemplatesData() {
   }
 }
 
+function loadBatchingPendingEnrollmentsData() {
+  const el = document.getElementById("batching-pending-enrollments-data");
+  if (!el?.textContent) return [];
+  try {
+    const parsed = JSON.parse(el.textContent);
+    if (Array.isArray(parsed?.modules)) {
+      return parsed.modules.flatMap((mod) => mod.items || []);
+    }
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function pendingItemKey(item) {
+  return item.id != null ? `p-${item.id}` : `r-${item.registrationId}`;
+}
+
+function pendingMatchesCourse(item, course) {
+  if (!course || (item.program || "").trim() !== course.name) return false;
+  const isNational = batchingCourseCategory(course) === "national";
+  const isAssessment = item.programType === "assessment_only";
+  return isNational ? isAssessment : !isAssessment;
+}
+
+function parseStudentNameParts(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return { firstName: "", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
 /** True when id is a saved DB template pk (not a client-only tpl-* placeholder). */
 function isPersistedTemplateId(id) {
   return /^\d+$/.test(String(id || "").trim());
@@ -292,12 +328,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const scheduleConflictEl = document.getElementById("template-schedule-conflict");
   const cancelBtn = document.getElementById("schedule-template-cancel");
 
+  const approvalSectionEl = document.getElementById("batching-enrollment-approval");
+  const pendingStudentsEl = document.getElementById("batching-pending-students");
+  const pendingEmptyEl = document.getElementById("batching-pending-empty");
+  const selectAllEl = document.getElementById("batching-select-all");
+  const bulkApproveBtn = document.getElementById("batching-bulk-approve-btn");
+  const bulkApproveCountEl = document.getElementById("batching-bulk-approve-count");
+
   if (!coursesEl) return;
 
   let selectedCourseId = null;
   let activeCategoryTab = "institutional";
   let formState = createEmptyTemplateForm();
   let editingTemplateId = null;
+  let bulkApproveInFlight = false;
+  const selectedPendingKeys = new Set();
+  let pendingEnrollments = loadBatchingPendingEnrollmentsData();
   const allTrainers = loadBatchingTrainersData();
   const dbCourses = loadBatchingCoursesData();
   if (dbCourses.length) {
@@ -320,6 +366,213 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setTemplatesForCourse(courseId, templates) {
     templatesByCourse[courseId] = templates;
+  }
+
+  function pendingForSelectedCourse() {
+    const course = selectedCourse();
+    if (!course) return [];
+    return pendingEnrollments.filter((item) => pendingMatchesCourse(item, course));
+  }
+
+  function approvablePendingForSelectedCourse() {
+    return pendingForSelectedCourse().filter((item) => item.canApprove);
+  }
+
+  function syncSelectAllState() {
+    if (!selectAllEl) return;
+    const approvable = approvablePendingForSelectedCourse();
+    const approvableKeys = approvable.map((item) => pendingItemKey(item));
+    const selectedApprovable = approvableKeys.filter((key) => selectedPendingKeys.has(key));
+    selectAllEl.disabled = approvable.length === 0;
+    selectAllEl.checked = approvable.length > 0 && selectedApprovable.length === approvable.length;
+    selectAllEl.indeterminate =
+      selectedApprovable.length > 0 && selectedApprovable.length < approvable.length;
+  }
+
+  function updateBulkApproveUI() {
+    const count = selectedPendingKeys.size;
+    if (bulkApproveCountEl) bulkApproveCountEl.textContent = String(count);
+    if (bulkApproveBtn) bulkApproveBtn.disabled = count === 0 || bulkApproveInFlight;
+    syncSelectAllState();
+  }
+
+  function clearPendingSelection() {
+    selectedPendingKeys.clear();
+    updateBulkApproveUI();
+  }
+
+  function applyApprovedStudentsToCourse(course, items) {
+    if (!course || !items.length) return;
+    const batch = course.batches?.[0];
+    if (!batch) return;
+
+    items.forEach((item) => {
+      const { firstName, lastName } = parseStudentNameParts(item.name);
+      const student = {
+        firstName,
+        lastName,
+        program: item.program || course.name,
+      };
+      if (!Array.isArray(batch.students)) batch.students = [];
+      batch.students.push(student);
+    });
+
+    if (typeof batch.studentCount === "number") {
+      batch.studentCount += items.length;
+    } else {
+      batch.studentCount = batch.students.length;
+    }
+  }
+
+  function refreshScheduleLockUI() {
+    const course = selectedCourse();
+    if (!course) return;
+    const count = activeBatchStudentCount(course);
+    const scheduleLocked = count < MIN_STUDENTS_TO_FINALIZE;
+    const isNational = batchingCourseCategory(course) === "national";
+    if (templateForm) {
+      templateForm.classList.toggle("pe-none", scheduleLocked);
+      templateForm.classList.toggle("opacity-50", scheduleLocked);
+    }
+    if (detailSubtitleEl && scheduleLocked) {
+      detailSubtitleEl.textContent = isNational
+        ? "Approve more students below to reach the minimum batch size, then set the national assessment schedule."
+        : "Approve more students below to reach the minimum batch size, then set the class schedule.";
+    }
+  }
+
+  function renderEnrollmentApproval() {
+    const course = selectedCourse();
+    const rows = pendingForSelectedCourse();
+    const approvable = rows.filter((item) => item.canApprove);
+
+    if (!approvalSectionEl) return;
+
+    if (!course) {
+      approvalSectionEl.classList.add("d-none");
+      return;
+    }
+
+    approvalSectionEl.classList.remove("d-none");
+
+    if (!rows.length) {
+      if (pendingStudentsEl) pendingStudentsEl.innerHTML = "";
+      pendingEmptyEl?.classList.remove("d-none");
+      if (selectAllEl) {
+        selectAllEl.checked = false;
+        selectAllEl.indeterminate = false;
+        selectAllEl.disabled = true;
+      }
+      updateBulkApproveUI();
+      return;
+    }
+
+    pendingEmptyEl?.classList.add("d-none");
+
+    if (pendingStudentsEl) {
+      pendingStudentsEl.innerHTML = rows
+        .map((item) => {
+          const key = pendingItemKey(item);
+          const checked = selectedPendingKeys.has(key) ? " checked" : "";
+          const disabled = item.canApprove ? "" : " disabled";
+          const title = item.canApprove
+            ? ""
+            : "Available when learner profile, requirements, and payment are complete.";
+          return `
+            <tr data-pending-key="${escapeHtml(key)}">
+              <td class="registrar-batching-approval-table__check">
+                <input type="checkbox" class="form-check-input batching-pending-check" data-key="${escapeHtml(key)}" aria-label="Select ${escapeHtml(item.name)}"${checked}${disabled} title="${escapeHtml(title)}" />
+              </td>
+              <td>
+                <div class="fw-semibold">${escapeHtml(item.name)}</div>
+                <div class="text-muted small">${escapeHtml(item.email)}</div>
+              </td>
+              <td><span class="badge registrar-enrollment-status ${escapeHtml(item.neededBadgeClass || "")}">${escapeHtml(item.neededLabel || "Pending")}</span></td>
+            </tr>`;
+        })
+        .join("");
+    }
+
+    selectedPendingKeys.forEach((key) => {
+      if (!approvable.some((item) => pendingItemKey(item) === key)) {
+        selectedPendingKeys.delete(key);
+      }
+    });
+    updateBulkApproveUI();
+  }
+
+  async function bulkApproveSelected() {
+    const course = selectedCourse();
+    if (!course || bulkApproveInFlight || selectedPendingKeys.size === 0) return;
+
+    const items = pendingForSelectedCourse().filter((item) =>
+      selectedPendingKeys.has(pendingItemKey(item))
+    );
+    if (!items.length) return;
+
+    const approvable = items.filter((item) => item.canApprove);
+    if (!approvable.length) return;
+
+    const label = approvable.length === 1 ? approvable[0].name : `${approvable.length} students`;
+    if (
+      !window.confirm(
+        `Approve enrollment for ${label} in ${course.name}? They will become available for batching.`
+      )
+    ) {
+      return;
+    }
+
+    bulkApproveInFlight = true;
+    updateBulkApproveUI();
+
+    try {
+      const res = await fetch("/registrar/api/enrollment/bulk-approve/", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCsrfToken(),
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          items: approvable.map((item) => ({
+            profileId: item.id,
+            registrationId: item.registrationId,
+          })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Bulk approval failed.");
+
+      const approvedKeys = new Set(
+        (data.approved || []).map((row) => {
+          if (row.profileId != null) return `p-${row.profileId}`;
+          if (row.registrationId) return `r-${row.registrationId}`;
+          return "";
+        })
+      );
+
+      const approvedItems = approvable.filter((item) => approvedKeys.has(pendingItemKey(item)));
+      pendingEnrollments = pendingEnrollments.filter(
+        (item) => !approvedKeys.has(pendingItemKey(item))
+      );
+      applyApprovedStudentsToCourse(course, approvedItems);
+      clearPendingSelection();
+      renderEnrollmentApproval();
+      renderCourseCards();
+      refreshScheduleLockUI();
+
+      if (Array.isArray(data.failed) && data.failed.length) {
+        window.alert(
+          `Approved ${data.approvedCount || approvedItems.length} student(s). ${data.failed.length} could not be approved.`
+        );
+      }
+    } catch (err) {
+      window.alert(err.message || "Could not approve selected students.");
+    } finally {
+      bulkApproveInFlight = false;
+      updateBulkApproveUI();
+    }
   }
 
   /** Latest editable draft for this course (templates are ordered newest first). */
@@ -700,17 +953,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const batchCount = course.batches.length;
       const days = courseDurationDays(course);
       const hasDraft = Boolean(getDraftForCourse(course.id));
+      const pendingForCourse = pendingEnrollments.filter((item) => pendingMatchesCourse(item, course));
       const locked = count < MIN_STUDENTS_TO_FINALIZE;
+      const canOpen = !locked || pendingForCourse.length > 0;
       const alert =
         needed > 0
           ? `<div class="registrar-batch-card__alert"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Need ${needed} more unassigned student${needed === 1 ? "" : "s"} before this course can be opened for scheduling.</div>`
           : "";
       const barClass = count >= MIN_STUDENTS_TO_FINALIZE ? "registrar-batch-card__bar-fill--ready" : "";
-      const disabledAttr = locked ? " disabled" : "";
-      const lockedClass = locked ? " is-locked" : "";
-      const titleAttr = locked
-        ? ` title="At least ${MIN_STUDENTS_TO_FINALIZE} unassigned students are required before opening this course."`
-        : "";
+      const disabledAttr = canOpen ? "" : " disabled";
+      const lockedClass = canOpen ? "" : " is-locked";
+      const titleAttr = canOpen
+        ? ""
+        : ` title="At least ${MIN_STUDENTS_TO_FINALIZE} unassigned students are required before opening this course."`;
 
       return `
         <div class="col-md-6 col-lg-4">
@@ -750,7 +1005,24 @@ document.addEventListener("DOMContentLoaded", () => {
       durationBadgeEl.classList.remove("d-none");
     }
 
+    const count = activeBatchStudentCount(course);
+    const scheduleLocked = count < MIN_STUDENTS_TO_FINALIZE;
+    if (templateForm) {
+      templateForm.classList.toggle("pe-none", scheduleLocked);
+      templateForm.classList.toggle("opacity-50", scheduleLocked);
+    }
+    if (scheduleLocked && detailSubtitleEl) {
+      detailSubtitleEl.textContent = isNational
+        ? "Approve more students below to reach the minimum batch size, then set the national assessment schedule."
+        : "Approve more students below to reach the minimum batch size, then set the class schedule.";
+    } else if (detailSubtitleEl) {
+      detailSubtitleEl.textContent = isNational
+        ? "National competency assessment schedule (assessment-only clients and EGACE graduates pending assessment)."
+        : "Class training schedule for this program.";
+    }
+
     if (loadDraft) loadDraftForSelectedCourse();
+    renderEnrollmentApproval();
     renderCourseCards();
     templateForm?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -758,9 +1030,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function hideDetail() {
     selectedCourseId = null;
     editingTemplateId = null;
+    clearPendingSelection();
     detailEl?.classList.add("d-none");
     placeholderEl?.classList.remove("d-none");
     durationBadgeEl?.classList.add("d-none");
+    approvalSectionEl?.classList.add("d-none");
     renderCourseCards();
   }
 
@@ -779,6 +1053,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
   closeBtn?.addEventListener("click", hideDetail);
   cancelBtn?.addEventListener("click", loadDraftForSelectedCourse);
+
+  selectAllEl?.addEventListener("change", () => {
+    const approvable = approvablePendingForSelectedCourse();
+    if (selectAllEl.checked) {
+      approvable.forEach((item) => selectedPendingKeys.add(pendingItemKey(item)));
+    } else {
+      approvable.forEach((item) => selectedPendingKeys.delete(pendingItemKey(item)));
+    }
+    pendingStudentsEl
+      ?.querySelectorAll(".batching-pending-check:not(:disabled)")
+      .forEach((input) => {
+        input.checked = selectAllEl.checked;
+      });
+    updateBulkApproveUI();
+  });
+
+  pendingStudentsEl?.addEventListener("change", (e) => {
+    const input = e.target.closest(".batching-pending-check");
+    if (!input || input.disabled) return;
+    const key = input.dataset.key;
+    if (!key) return;
+    if (input.checked) selectedPendingKeys.add(key);
+    else selectedPendingKeys.delete(key);
+    updateBulkApproveUI();
+  });
+
+  bulkApproveBtn?.addEventListener("click", () => {
+    bulkApproveSelected();
+  });
 
   typePillsEl?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-schedule-type]");

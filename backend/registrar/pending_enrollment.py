@@ -1,5 +1,6 @@
 """Registrar pending enrollment approval — list and approve/reject."""
 
+import json
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -288,6 +289,21 @@ def _pending_items_for_queryset():
     return items
 
 
+def pending_programs_by_type() -> tuple[set[str], set[str]]:
+    """Program names with open applications, split by training vs assessment-only."""
+    training: set[str] = set()
+    assessment: set[str] = set()
+    for reg in pending_registration_queryset():
+        program = (reg.selected_program or "").strip()
+        if not program:
+            continue
+        if reg.program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
+            assessment.add(program)
+        else:
+            training.add(program)
+    return training, assessment
+
+
 def pending_enrollments_payload():
     """Tabbed payload for registrar enrollment page (training vs assessment-only)."""
     training = []
@@ -350,6 +366,56 @@ def _action_ids_from_request(request):
     return pid, registration_id or None
 
 
+def _approve_enrollment_item(profile, reg) -> tuple[bool, str | None]:
+    """Shared validation + approval for single and bulk registrar actions."""
+    if not reg:
+        return False, "Enrollment not found or already processed."
+
+    if profile:
+        if not profile.profile_step_completed or not profile.requirements_submitted:
+            return False, "Student has not completed profile and requirements yet."
+        if not profile_has_payment(profile):
+            return (
+                False,
+                "Payment proof is not on file yet. Student must complete payment first.",
+            )
+        balance = _fee_balance(profile, reg)
+        paid = Decimal(str(balance["totalPaid"]))
+        if paid <= 0 or balance["totalRemaining"] > 0:
+            return False, "Payment must be fully settled before approval."
+    else:
+        return False, "Student has not started the learner profile yet."
+
+    reg.status = StudentRegistration.Status.APPROVED
+    reg.save(update_fields=["status"])
+    return True, None
+
+
+def _bulk_items_from_request(request) -> list[dict]:
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            body = json.loads(request.body.decode() or "{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            body = {}
+        items = body.get("items")
+        return items if isinstance(items, list) else []
+
+    profile_ids = request.POST.getlist("profile_id")
+    registration_ids = request.POST.getlist("registration_id")
+    if profile_ids or registration_ids:
+        count = max(len(profile_ids), len(registration_ids))
+        items = []
+        for i in range(count):
+            items.append(
+                {
+                    "profileId": profile_ids[i] if i < len(profile_ids) else None,
+                    "registrationId": registration_ids[i] if i < len(registration_ids) else None,
+                }
+            )
+        return items
+    return []
+
+
 @login_required(login_url="/")
 @require_http_methods(["POST"])
 def enrollment_approve(request):
@@ -360,28 +426,10 @@ def enrollment_approve(request):
     profile_id, registration_id = _action_ids_from_request(request)
     profile, reg = _resolve_item(profile_id, registration_id)
 
-    if not reg:
-        return JsonResponse({"error": "Enrollment not found or already processed."}, status=404)
-
-    if profile:
-        if not profile.profile_step_completed or not profile.requirements_submitted:
-            return JsonResponse(
-                {"error": "Student has not completed profile and requirements yet."},
-                status=400,
-            )
-        if not profile_has_payment(profile):
-            return JsonResponse(
-                {"error": "Payment proof is not on file yet. Student must complete payment first."},
-                status=400,
-            )
-    else:
-        return JsonResponse(
-            {"error": "Student has not started the learner profile yet."},
-            status=400,
-        )
-
-    reg.status = StudentRegistration.Status.APPROVED
-    reg.save(update_fields=["status"])
+    ok, error = _approve_enrollment_item(profile, reg)
+    if not ok:
+        status = 404 if error == "Enrollment not found or already processed." else 400
+        return JsonResponse({"error": error}, status=status)
 
     return JsonResponse(
         {
@@ -389,6 +437,58 @@ def enrollment_approve(request):
             "profile_id": profile.pk if profile else None,
             "registration_id": str(reg.pk),
             "status": reg.status,
+            "pending_count": pending_enrollment_count(),
+        }
+    )
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def enrollment_bulk_approve(request):
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return denied
+
+    items = _bulk_items_from_request(request)
+    if not items:
+        return JsonResponse({"error": "No enrollments selected."}, status=400)
+
+    approved = []
+    failed = []
+
+    for raw in items:
+        if not isinstance(raw, dict):
+            continue
+        profile_id = raw.get("profileId") or raw.get("profile_id")
+        registration_id = raw.get("registrationId") or raw.get("registration_id")
+        pid = int(profile_id) if profile_id not in (None, "") else None
+        profile, reg = _resolve_item(pid, registration_id or None)
+        ok, error = _approve_enrollment_item(profile, reg)
+        key = {
+            "profileId": profile.pk if profile else None,
+            "registrationId": str(reg.pk) if reg else registration_id,
+        }
+        if ok:
+            approved.append(key)
+        else:
+            failed.append({**key, "error": error})
+
+    if not approved and failed:
+        return JsonResponse(
+            {
+                "error": failed[0]["error"],
+                "failed": failed,
+                "pending_count": pending_enrollment_count(),
+            },
+            status=400,
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "approvedCount": len(approved),
+            "approved": approved,
+            "failed": failed,
             "pending_count": pending_enrollment_count(),
         }
     )

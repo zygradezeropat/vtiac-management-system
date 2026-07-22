@@ -10,7 +10,7 @@ from .batching_api import (
 from .document_review_api import document_approve, document_reject, document_release
 from .enrollment_detail import enrollment_detail
 from .egace_api import egace_set_certificate, egace_set_employment
-from .pending_enrollment import enrollment_approve, enrollment_reject
+from .pending_enrollment import enrollment_approve, enrollment_bulk_approve, enrollment_reject
 from .schedule_api import student_schedule_options
 urlpatterns = [
     path(
@@ -33,6 +33,11 @@ urlpatterns = [
         "registrar/api/enrollment/approve/",
         enrollment_approve,
         name="registrar_enrollment_approve",
+    ),
+    path(
+        "registrar/api/enrollment/bulk-approve/",
+        enrollment_bulk_approve,
+        name="registrar_enrollment_bulk_approve",
     ),
     path(
         "registrar/api/enrollment/reject/",
