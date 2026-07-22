@@ -550,40 +550,81 @@ document.addEventListener("DOMContentLoaded", () => {
       alertEl?.classList.remove("d-none");
     });
 
-  form.addEventListener("submit", (e) => {
-    enableAddressFieldsForSubmit();
-    middleNameField.prepareForSubmit();
-    syncSignatureFromName();
-    updateRequiredFieldStates(form);
-    const valid = validateForm(form);
-
-    if (!valid) {
-      e.preventDefault();
-      const issues = collectValidationIssues(form);
-      if (alertTextEl) {
-        alertTextEl.textContent =
-          issues.length > 0
-            ? `Please fix the following: ${issues.join("; ")}.`
-            : "Please complete all required fields before proceeding.";
+    form.addEventListener("submit", (e) => {
+      // Identify which button triggered the form submission.
+      const submitter = e.submitter;
+    
+      // Save as Draft should bypass all frontend validation.
+      const isSaveAsDraft =
+        submitter?.name === "action" &&
+        submitter?.value === "save_draft";
+    
+      // Always prepare fields before submitting.
+      enableAddressFieldsForSubmit();
+      middleNameField.prepareForSubmit();
+      syncSignatureFromName();
+    
+      // ---------------------------------------------------------
+      // SAVE AS DRAFT
+      // ---------------------------------------------------------
+      // Do not run validateForm().
+      // Do not call preventDefault().
+      // The form will submit normally to Django.
+      // Django will detect action=save_draft and save the draft.
+      // ---------------------------------------------------------
+      if (isSaveAsDraft) {
+        alertEl?.classList.add("d-none");
+        return;
       }
-      alertEl?.classList.remove("d-none");
-      if (wizard) {
-        wizard.goToFirstInvalidStep(form);
-      } else {
-        const firstInvalid = form.querySelector(
-          ".is-invalid, .student-enroll-classifications--invalid"
-        );
-        if (firstInvalid) {
-          firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
-        } else {
-          alertEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    
+      // ---------------------------------------------------------
+      // NORMAL SUBMISSION
+      // ---------------------------------------------------------
+      // Continue with the existing full frontend validation.
+      // ---------------------------------------------------------
+      updateRequiredFieldStates(form);
+    
+      const valid = validateForm(form);
+    
+      if (!valid) {
+        e.preventDefault();
+    
+        const issues = collectValidationIssues(form);
+    
+        if (alertTextEl) {
+          alertTextEl.textContent =
+            issues.length > 0
+              ? `Please fix the following: ${issues.join("; ")}.`
+              : "Please complete all required fields before proceeding.";
         }
+    
+        alertEl?.classList.remove("d-none");
+    
+        if (wizard) {
+          wizard.goToFirstInvalidStep(form);
+        } else {
+          const firstInvalid = form.querySelector(
+            ".is-invalid, .student-enroll-classifications--invalid"
+          );
+    
+          if (firstInvalid) {
+            firstInvalid.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+          } else {
+            alertEl?.scrollIntoView({
+              behavior: "smooth",
+              block: "nearest",
+            });
+          }
+        }
+    
+        return;
       }
-      return;
-    }
-
-    alertEl?.classList.add("d-none");
-  });
+    
+      alertEl?.classList.add("d-none");
+    });
 
   form.querySelectorAll("[data-required]").forEach((el) => {
     el.addEventListener("input", refreshValidation);

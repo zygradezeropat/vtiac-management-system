@@ -161,17 +161,17 @@ class StudentEnrollmentProfile(models.Model):
     uli = models.CharField(max_length=64, blank=True)
     entry_date = models.DateField()
 
-    last_name = models.CharField(max_length=100)
-    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100, blank=True)
+    first_name = models.CharField(max_length=100, blank=True)
     middle_name = models.CharField(max_length=100, blank=True)
     name_extension = models.CharField(max_length=16, blank=True)
-    email = models.EmailField()
-    contact_number = models.CharField(max_length=11, validators=[phone_ph])
+    email = models.EmailField(blank=True)
+    contact_number = models.CharField(max_length=11, validators=[phone_ph], blank=True)
 
-    region_code = models.CharField(max_length=32)
-    province_code = models.CharField(max_length=32)
-    city_code = models.CharField(max_length=32)
-    barangay_code = models.CharField(max_length=32)
+    region_code = models.CharField(max_length=32, blank=True)
+    province_code = models.CharField(max_length=32, blank=True)
+    city_code = models.CharField(max_length=32, blank=True)
+    barangay_code = models.CharField(max_length=32, blank=True)
     street_house = models.CharField(max_length=255, blank=True)
     district = models.CharField(max_length=128, blank=True)
     nationality = models.CharField(max_length=64, default="Filipino")
@@ -182,7 +182,7 @@ class StudentEnrollmentProfile(models.Model):
     )
     employment_status = models.CharField(max_length=32, blank=True)
     employment_type = models.CharField(max_length=32, blank=True)
-    birth_date = models.DateField()
+    birth_date = models.DateField(blank=True)
     birthplace = models.CharField(max_length=255, blank=True)
     educational_attainment = models.CharField(max_length=128, blank=True)
 
@@ -193,12 +193,12 @@ class StudentEnrollmentProfile(models.Model):
     disability_types = models.JSONField(default=list, blank=True)
     disability_other_specify = models.CharField(max_length=255, blank=True)
     disability_causes = models.JSONField(default=list, blank=True)
-    selected_program = models.CharField(max_length=200)
-    program_type = models.CharField(max_length=40, choices=StudentRegistration.ProgramType.choices)
+    selected_program = models.CharField(max_length=200, blank=True)
+    program_type = models.CharField(max_length=40, choices=StudentRegistration.ProgramType.choices, blank=True)
     scholarship_type = models.CharField(max_length=32, blank=True)
 
-    privacy_consent = models.BooleanField(default=False)
-    signature = models.CharField(max_length=255)
+    privacy_consent = models.BooleanField(default=False, blank=True)
+    signature = models.CharField(max_length=255, blank=True)
     date_accomplished = models.DateField(null=True, blank=True)
     noted_by = models.CharField(
         max_length=255,
@@ -222,7 +222,7 @@ class StudentEnrollmentProfile(models.Model):
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
 
-    profile_step_completed = models.BooleanField(default=True)
+    profile_step_completed = models.BooleanField(default=False)
     requirements_submitted = models.BooleanField(default=False)
     requirements_submitted_at = models.DateTimeField(null=True, blank=True)
     photo_registrar_status = models.CharField(

@@ -145,9 +145,46 @@ def enrollment(request):
     if request.method == "POST":
         existing = get_enrollment_profile(request.user)
         program_type = enrollment_program_type_for_user(request.user)
+        action = request.POST.get("action", "")
+
+        is_draft = action == "save_draft"
+
         data = parse_enrollment_post(
-            request.POST, request.FILES, program_type=program_type
+            request.POST,
+            request.FILES,
+            program_type=program_type,
         )
+        # logic for drafting
+        if is_draft:
+            try:
+                save_enrollment_profile(
+                    request.user,
+                    data,
+                    is_draft=True,
+                )
+
+            except (ValueError, TypeError) as exc:
+                messages.error(
+                    request,
+                    f"Could not save enrollment draft: {exc}",
+                )
+                return redirect("student_enrollment")
+
+            except IntegrityError:
+                messages.error(
+                    request,
+                    "Could not save enrollment draft. "
+                    "Please try again or contact support.",
+                )
+                return redirect("student_enrollment")
+
+            messages.success(
+                request,
+                "Your enrollment progress has been saved as a draft.",
+            )
+
+            return redirect("student_enrollment")
+
         errors = validate_enrollment_data(
             data,
             require_photo=not (existing and existing.photo),
@@ -157,34 +194,66 @@ def enrollment(request):
         if errors:
             for msg in errors:
                 messages.error(request, msg)
+
             return redirect("student_enrollment")
 
         try:
-            save_enrollment_profile(request.user, data)
+            save_enrollment_profile(
+                request.user,
+                data,
+                is_draft=False,
+            )
+
         except (ValueError, TypeError) as exc:
-            messages.error(request, f"Could not save enrollment profile: {exc}")
-            return redirect("student_enrollment")
-        except IntegrityError:
             messages.error(
                 request,
-                "Could not save enrollment profile. Please try again or contact support.",
+                f"Could not save enrollment profile: {exc}",
             )
             return redirect("student_enrollment")
 
+        except IntegrityError:
+            messages.error(
+                request,
+                "Could not save enrollment profile. "
+                "Please try again or contact support.",
+            )
+            return redirect("student_enrollment")
+
+        # message save as we can see duh
         if program_type == "assessment_only":
-            messages.success(request, "TESDA application form saved successfully.")
+            messages.success(
+                request,
+                "TESDA application form saved successfully.",
+            )
         else:
-            messages.success(request, "Learner profile saved successfully.")
+            messages.success(
+                request,
+                "Learner profile saved successfully.",
+            )
+
         profile = get_enrollment_profile(request.user)
+
+        # ---------------------------------------------------------
+        # EXISTING REDIRECT LOGIC
+        # ---------------------------------------------------------
         if registration_is_enrolled(request.user):
-            messages.success(request, "Your profile has been updated successfully.")
+            messages.success(
+                request,
+                "Your profile has been updated successfully.",
+            )
             return redirect("student_my_profile")
+
         if profile and should_redirect_to_enrollment_pending(request.user):
             return redirect("student_enrollment_pending")
+
         return redirect("student_enrollment_requirements")
 
+    # -------------------------------------------------------------
+    # GET REQUEST
+    # -------------------------------------------------------------
     if registration_is_enrolled(request.user):
         return redirect("student_my_profile")
+
     if (
         profile
         and should_redirect_to_enrollment_pending(request.user)
@@ -192,8 +261,11 @@ def enrollment(request):
     ):
         return redirect("student_enrollment_pending")
 
-    return render(request, "student/enrollment.html", student_enrollment_context(request))
-
+    return render(
+        request,
+        "student/enrollment.html",
+        student_enrollment_context(request),
+    )
 
 @login_required(login_url="/")
 def enrollment_requirements(request):

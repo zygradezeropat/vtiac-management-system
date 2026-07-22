@@ -2121,3 +2121,18 @@
   background: #fef2f2;
   color: #dc2626;
 }
+
+.student-enroll-save-draft-row {
+  width: 100%;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.student-enroll-save-draft-btn {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}

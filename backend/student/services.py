@@ -621,7 +621,7 @@ def _registration_for_user(user):
         return None
 
 
-def save_enrollment_profile(user, data):
+def save_enrollment_profile(user, data, *, is_draft=False):
     """Create or update the student's TESDA enrollment profile."""
     from datetime import datetime
 
@@ -641,12 +641,18 @@ def save_enrollment_profile(user, data):
         selected_program = reg.selected_program if reg else options[0]
     tsmis = data.get("tsmis") or (reg.reference_id if reg else "")
 
-    if not data.get("birth_date"):
+    birth_date = None
+
+    if data.get("birth_date"):
+        try:
+            birth_date = datetime.strptime(
+                data["birth_date"],
+                "%Y-%m-%d"
+            ).date()
+        except ValueError as exc:
+            raise ValueError("Invalid birthdate format.") from exc
+    elif not is_draft:
         raise ValueError("Birthdate is required.")
-    try:
-        birth_date = datetime.strptime(data["birth_date"], "%Y-%m-%d").date()
-    except ValueError as exc:
-        raise ValueError("Invalid birthdate format.") from exc
 
     profile = get_enrollment_profile(user)
     created = profile is None
@@ -705,7 +711,7 @@ def save_enrollment_profile(user, data):
     profile.signature = data["signature"]
     if not profile.date_accomplished:
         profile.date_accomplished = timezone.localdate()
-    profile.profile_step_completed = True
+    profile.profile_step_completed = not is_draft
 
     photo = data.get("photo")
     if photo:
