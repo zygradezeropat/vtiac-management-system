@@ -917,7 +917,7 @@ def batching_batches_list(request):
 
 @login_required(login_url="/")
 @require_http_methods(["POST"])
-def batching_template_finalize(
+def batching_template_activate(
     request,
     template_id,
 ):
