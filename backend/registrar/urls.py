@@ -4,7 +4,7 @@ from . import views
 from .batching_api import (
     batching_batches_list,
     batching_template_delete,
-    batching_template_finalize,
+    batching_template_activate,
     batching_template_upsert,
 )
 from .document_review_api import document_approve, document_reject, document_release
@@ -81,7 +81,7 @@ urlpatterns = [
     ),
     path(
         "registrar/api/batching/template/finalize/<str:template_id>/",
-        batching_template_finalize,
+        batching_template_activate,
         name="registrar_batching_template_finalize",
     ),
     path(
@@ -94,5 +94,6 @@ urlpatterns = [
         views.trainer_evaluations,
         name="registrar_trainer_evaluations",
     ),
+    
 
 ]

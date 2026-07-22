@@ -21,6 +21,52 @@
 
 <div class="registrar-panel mb-0">
   <div class="registrar-panel__body">
+    <div class="registrar-status-tabs" id="finalized-status-tabs">
+      <button
+        type="button"
+        class="registrar-status-tab active"
+        data-status=""
+      >
+        <i class="bi bi-grid-fill me-1"></i>
+        All
+      </button>
+    
+      <button
+        type="button"
+        class="registrar-status-tab"
+        data-status="finalized"
+      >
+        <i class="bi bi-trophy-fill me-1"></i>
+        Finalized
+      </button>
+    
+      <button
+        type="button"
+        class="registrar-status-tab"
+        data-status="draft"
+      >
+        <i class="bi bi-pencil-square me-1"></i>
+        Draft
+      </button>
+    
+      <button
+        type="button"
+        class="registrar-status-tab"
+        data-status="active"
+      >
+        <i class="bi bi-play-circle-fill me-1"></i>
+        Active
+      </button>
+    
+      <button
+        type="button"
+        class="registrar-status-tab"
+        data-status="completed"
+      >
+        <i class="bi bi-check-circle-fill me-1"></i>
+        Completed
+      </button>
+    </div>
     <div class="registrar-finalized-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <p class="text-muted small mb-0">
         Every schedule you <strong>Save schedule</strong> in Batching &amp; Scheduling appears here as a <strong>Draft</strong>.
@@ -34,11 +80,7 @@
           placeholder="Search course, batch, trainer..."
           autocomplete="off"
         />
-        <select id="finalized-status-filter" class="form-select form-select-sm" style="min-width:10rem">
-          <option value="">All statuses</option>
-          <option value="draft">Draft only</option>
-          <option value="finalized">Finalized only</option>
-        </select>
+        
         <select id="finalized-course-filter" class="form-select form-select-sm" style="min-width:12rem">
           <option value="">All courses</option>
         </select>

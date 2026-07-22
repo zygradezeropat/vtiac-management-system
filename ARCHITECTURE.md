@@ -451,7 +451,7 @@ Defined in `registrar/services.py` → `REGISTRAR_MODULES`:
 | scholarship | `/registrar/scholarship/` | `registrar/scholarship.html` |
 | egace-table | `/registrar/egace-table/` | `registrar/egace_table.html` |
 | reports | `/registrar/reports/` | `registrar/reports.html` |
-| settings | `/registrar/settings/` | `registrar/settings.html` |
+| settings | `/registrar/settings/` | `registrar/settings.html` | 
 
 Cashier, trainer, and admin portals follow the same `<portal>/<module>/` pattern.
 

@@ -9,7 +9,6 @@ class RegistrarScheduleTemplate(models.Model):
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
-        FINALIZED = "finalized", "Finalized"
         ACTIVE = "active", "Active"
         COMPLETED = "completed", "Completed"
 
@@ -51,6 +50,7 @@ class RegistrarScheduleTemplate(models.Model):
         default=Status.DRAFT,
         db_index=True,
     )
+    is_active = models.BooleanField(default=False)
     finalized_at = models.DateTimeField(null=True, blank=True)
     students_snapshot = models.JSONField(default=list, blank=True)
     created_by = models.ForeignKey(

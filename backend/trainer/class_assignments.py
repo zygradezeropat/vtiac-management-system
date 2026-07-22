@@ -84,7 +84,7 @@ def finalized_batches_for_trainer(
     trainer_req: Optional[TrainerAccountRequest], *, user=None
 ):
     qs = RegistrarScheduleTemplate.objects.filter(
-        status=RegistrarScheduleTemplate.Status.FINALIZED,
+        status=RegistrarScheduleTemplate.Status.ACTIVE,
     )
     if trainer_req:
         name = _trainer_name_for_lookup(trainer_req, user)
