@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods
 from backend.accounts.services import require_portal_access
 from backend.student.models import StudentRegistration
 from backend.trainer.models import TrainerAccountRequest
+from backend.trainer.egace_progress import grade_payload_for_registration, student_is_graduate
 
 from .batching_student_pool import available_students_for_course
 from .models import RegistrarScheduleTemplate
@@ -272,9 +273,77 @@ def _students_for_template(t: RegistrarScheduleTemplate) -> list[dict]:
         return t.students_snapshot
     return _students_for_course(t.course_name, batch_kind=t.batch_kind)
 
+# to see the competency status of the students in the batch
+def _add_competency_status_to_students(
+    students: list[dict],
+    course_name: str,
+) -> list[dict]:
+    """
+    Add the student's actual institutional competency status
+    based on the latest TrainerStudentGrade record and EGACE logic.
+    """
+    result = []
+
+    for student in students:
+        student_data = dict(student)
+
+        first_name = (
+            student.get("firstName")
+            or student.get("first_name")
+            or ""
+        ).strip()
+
+        last_name = (
+            student.get("lastName")
+            or student.get("last_name")
+            or ""
+        ).strip()
+
+        program = (
+            student.get("program")
+            or course_name
+            or ""
+        ).strip()
+
+        registration = (
+            StudentRegistration.objects.filter(
+                status=StudentRegistration.Status.APPROVED,
+                selected_program=program,
+                first_name__iexact=first_name,
+                last_name__iexact=last_name,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not registration:
+            student_data["competencyStatus"] = "Not Yet Competent"
+            result.append(student_data)
+            continue
+
+        payload = grade_payload_for_registration(registration)
+
+        is_competent = student_is_graduate(
+            payload,
+            program,
+        )
+
+        student_data["competencyStatus"] = (
+            "Competent"
+            if is_competent
+            else "Not Yet Competent"
+        )
+
+        result.append(student_data)
+
+    return result
 
 def _serialize_template(t: RegistrarScheduleTemplate):
     students = _students_for_template(t)
+    students = _add_competency_status_to_students(
+        students,
+        t.course_name,
+    )
     return {
         "id": str(t.pk),
         "name": t.name or "",

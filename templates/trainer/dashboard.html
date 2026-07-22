@@ -10,7 +10,8 @@
   <a href="{% url 'trainer_module' module='students' %}" class="trainer-stat-card">
     <div class="trainer-stat-header">
       <span class="trainer-stat-title">Total Students</span>
-      <span class="trainer-stat-icon trainer-stat-icon--blue"><i class="bi bi-people-fill" aria-hidden="true"></i></span>
+      <span class="trainer-stat-icon trainer-stat-icon--blue"><i class="bi bi-people-fill"
+          aria-hidden="true"></i></span>
     </div>
     <p class="trainer-stat-value" id="total-students">{{ total_students }}</p>
     <p class="trainer-stat-label">Assigned students</p>
@@ -18,7 +19,8 @@
   <a href="{% url 'trainer_module' module='sheets' %}" class="trainer-stat-card">
     <div class="trainer-stat-header">
       <span class="trainer-stat-title">Competent</span>
-      <span class="trainer-stat-icon trainer-stat-icon--emerald"><i class="bi bi-check-lg" aria-hidden="true"></i></span>
+      <span class="trainer-stat-icon trainer-stat-icon--emerald"><i class="bi bi-check-lg"
+          aria-hidden="true"></i></span>
     </div>
     <p class="trainer-stat-value" id="competent-count">{{ competent_count }}</p>
     <p class="trainer-stat-label">Students graded C</p>
@@ -26,7 +28,8 @@
   <a href="{% url 'trainer_module' module='sheets' %}" class="trainer-stat-card">
     <div class="trainer-stat-header">
       <span class="trainer-stat-title">Not Yet Competent</span>
-      <span class="trainer-stat-icon trainer-stat-icon--amber"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></span>
+      <span class="trainer-stat-icon trainer-stat-icon--amber"><i class="bi bi-exclamation-circle"
+          aria-hidden="true"></i></span>
     </div>
     <p class="trainer-stat-value" id="nyc-count">{{ nyc_count }}</p>
     <p class="trainer-stat-label">Students graded NYC</p>
@@ -34,7 +37,8 @@
   <div class="trainer-stat-card">
     <div class="trainer-stat-header">
       <span class="trainer-stat-title">Grading Progress</span>
-      <span class="trainer-stat-icon trainer-stat-icon--purple"><i class="bi bi-clipboard-data" aria-hidden="true"></i></span>
+      <span class="trainer-stat-icon trainer-stat-icon--purple"><i class="bi bi-clipboard-data"
+          aria-hidden="true"></i></span>
     </div>
     <p class="trainer-stat-value" id="avg-attendance">{{ avg_attendance }}</p>
     <p class="trainer-stat-label">Students with saved grades</p>
@@ -49,18 +53,68 @@
     {% if has_assigned_classes %}
     <div class="trainer-schedule-list">
       {% for batch in assigned_batches %}
-      <div class="trainer-schedule-assigned">
-        <p class="trainer-schedule-assigned__lead mb-3">
-          <i class="bi bi-check-circle-fill text-success me-1" aria-hidden="true"></i>
-          <strong>{{ batch.batch_label }}</strong> — {{ batch.course_name }}
-          {% if batch.finalized_at_display %}
-          <span class="trainer-schedule-assigned__meta">(finalized {{ batch.finalized_at_display }})</span>
-          {% endif %}
+      <div class="trainer-schedule-assigned
+  {% if batch.display_status == 'active' %}
+    trainer-schedule-assigned--active
+  {% elif batch.display_status == 'completed' %}
+    trainer-schedule-assigned--completed
+  {% elif batch.display_status == 'scheduled' %}
+    trainer-schedule-assigned--scheduled
+  {% endif %}
+">
+        <div class="trainer-schedule-assigned__header">
+
+          <p class="trainer-schedule-assigned__lead mb-0">
+            {% if batch.display_status == "active" %}
+            <i class="bi bi-play-circle-fill me-1" aria-hidden="true"></i>
+            {% elif batch.display_status == "completed" %}
+            <i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>
+            {% else %}
+            <i class="bi bi-calendar-event-fill me-1" aria-hidden="true"></i>
+            {% endif %}
+
+            <strong>{{ batch.batch_label }}</strong> — {{ batch.course_name }}
+          </p>
+
+          <span class="trainer-batch-status
+    {% if batch.display_status == 'active' %}
+      trainer-batch-status--active
+    {% elif batch.display_status == 'completed' %}
+      trainer-batch-status--completed
+    {% elif batch.display_status == 'scheduled' %}
+      trainer-batch-status--scheduled
+    {% endif %}
+  ">
+            {% if batch.display_status == "active" %}
+            <i class="bi bi-play-circle-fill"></i>
+            Active
+            {% elif batch.display_status == "completed" %}
+            <i class="bi bi-check-circle-fill"></i>
+            Completed
+            {% elif batch.display_status == "scheduled" %}
+            <i class="bi bi-calendar-event"></i>
+            Scheduled
+            {% endif %}
+          </span>
+
+        </div>
+
+        {% if batch.finalized_at_display %}
+        <p class="trainer-schedule-assigned__meta mb-3">
+          Finalized {{ batch.finalized_at_display }}
         </p>
+        {% endif %}
+
+        {% if batch.finalized_at_display %}
+        <p class="trainer-schedule-assigned__meta mb-3">
+          Finalized {{ batch.finalized_at_display }}
+        </p>
+        {% endif %}
         {% if batch.has_conflict %}
         <p class="mb-2 text-danger small">
           <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
-          Schedule conflict detected with {{ batch.conflict_count }} other assigned batch{{ batch.conflict_count|pluralize }}.
+          Schedule conflict detected with {{ batch.conflict_count }} other assigned batch{{
+          batch.conflict_count|pluralize }}.
         </p>
         {% endif %}
         <ul class="list-unstyled trainer-schedule-assigned__list mb-0">
@@ -69,16 +123,22 @@
           {% endif %}
           <li><i class="bi bi-clock me-2 text-success" aria-hidden="true"></i>{{ batch.schedule_display }}</li>
           {% if batch.start_date_display or batch.end_date_display %}
-          <li><i class="bi bi-calendar-range me-2 text-success" aria-hidden="true"></i>{{ batch.start_date_display|default:"—" }} to {{ batch.end_date_display|default:"—" }}</li>
+          <li>
+            <i class="bi bi-calendar-range me-2 text-success" aria-hidden="true"></i>
+            {{ batch.start_date_display|default:"—" }} to {{ batch.end_date_display|default:"—" }}
+          </li>
           {% endif %}
-          <li><i class="bi bi-people me-2 text-success" aria-hidden="true"></i>{{ batch.student_count }} student{{ batch.student_count|pluralize }} in this batch</li>
-        </ul>
+          <li>
+            <i class="bi bi-people me-2 text-success" aria-hidden="true"></i>
+            {{ batch.student_count }} student{{ batch.student_count|pluralize }} in this batch
+            </li>
       </div>
       {% endfor %}
     </div>
     {% else %}
     <p class="trainer-schedule-empty mb-0">
-      No finalized class has been assigned to you yet. Once the registrar finalizes a batch with you as trainer in Batching &amp; Scheduling, your schedule and student count will appear here.
+      No finalized class has been assigned to you yet. Once the registrar finalizes a batch with you as trainer in
+      Batching &amp; Scheduling, your schedule and student count will appear here.
     </p>
     {% endif %}
   </div>

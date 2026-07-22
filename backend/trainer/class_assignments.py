@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Optional
+from django.utils import timezone
 
 from django.db.models import Q
 
@@ -44,6 +45,39 @@ def _trainer_name_for_lookup(
     if user and getattr(user, "is_authenticated", False):
         return (user.get_full_name() or "").strip()
     return ""
+
+def get_batch_display_status(template: RegistrarScheduleTemplate) -> str:
+    """
+    Determine the trainer-facing status of a finalized batch
+    based on its scheduled start and end dates.
+
+    Database status remains FINALIZED.
+    This is only the computed display status.
+    """
+    if template.status != RegistrarScheduleTemplate.Status.FINALIZED:
+        return "draft"
+
+    today = timezone.localdate()
+
+    start_date = template.available_from
+    end_date = template.available_until
+
+    # If there is no start date, treat it as active once finalized.
+    if not start_date:
+        if end_date and today > end_date:
+            return "completed"
+        return "active"
+
+    # Batch has not started yet.
+    if today < start_date:
+        return "upcoming"
+
+    # Batch is currently within its scheduled period.
+    if not end_date or today <= end_date:
+        return "active"
+
+    # Batch end date has passed.
+    return "completed"
 
 
 def finalized_batches_for_trainer(
@@ -107,6 +141,8 @@ def batch_to_dashboard_dict(template: RegistrarScheduleTemplate) -> dict:
         ),
         "has_conflict": False,
         "conflict_count": 0,
+        "status": template.status,
+        "display_status": get_batch_display_status(template),
     }
 
 
@@ -211,18 +247,62 @@ def _student_filter_options(students: list[dict]) -> dict:
 def trainer_class_schedule_context(user) -> dict:
     """Shared batch + student data for dashboard and My Students."""
     trainer_req = trainer_account_request_for_user(user)
-    batches = list(finalized_batches_for_trainer(trainer_req, user=user))
-    batch_cards = [batch_to_dashboard_dict(b) for b in batches]
+    batches = list(
+        finalized_batches_for_trainer(
+            trainer_req,
+            user=user,
+        )
+    )
+
+    batch_cards = [
+        batch_to_dashboard_dict(batch)
+        for batch in batches
+    ]
+
     conflicts = _conflict_map_for_batches(batches)
+
     for card in batch_cards:
         linked = conflicts.get(card["id"], set())
         card["has_conflict"] = bool(linked)
         card["conflict_count"] = len(linked)
+
+    active_batches = [
+        batch
+        for batch in batch_cards
+        if batch["display_status"] == "active"
+    ]
+
+    upcoming_batches = [
+        batch
+        for batch in batch_cards
+        if batch["display_status"] == "upcoming"
+    ]
+
+    completed_batches = [
+        batch
+        for batch in batch_cards
+        if batch["display_status"] == "completed"
+    ]
+
     students = _assigned_students_from_batches(batches)
-    total_students = len(students) or sum(c["student_count"] for c in batch_cards)
+
+    total_students = (
+        len(students)
+        or sum(
+            card["student_count"]
+            for card in batch_cards
+        )
+    )
+
     return {
         "has_assigned_classes": bool(batch_cards),
         "assigned_batches": batch_cards,
+        "active_batches": active_batches,
+        "upcoming_batches": upcoming_batches,
+        "completed_batches": completed_batches,
+        "active_batch_count": len(active_batches),
+        "upcoming_batch_count": len(upcoming_batches),
+        "completed_batch_count": len(completed_batches),
         "assigned_class_count": len(batch_cards),
         "total_assigned_students": total_students,
         "assigned_students": students,

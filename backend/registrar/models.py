@@ -10,6 +10,8 @@ class RegistrarScheduleTemplate(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         FINALIZED = "finalized", "Finalized"
+        ACTIVE = "active", "Active"
+        COMPLETED = "completed", "Completed"
 
     class BatchKind(models.TextChoices):
         TRAINING = "training", "Training"

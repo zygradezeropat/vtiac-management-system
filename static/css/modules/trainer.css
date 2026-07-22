@@ -573,6 +573,79 @@ a.trainer-stat-card {
   margin-bottom: 0;
 }
 
+/* =========================================================
+   Trainer Batch Status Cards
+   ========================================================= */
+
+.trainer-schedule-assigned {
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Active batch */
+.trainer-schedule-assigned--active {
+  background: #ecfdf5;
+  border-color: #86efac;
+}
+
+/* Scheduled batch */
+.trainer-schedule-assigned--scheduled {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+/* Completed batch */
+.trainer-schedule-assigned--completed {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+
+/* Batch header */
+.trainer-schedule-assigned__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+
+/* Status badge base */
+.trainer-batch-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+
+/* Active badge */
+.trainer-batch-status--active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+
+/* Scheduled badge */
+.trainer-batch-status--scheduled {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+
+/* Completed badge */
+.trainer-batch-status--completed {
+  background: #e2e8f0;
+  color: #475569;
+}
 .trainer-schedule-empty {
   background: #f8fafc;
   border: 1px solid var(--trainer-border, #e2e8f0);

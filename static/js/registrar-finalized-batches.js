@@ -207,6 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <td>${escapeHtml(s.lastName)}</td>
           <td>${escapeHtml(s.firstName)}</td>
           <td>${escapeHtml(s.program)}</td>
+          <td>${escapeHtml(s.competencyStatus || "Not Yet Competent")}</td>
         </tr>`
       )
       .join("");
@@ -231,8 +232,8 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4 class="registrar-student-detail__heading"><i class="bi bi-people-fill" aria-hidden="true"></i> Students (${batch.studentCount})</h4>
           <div class="table-responsive">
             <table class="table registrar-table registrar-batching-table mb-0">
-              <thead><tr><th>#</th><th>Last Name</th><th>First Name</th><th>Program</th></tr></thead>
-              <tbody>${studentRows || '<tr><td colspan="4" class="text-muted">No students</td></tr>'}</tbody>
+              <thead><tr><th>#</th><th>Last Name</th><th>First Name</th><th>Program</th><th>Status</th></tr></thead>
+              <tbody>${studentRows || '<tr><td colspan="5" class="text-muted">No students</td></tr>'}</tbody>
             </table>
           </div>
         </section>`;
