@@ -4,11 +4,27 @@
 
 {% block body %}
 {% include "components/registrar/layout_start.html" %}
-{% if enrollment_pipeline_json %}{{ enrollment_pipeline_json|json_script:"enrollment-pipeline-config" }}{% endif %}
-{% if batching_trainers %}{{ batching_trainers|json_script:"batching-trainers-data" }}{% endif %}
-{% if batching_courses %}{{ batching_courses|json_script:"batching-courses-data" }}{% endif %}
-{% if batching_templates %}{{ batching_templates|json_script:"batching-templates-data" }}{% endif %}
-{% if pending_enrollments %}{{ pending_enrollments|json_script:"batching-pending-enrollments-data" }}{% endif %}
+
+{% if enrollment_pipeline_json %}
+  {{ enrollment_pipeline_json|json_script:"enrollment-pipeline-config" }}
+{% endif %}
+
+{% if batching_trainers %}
+  {{ batching_trainers|json_script:"batching-trainers-data" }}
+{% endif %}
+
+{% if batching_courses %}
+  {{ batching_courses|json_script:"batching-courses-data" }}
+{% endif %}
+
+{% if batching_templates %}
+  {{ batching_templates|json_script:"batching-templates-data" }}
+{% endif %}
+
+{% if pending_enrollments %}
+  {{ pending_enrollments|json_script:"batching-pending-enrollments-data" }}
+{% endif %}
+
 
 <header class="registrar-page-header">
   <div>
@@ -17,139 +33,542 @@
   </div>
 </header>
 
+
 {% csrf_token %}
-<div id="batching-category-tabs" class="registrar-batch-tabs mb-3" role="tablist" aria-label="Program category"></div>
-<div id="batching-courses" class="row g-3 mb-4"></div>
-<div id="batching-courses-empty" class="registrar-batching-category-empty d-none text-center py-5">
-  <p class="text-muted mb-0">No programs in this category yet.</p>
+
+
+<!-- Course category tabs -->
+<div
+  id="batching-category-tabs"
+  class="registrar-batch-tabs mb-3"
+  role="tablist"
+  aria-label="Program category">
 </div>
 
-<div id="batching-placeholder" class="registrar-panel registrar-batching-placeholder text-center py-5">
-  <i class="bi bi-calendar-week display-4 text-secondary opacity-50" aria-hidden="true"></i>
-  <p class="text-muted mt-3 mb-0">Only course cards with at least 3 unassigned students can be opened for scheduling and batch finalization.</p>
-</div>
 
-<div id="batching-detail" class="registrar-panel d-none">
-  <div class="registrar-panel__body">
-    <div class="registrar-batching-detail__head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-4">
-      <div>
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-          <h2 id="batching-detail-title" class="registrar-panel__title mb-0"></h2>
-          <span id="batching-duration-badge" class="registrar-pill registrar-pill--primary d-none"></span>
-        </div>
-        <p id="batching-detail-subtitle" class="registrar-panel__subtitle mb-0">Create or update the class schedule for this program</p>
-      </div>
-      <button type="button" id="batching-detail-close" class="btn btn-outline-secondary btn-sm">Close</button>
+<!-- Course card selection controls -->
+<div id="batching-course-selection-toolbar"
+     class="registrar-panel mb-3 d-none">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 p-3">
+
+    <div class="d-flex align-items-center gap-2">
+      <input
+        type="checkbox"
+        id="batching-course-select-all"
+        class="form-check-input"
+        aria-label="Select all visible courses"
+      />
+
+      <label
+        for="batching-course-select-all"
+        class="form-check-label fw-semibold mb-0"
+      >
+        Select all courses
+      </label>
     </div>
 
-    <section id="batching-enrollment-approval" class="registrar-batching-approval panel-light rounded-3 p-3 p-md-4 mb-4 d-none">
-      <div class="registrar-batching-approval__head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
-        <div>
-          <p class="registrar-schedule-template-form__eyebrow mb-1">Enrollment approval</p>
-          <h3 class="h6 fw-semibold mb-1">Approve students for this program</h3>
-          <p class="text-muted small mb-0">Select applicants who are ready to enroll. Approved students become available for batching.</p>
-        </div>
-        <button type="button" id="batching-bulk-approve-btn" class="btn btn-success btn-sm fw-semibold px-3" disabled>
-          <i class="bi bi-check2-all me-1" aria-hidden="true"></i>
-          Approve selected (<span id="batching-bulk-approve-count">0</span>)
-        </button>
-      </div>
-      <div class="table-responsive">
-        <table class="table registrar-table registrar-batching-table registrar-batching-approval-table mb-0">
-          <thead>
-            <tr>
-              <th scope="col" class="registrar-batching-approval-table__check">
-                <input type="checkbox" id="batching-select-all" class="form-check-input" aria-label="Select all approvable students" />
-              </th>
-              <th scope="col">Student</th>
-              <th scope="col">Status</th>
-            </tr>
-          </thead>
-          <tbody id="batching-pending-students"></tbody>
-        </table>
-      </div>
-      <p id="batching-pending-empty" class="text-muted small text-center py-3 mb-0 d-none">No pending enrollments for this program.</p>
-    </section>
+    <div class="text-muted small">
+      <span id="batching-selected-course-count">0</span>
+      course(s) selected
+    </div>
 
-    <form id="schedule-template-form" class="registrar-schedule-template-form panel-light rounded-3 p-3 p-md-4 mb-2" novalidate>
-      <p class="registrar-schedule-template-form__eyebrow mb-1">Class schedule</p>
-      <p class="text-muted small mb-4">
-        Saved schedules appear on
-        <a href="/registrar/finalized-batches/">Finalized Batches</a>
-        where you can review, edit, and finalize.
-      </p>
-
-      <div class="mb-4">
-        <span class="form-label fw-semibold d-block mb-2">Schedule type</span>
-        <div id="schedule-type-pills" class="registrar-schedule-pills" role="group" aria-label="Schedule type">
-          <button type="button" class="registrar-schedule-pill registrar-schedule-pill--type" data-schedule-type="weekdays">Weekdays</button>
-          <button type="button" class="registrar-schedule-pill registrar-schedule-pill--type" data-schedule-type="weekends">Weekends</button>
-          <button type="button" class="registrar-schedule-pill registrar-schedule-pill--type" data-schedule-type="custom">Custom</button>
-        </div>
-      </div>
-
-      <div class="mb-4">
-        <span class="form-label fw-semibold d-block mb-2">Days of the week <span class="text-danger">*</span></span>
-        <div id="day-pills" class="registrar-schedule-pills" role="group" aria-label="Days of the week"></div>
-        <span id="template-days-error" class="text-danger small fw-semibold d-none"></span>
-      </div>
-
-      <div class="row g-3 mb-4">
-        <div class="col-sm-6">
-          <label class="form-label fw-semibold" for="template-time-from">Time from <span class="text-danger">*</span></label>
-          <input type="time" id="template-time-from" class="form-control form-control-vtiac" value="08:00" required />
-        </div>
-        <div class="col-sm-6">
-          <label class="form-label fw-semibold" for="template-time-to">Time to <span class="text-danger">*</span></label>
-          <input type="time" id="template-time-to" class="form-control form-control-vtiac" value="12:00" required />
-        </div>
-      </div>
-
-      <div class="mb-4">
-        <label class="form-label fw-semibold" for="template-daily-hours">Daily hours</label>
-        <input type="text" id="template-daily-hours" class="form-control form-control-vtiac" readonly tabindex="-1" aria-readonly="true" />
-      </div>
-
-      <div class="row g-3 mb-4">
-        <div class="col-sm-6">
-          <label class="form-label fw-semibold" for="template-available-from">Start Date</label>
-          <input type="date" id="template-available-from" class="form-control form-control-vtiac" />
-        </div>
-        <div class="col-sm-6">
-          <label class="form-label fw-semibold" for="template-available-until">End Date</span></label>
-          <input type="date" id="template-available-until" class="form-control form-control-vtiac" />
-        </div>
-      </div>
-
-      <div id="template-schedule-conflict" class="alert alert-warning py-2 px-3 small d-none mb-3" role="alert"></div>
-
-      <div class="mb-4">
-        <label class="form-label fw-semibold" for="template-trainer">Assigned Trainer <span class="text-danger">*</span></label>
-        <select id="template-trainer" class="form-select form-select-vtiac" required>
-          <option value="">Select trainer</option>
-        </select>
-        <small id="template-trainer-hint" class="text-muted d-block mt-1"></small>
-      </div>
-
-      <div class="d-flex flex-wrap justify-content-end gap-2 pt-2">
-        <button type="button" id="schedule-template-cancel" class="btn btn-outline-secondary px-4">Cancel</button>
-        <button type="submit" id="schedule-template-save" class="btn btn-outline-dark px-4 fw-semibold">Save schedule</button>
-      </div>
-    </form>
   </div>
 </div>
+
+
+<!-- Dynamically generated course cards -->
+<div
+  id="batching-courses"
+  class="row g-3 mb-4">
+</div>
+
+
+<!-- Empty category message -->
+<div
+  id="batching-courses-empty"
+  class="registrar-batching-category-empty d-none text-center py-5">
+
+  <p class="text-muted mb-0">
+    No programs in this category yet.
+  </p>
+
+</div>
+
+
+<!-- Initial placeholder -->
+<div
+  id="batching-placeholder"
+  class="registrar-panel registrar-batching-placeholder text-center py-5">
+
+  <i
+    class="bi bi-calendar-week display-4 text-secondary opacity-50"
+    aria-hidden="true">
+  </i>
+
+  <p class="text-muted mt-3 mb-0">
+    Only course cards with at least 3 unassigned students can be opened
+    for scheduling and batch finalization.
+  </p>
+
+</div>
+
+
+<!-- Course scheduling detail -->
+<div
+  id="batching-detail"
+  class="registrar-panel d-none">
+
+  <div class="registrar-panel__body">
+
+    <div
+      class="registrar-batching-detail__head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-4">
+
+      <div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+
+          <h2
+            id="batching-detail-title"
+            class="registrar-panel__title mb-0">
+          </h2>
+
+          <span
+            id="batching-duration-badge"
+            class="registrar-pill registrar-pill--primary d-none">
+          </span>
+
+        </div>
+
+        <p
+          id="batching-detail-subtitle"
+          class="registrar-panel__subtitle mb-0">
+          Create or update the class schedule for this program
+        </p>
+
+      </div>
+
+      <button
+        type="button"
+        id="batching-detail-close"
+        class="btn btn-outline-secondary btn-sm">
+        Close
+      </button>
+
+    </div>
+
+
+    <!-- Enrollment approval -->
+    <section
+      id="batching-enrollment-approval"
+      class="registrar-batching-approval panel-light rounded-3 p-3 p-md-4 mb-4 d-none">
+
+      <div
+        class="registrar-batching-approval__head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+
+        <div>
+
+          <p class="registrar-schedule-template-form__eyebrow mb-1">
+            Enrollment approval
+          </p>
+
+          <h3 class="h6 fw-semibold mb-1">
+            Approve students for this program
+          </h3>
+
+          <p class="text-muted small mb-0">
+            Select applicants who are ready to enroll.
+            Approved students become available for batching.
+          </p>
+
+        </div>
+
+        <button
+          type="button"
+          id="batching-bulk-approve-btn"
+          class="btn btn-success btn-sm fw-semibold px-3"
+          disabled>
+
+          <i
+            class="bi bi-check2-all me-1"
+            aria-hidden="true">
+          </i>
+
+          Approve selected
+          (<span id="batching-bulk-approve-count">0</span>)
+
+        </button>
+
+      </div>
+
+
+      <div class="table-responsive">
+
+        <table
+          class="table registrar-table registrar-batching-table registrar-batching-approval-table mb-0">
+
+          <thead>
+
+            <tr>
+
+              <th
+                scope="col"
+                class="registrar-batching-approval-table__check">
+
+                <input
+                  type="checkbox"
+                  id="batching-select-all"
+                  class="form-check-input"
+                  aria-label="Select all approvable students"
+                />
+
+              </th>
+
+              <th scope="col">
+                Student
+              </th>
+
+              <th scope="col">
+                Status
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody id="batching-pending-students"></tbody>
+
+        </table>
+
+      </div>
+
+
+      <p
+        id="batching-pending-empty"
+        class="text-muted small text-center py-3 mb-0 d-none">
+
+        No pending enrollments for this program.
+
+      </p>
+
+    </section>
+
+
+    <!-- Schedule form -->
+    <form
+      id="schedule-template-form"
+      class="registrar-schedule-template-form panel-light rounded-3 p-3 p-md-4 mb-2"
+      novalidate>
+
+      <p class="registrar-schedule-template-form__eyebrow mb-1">
+        Class schedule
+      </p>
+
+      <p class="text-muted small mb-4">
+
+        Saved schedules appear on
+
+        <a href="/registrar/finalized-batches/">
+          Finalized Batches
+        </a>
+
+        where you can review, edit, and finalize.
+
+      </p>
+
+
+      <!-- Schedule type -->
+      <div class="mb-4">
+
+        <span class="form-label fw-semibold d-block mb-2">
+          Schedule type
+        </span>
+
+        <div
+          id="schedule-type-pills"
+          class="registrar-schedule-pills"
+          role="group"
+          aria-label="Schedule type">
+
+          <button
+            type="button"
+            class="registrar-schedule-pill registrar-schedule-pill--type"
+            data-schedule-type="weekdays">
+
+            Weekdays
+
+          </button>
+
+          <button
+            type="button"
+            class="registrar-schedule-pill registrar-schedule-pill--type"
+            data-schedule-type="weekends">
+
+            Weekends
+
+          </button>
+
+          <button
+            type="button"
+            class="registrar-schedule-pill registrar-schedule-pill--type"
+            data-schedule-type="custom">
+
+            Custom
+
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <!-- Days -->
+      <div class="mb-4">
+
+        <span class="form-label fw-semibold d-block mb-2">
+
+          Days of the week
+
+          <span class="text-danger">
+            *
+          </span>
+
+        </span>
+
+        <div
+          id="day-pills"
+          class="registrar-schedule-pills"
+          role="group"
+          aria-label="Days of the week">
+        </div>
+
+        <span
+          id="template-days-error"
+          class="text-danger small fw-semibold d-none">
+        </span>
+
+      </div>
+
+
+      <!-- Time -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-sm-6">
+
+          <label
+            class="form-label fw-semibold"
+            for="template-time-from">
+
+            Time from
+
+            <span class="text-danger">
+              *
+            </span>
+
+          </label>
+
+          <input
+            type="time"
+            id="template-time-from"
+            class="form-control form-control-vtiac"
+            value="08:00"
+            required
+          />
+
+        </div>
+
+
+        <div class="col-sm-6">
+
+          <label
+            class="form-label fw-semibold"
+            for="template-time-to">
+
+            Time to
+
+            <span class="text-danger">
+              *
+            </span>
+
+          </label>
+
+          <input
+            type="time"
+            id="template-time-to"
+            class="form-control form-control-vtiac"
+            value="12:00"
+            required
+          />
+
+        </div>
+
+      </div>
+
+
+      <!-- Daily hours -->
+      <div class="mb-4">
+
+        <label
+          class="form-label fw-semibold"
+          for="template-daily-hours">
+
+          Daily hours
+
+        </label>
+
+        <input
+          type="text"
+          id="template-daily-hours"
+          class="form-control form-control-vtiac"
+          readonly
+          tabindex="-1"
+          aria-readonly="true"
+        />
+
+      </div>
+
+
+      <!-- Date range -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-sm-6">
+
+          <label
+            class="form-label fw-semibold"
+            for="template-available-from">
+
+            Start Date
+
+          </label>
+
+          <input
+            type="date"
+            id="template-available-from"
+            class="form-control form-control-vtiac"
+          />
+
+        </div>
+
+
+        <div class="col-sm-6">
+
+          <label
+            class="form-label fw-semibold"
+            for="template-available-until">
+
+            End Date
+
+          </label>
+
+          <input
+            type="date"
+            id="template-available-until"
+            class="form-control form-control-vtiac"
+          />
+
+        </div>
+
+      </div>
+
+
+      <!-- Schedule conflict -->
+      <div
+        id="template-schedule-conflict"
+        class="alert alert-warning py-2 px-3 small d-none mb-3"
+        role="alert">
+      </div>
+
+
+      <!-- Trainer -->
+      <div class="mb-4">
+
+        <label
+          class="form-label fw-semibold"
+          for="template-trainer">
+
+          Assigned Trainer
+
+          <span class="text-danger">
+            *
+          </span>
+
+        </label>
+
+        <select
+          id="template-trainer"
+          class="form-select form-select-vtiac"
+          required>
+
+          <option value="">
+            Select trainer
+          </option>
+
+        </select>
+
+        <small
+          id="template-trainer-hint"
+          class="text-muted d-block mt-1">
+        </small>
+
+      </div>
+
+
+      <!-- Form buttons -->
+      <div
+        class="d-flex flex-wrap justify-content-end gap-2 pt-2">
+
+        <button
+          type="button"
+          id="schedule-template-cancel"
+          class="btn btn-outline-secondary px-4">
+
+          Cancel
+
+        </button>
+
+        <button
+          type="submit"
+          id="schedule-template-save"
+          class="btn btn-outline-dark px-4 fw-semibold">
+
+          Save schedule
+
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
 
 {% include "components/registrar/schedule_saved_confirm_modal.html" %}
 {% include "components/registrar/finalize_batch_confirm_modal.html" %}
 
 {% include "components/registrar/layout_end.html" %}
+
 {% endblock %}
 
+
 {% block scripts %}
-<script type="module" src="{% static 'js/registrar-batching.js' %}"></script>
-<script type="module">
-  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
-  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+
+<script
+  type="module"
+  src="{% static 'js/registrar-batching.js' %}">
 </script>
+
+<script type="module">
+
+  import {
+    initStaffHeader
+  } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader(
+    "Registrar",
+    "{{ portal_display_name|default:'Registrar User' }}"
+  );
+
+</script>
+
 {% endblock %}
-  
