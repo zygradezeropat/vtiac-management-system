@@ -2137,3 +2137,94 @@
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
+
+/* Document Request Button & Modal */
+.student-request-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.95rem;
+  border: none;
+  border-radius: 0.625rem;
+  background: var(--student-primary, #00a859);
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 168, 89, 0.2);
+  cursor: pointer;
+}
+
+.student-request-btn:hover {
+  background: #008f4c;
+  color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 168, 89, 0.3);
+  transform: translateY(-1px);
+}
+
+.student-request-btn:active {
+  transform: translateY(0);
+}
+
+.student-doc-req-header-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: #f0fdf4;
+  color: #00a859;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.student-doc-req-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.student-doc-req-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--student-border, #e2e8f0);
+  border-radius: 0.75rem;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.student-doc-req-item:hover {
+  border-color: var(--student-primary, #00a859);
+  background: #f0fdf4;
+}
+
+.student-doc-req-itemHasRadio:has(input[type="radio"]:checked) {
+  border-color: var(--student-primary, #00a859);
+  background: #f0fdf4;
+  box-shadow: 0 0 0 1px var(--student-primary, #00a859);
+}
+
+.student-doc-req-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.5rem;
+  background: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-right: 0.75rem;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.student-doc-req-itemHasRadio:has(input[type="radio"]:checked) .student-doc-req-icon {
+  background: #dcfce7;
+  color: #15803d;
+}
+

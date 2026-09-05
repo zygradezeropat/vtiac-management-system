@@ -94,6 +94,10 @@ urlpatterns = [
         views.trainer_evaluations,
         name="registrar_trainer_evaluations",
     ),
-    
-
+    path(
+        "registrar/api/document-requests/update-status/",
+        views.update_document_request_status,
+        name="registrar_update_document_request_status",
+    ),
 ]
+

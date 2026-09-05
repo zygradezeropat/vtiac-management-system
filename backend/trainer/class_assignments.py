@@ -50,11 +50,8 @@ def get_batch_display_status(template: RegistrarScheduleTemplate) -> str:
     """
     Determine the trainer-facing status of a finalized batch
     based on its scheduled start and end dates.
-
-    Database status remains FINALIZED.
-    This is only the computed display status.
     """
-    if template.status != RegistrarScheduleTemplate.Status.FINALIZED:
+    if template.status == RegistrarScheduleTemplate.Status.DRAFT:
         return "draft"
 
     today = timezone.localdate()
@@ -84,7 +81,10 @@ def finalized_batches_for_trainer(
     trainer_req: Optional[TrainerAccountRequest], *, user=None
 ):
     qs = RegistrarScheduleTemplate.objects.filter(
-        status=RegistrarScheduleTemplate.Status.ACTIVE,
+        status__in=[
+            RegistrarScheduleTemplate.Status.ACTIVE,
+            RegistrarScheduleTemplate.Status.COMPLETED,
+        ],
     )
     if trainer_req:
         name = _trainer_name_for_lookup(trainer_req, user)

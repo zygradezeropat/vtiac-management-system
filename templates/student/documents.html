@@ -7,8 +7,30 @@
 
 <header class="student-page-header">
   <div>
-    <h1 class="student-page-title">{{ page_title }}</h1>
-    <p class="student-page-subtitle">{{ page_subtitle }}</p>
+    <div class="d-flex align-items-center gap-3 flex-wrap mb-1">
+      <h1 class="student-page-title mb-0">{{ page_title }}</h1>
+      
+      {# PLACEHOLDER FOR FUTURE DEVELOPMENT: Show "Request Document" button only when the student is graduated #}
+      {% comment %}
+      Future condition check example:
+      {% if student_profile and student_profile.is_graduated %}
+      {% endcomment %}
+      {% if True %}
+      <button
+        type="button"
+        class="student-request-btn"
+        data-bs-toggle="modal"
+        data-bs-target="#requestDocumentModal"
+      >
+        <i class="bi bi-file-earmark-plus" aria-hidden="true"></i>
+        <span>Request Document</span>
+      </button>
+      {% endif %}
+      {% comment %}
+      {% endif %}
+      {% endcomment %}
+    </div>
+    <p class="student-page-subtitle mb-0">{{ page_subtitle }}</p>
   </div>
   <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
 </header>
@@ -73,6 +95,159 @@
   {% endfor %}
 </div>
 
+{% if requested_documents %}
+<section class="mt-4 mb-4">
+  <h2 class="h5 fw-bold mb-3"><i class="bi bi-clock-history me-2 text-success"></i>My Document Requests</h2>
+  <div class="student-doc-list">
+    {% for req in requested_documents %}
+    <article class="student-panel student-doc-card">
+      <div class="student-doc-card__main">
+        <span class="student-doc-card__icon" aria-hidden="true">
+          <i class="bi bi-file-earmark-text"></i>
+        </span>
+        <div class="student-doc-card__info">
+          <h2 class="student-doc-card__title">{{ req.document_name }}</h2>
+          <p class="student-doc-card__meta">Requested on {{ req.requested_at }}{% if req.purpose %} • Purpose: {{ req.purpose }}{% endif %}</p>
+          {% if req.remarks %}
+          <p class="text-secondary small mt-1 mb-0"><i class="bi bi-info-circle me-1"></i>Registrar Note: {{ req.remarks }}</p>
+          {% endif %}
+        </div>
+        <span class="student-doc-badge student-doc-badge--{{ req.status }}">{{ req.status_display }}</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- Request Document Modal -->
+<div class="modal fade" id="requestDocumentModal" tabindex="-1" aria-labelledby="requestDocumentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content student-confirm-modal rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom-0 pb-0 px-4 pt-4">
+        <div class="d-flex align-items-center gap-3">
+          <div class="student-doc-req-header-icon" aria-hidden="true">
+            <i class="bi bi-file-earmark-text"></i>
+          </div>
+          <div>
+            <h2 class="modal-title h5 fw-bold mb-0" id="requestDocumentModalLabel">Request Official Document</h2>
+            <p class="text-muted small mb-0">Select an official document to request from the Registrar's office</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="requestDocumentForm">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold small text-uppercase tracking-wide text-secondary mb-2">Available Official Documents</label>
+            <div class="student-doc-req-list">
+              
+              <!-- Certificate of Enrollment -->
+              <label class="student-doc-req-item student-doc-req-itemHasRadio">
+                <input type="radio" name="requested_document" value="Certificate of Enrollment" class="form-check-input me-3" checked>
+                <span class="student-doc-req-icon"><i class="bi bi-file-earmark-text"></i></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold text-dark">Certificate of Enrollment</div>
+                  <div class="text-muted small">Proof of active student registration and current course load</div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+              </label>
+
+              <!-- Transcript of Records -->
+              <label class="student-doc-req-item student-doc-req-itemHasRadio">
+                <input type="radio" name="requested_document" value="Transcript of Records" class="form-check-input me-3">
+                <span class="student-doc-req-icon"><i class="bi bi-journal-text"></i></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold text-dark">Transcript of Records</div>
+                  <div class="text-muted small">Official academic transcript detailing subjects and grades</div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+              </label>
+
+              <!-- Certificate of Graduation -->
+              <label class="student-doc-req-item student-doc-req-itemHasRadio">
+                <input type="radio" name="requested_document" value="Certificate of Graduation" class="form-check-input me-3">
+                <span class="student-doc-req-icon"><i class="bi bi-award"></i></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold text-dark">Certificate of Graduation</div>
+                  <div class="text-muted small">Certification confirming successful completion of program</div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+              </label>
+
+              <!-- Diploma -->
+              <label class="student-doc-req-item student-doc-req-itemHasRadio">
+                <input type="radio" name="requested_document" value="Diploma" class="form-check-input me-3">
+                <span class="student-doc-req-icon"><i class="bi bi-mortarboard"></i></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold text-dark">Diploma</div>
+                  <div class="text-muted small">Official institutional diploma document</div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+              </label>
+
+              <!-- Good Moral Certificate -->
+              <label class="student-doc-req-item student-doc-req-itemHasRadio">
+                <input type="radio" name="requested_document" value="Good Moral Certificate" class="form-check-input me-3">
+                <span class="student-doc-req-icon"><i class="bi bi-shield-check"></i></span>
+                <div class="flex-grow-1">
+                  <div class="fw-semibold text-dark">Good Moral Certificate</div>
+                  <div class="text-muted small">Clearance certificate of good moral character and conduct</div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+              </label>
+
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="requestPurpose" class="form-label fw-semibold small text-uppercase tracking-wide text-secondary">Purpose of Request <span class="text-muted fw-normal">(Optional)</span></label>
+            <input type="text" id="requestPurpose" name="purpose" class="form-control rounded-3" placeholder="e.g., Employment, Scholarship, Transfer, Further Studies">
+          </div>
+
+          <div class="alert alert-info d-flex align-items-center gap-2 mb-0 rounded-3 text-secondary small py-2.5">
+            <i class="bi bi-info-circle flex-shrink-0 text-info fs-6"></i>
+            <span>Document requests will be submitted to the Registrar's Office for processing.</span>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
+        <button type="button" class="btn btn-outline-secondary rounded-3 px-4 fw-semibold" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success rounded-3 px-4 fw-semibold" id="submitDocumentRequestBtn" style="background:#00a859;border-color:#00a859">
+          <i class="bi bi-send me-1"></i> Submit Request
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Request Confirmation Modal -->
+<div class="modal fade" id="requestConfirmModal" tabindex="-1" aria-labelledby="requestConfirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content student-confirm-modal rounded-4 border-0 shadow-lg">
+      <div class="modal-body p-4 text-center">
+        <div class="portal-settings-modal__icon portal-settings-modal__icon--success mx-auto mb-3" aria-hidden="true" style="background:#f0fdf4;color:#00a859">
+          <i class="bi bi-question-circle fs-2"></i>
+        </div>
+        <h3 class="h5 fw-bold mb-2" id="requestConfirmModalLabel">Confirm Document Request</h3>
+        <p class="text-secondary small mb-2">
+          Are you sure you want to request an official <strong id="confirmDocTitle" class="text-dark"></strong>?
+        </p>
+        <p id="confirmDocPurpose" class="text-muted small fst-italic mb-4"></p>
+
+        <div class="d-flex flex-column flex-sm-row gap-2">
+          <button type="button" class="btn btn-outline-secondary w-100 fw-semibold rounded-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="confirmSubmitDocBtn" class="btn btn-success w-100 fw-semibold rounded-3" style="background:#00a859;border-color:#00a859">
+            <i class="bi bi-check-lg me-1"></i> Yes, Submit Request
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% include "components/student/layout_end.html" %}
 {% endblock %}
 
@@ -105,5 +280,122 @@
     tick();
     setInterval(tick, 1000);
   }
+
+  let pendingDocTitle = "";
+  let pendingPurpose = "";
+
+  const submitBtn = document.getElementById("submitDocumentRequestBtn");
+  const confirmModalEl = document.getElementById("requestConfirmModal");
+  const confirmModal = confirmModalEl && window.bootstrap ? new bootstrap.Modal(confirmModalEl) : null;
+  const confirmSubmitBtn = document.getElementById("confirmSubmitDocBtn");
+
+  if (submitBtn) {
+    submitBtn.addEventListener("click", () => {
+      const selectedDoc = document.querySelector('input[name="requested_document"]:checked');
+      pendingDocTitle = selectedDoc ? selectedDoc.value : "";
+      const purposeInput = document.getElementById("requestPurpose");
+      pendingPurpose = purposeInput ? purposeInput.value : "";
+
+      if (!pendingDocTitle) {
+        alert("Please select a document to request.");
+        return;
+      }
+
+      // Hide request modal
+      const modalEl = document.getElementById("requestDocumentModal");
+      if (window.bootstrap && bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+      } else {
+        modalEl.classList.remove("show");
+        modalEl.style.display = "none";
+      }
+
+      // Populate confirmation modal
+      document.getElementById("confirmDocTitle").textContent = pendingDocTitle;
+      document.getElementById("confirmDocPurpose").textContent = pendingPurpose ? `Purpose: "${pendingPurpose}"` : "No purpose specified.";
+
+      // Show confirmation modal
+      if (confirmModal) {
+        confirmModal.show();
+      } else {
+        confirmModalEl.classList.add("show");
+        confirmModalEl.style.display = "block";
+      }
+    });
+  }
+
+  if (confirmSubmitBtn) {
+    confirmSubmitBtn.addEventListener("click", async () => {
+      confirmSubmitBtn.disabled = true;
+      confirmSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Submitting...`;
+
+      try {
+        const formData = new FormData();
+        formData.append("requested_document", pendingDocTitle);
+        formData.append("purpose", pendingPurpose);
+
+        const csrfTokenEl = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        const csrfToken = csrfTokenEl ? csrfTokenEl.value : "";
+
+        const resp = await fetch("{% url 'student_document_request_submit' %}", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": csrfToken
+          },
+          body: formData
+        });
+        const data = await resp.json();
+
+        if (confirmModal) {
+          confirmModal.hide();
+        } else {
+          confirmModalEl.classList.remove("show");
+          confirmModalEl.style.display = "none";
+          document.body.classList.remove("modal-open");
+          const backdrop = document.querySelector(".modal-backdrop");
+          if (backdrop) backdrop.remove();
+        }
+
+        let alertBox = document.getElementById("studentDocRequestAlert");
+        if (!alertBox) {
+          alertBox = document.createElement("div");
+          alertBox.id = "studentDocRequestAlert";
+          alertBox.className = "alert alert-success alert-dismissible fade show mb-3";
+          alertBox.setAttribute("role", "alert");
+          const header = document.querySelector(".student-page-header");
+          if (header && header.nextSibling) {
+            header.parentNode.insertBefore(alertBox, header.nextSibling);
+          }
+        }
+
+        if (data.ok) {
+          alertBox.className = "alert alert-success alert-dismissible fade show mb-3";
+          alertBox.innerHTML = `
+            <i class="bi bi-check-circle-fill me-2"></i>
+            Your request for <strong>${pendingDocTitle}</strong> has been submitted to the Registrar's Office for processing.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          `;
+          setTimeout(() => { window.location.reload(); }, 1200);
+        } else {
+          alertBox.className = "alert alert-danger alert-dismissible fade show mb-3";
+          alertBox.innerHTML = `
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            ${data.error || "Failed to submit document request."}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          `;
+        }
+        alertBox.classList.remove("d-none");
+      } catch (err) {
+        alert("An error occurred while submitting your request. Please try again.");
+      } finally {
+        confirmSubmitBtn.disabled = false;
+        confirmSubmitBtn.innerHTML = `<i class="bi bi-check-lg me-1"></i> Yes, Submit Request`;
+      }
+    });
+  }
 </script>
 {% endblock %}
+
+
+

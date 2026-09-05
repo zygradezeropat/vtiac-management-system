@@ -186,7 +186,10 @@ def assign_finalized_template_to_profile(
     *,
     assigned_by: str = "",
 ) -> bool:
-    if not profile or template.status != RegistrarScheduleTemplate.Status.FINALIZED:
+    if not profile or template.status not in (
+        RegistrarScheduleTemplate.Status.ACTIVE,
+        RegistrarScheduleTemplate.Status.COMPLETED,
+    ):
         return False
     assigned_by = assigned_by or "Registrar (finalized batch)"
     _apply_template_to_profile(
@@ -206,7 +209,10 @@ def ensure_profile_schedule_from_finalized_batch(profile: StudentEnrollmentProfi
         return False
 
     for template in RegistrarScheduleTemplate.objects.filter(
-        status=RegistrarScheduleTemplate.Status.FINALIZED,
+        status__in=[
+            RegistrarScheduleTemplate.Status.ACTIVE,
+            RegistrarScheduleTemplate.Status.COMPLETED,
+        ],
         course_name=profile.selected_program,
     ).order_by("-finalized_at"):
         if not profile_in_template_snapshot(profile, template):
@@ -222,7 +228,10 @@ def assign_finalized_template_to_students(
     Assign this batch's schedule only to students on students_snapshot.
     Returns the number of profiles updated.
     """
-    if template.status != RegistrarScheduleTemplate.Status.FINALIZED:
+    if template.status not in (
+        RegistrarScheduleTemplate.Status.ACTIVE,
+        RegistrarScheduleTemplate.Status.COMPLETED,
+    ):
         return 0
 
     option_data = template_to_option_data(template)

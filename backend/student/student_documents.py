@@ -158,16 +158,32 @@ def build_student_documents(profile, registration=None):
 
 def student_documents_context(request):
     from .services import _student_portal_base, get_enrollment_profile
+    from .models import StudentDocumentRequest
 
     profile = get_enrollment_profile(request.user)
     registration = getattr(request.user, "registration_application", None)
+
+    my_requests = []
+    if request.user.is_authenticated:
+        req_rows = StudentDocumentRequest.objects.filter(user=request.user).order_by("-requested_at")
+        for r in req_rows:
+            my_requests.append({
+                "id": r.id,
+                "document_name": r.document_name,
+                "purpose": r.purpose,
+                "status": r.status,
+                "status_display": r.get_status_display(),
+                "remarks": r.remarks,
+                "requested_at": _format_doc_date(r.requested_at),
+            })
 
     return _student_portal_base(
         request,
         active_menu="Documents",
         page_title="My Documents",
-        page_subtitle="View and download your documents.",
+        page_subtitle="View, download, and request official documents.",
         documents=build_student_documents(profile, registration),
+        requested_documents=my_requests,
     )
 
 
@@ -178,3 +194,36 @@ def document_available(profile, registration, doc_key):
     if not row:
         return None
     return row
+
+
+def submit_document_request(request):
+    from django.http import JsonResponse
+    from .models import StudentDocumentRequest
+    from .services import get_enrollment_profile
+
+    if not request.user.is_authenticated:
+        return JsonResponse({"ok": False, "error": "Authentication required."}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Invalid request method."}, status=405)
+
+    doc_name = (request.POST.get("requested_document") or "").strip()
+    purpose = (request.POST.get("purpose") or "").strip()
+
+    if not doc_name:
+        return JsonResponse({"ok": False, "error": "Please select a document to request."}, status=400)
+
+    profile = get_enrollment_profile(request.user)
+    doc_req = StudentDocumentRequest.objects.create(
+        user=request.user,
+        profile=profile,
+        document_name=doc_name,
+        purpose=purpose,
+        status=StudentDocumentRequest.Status.PENDING,
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "message": f"Request for {doc_name} submitted successfully.",
+        "id": doc_req.id,
+    })
+

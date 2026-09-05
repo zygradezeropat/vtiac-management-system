@@ -25,7 +25,10 @@ def finalized_batched_keys_for_course(
     for template in RegistrarScheduleTemplate.objects.filter(
         course_name=course_name,
         batch_kind=batch_kind,
-        status=RegistrarScheduleTemplate.Status.ACTIVE,
+        status__in=[
+            RegistrarScheduleTemplate.Status.ACTIVE,
+            RegistrarScheduleTemplate.Status.COMPLETED,
+        ],
     ):
         snapshot = template.students_snapshot
         if not isinstance(snapshot, list):

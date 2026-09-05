@@ -9,6 +9,7 @@ REGISTRAR_MODULE_ORDER = (
     "dashboard",
     "student",
     "enrollment",
+    "document-requests",
     "batching-scheduling",
     "finalized-batches",
     "scholarship",
@@ -41,6 +42,15 @@ REGISTRAR_MODULES = {
         "subtitle": "Review and approve students who have made payments",
         "template": "registrar/enrollment.html",
     },
+    "document-requests": {
+        "label": "Document Requests",
+        "icon_bi": "bi-file-earmark-text-fill",
+        "badge_class": "registrar-badge-danger",
+        "title": "Document Requests",
+        "subtitle": "View, process, and approve official document requests submitted by students",
+        "template": "registrar/document_requests.html",
+    },
+
     "batching-scheduling": {
         "label": "Batching & Scheduling",
         "icon_bi": "bi-calendar-week",
@@ -130,10 +140,22 @@ def registrar_route(slug):
     return f"/registrar/{slug}/"
 
 
+def pending_document_requests_count():
+    try:
+        from backend.student.models import StudentDocumentRequest
+
+        return StudentDocumentRequest.objects.filter(
+            status=StudentDocumentRequest.Status.PENDING
+        ).count()
+    except Exception:
+        return 0
+
+
 def registrar_sidebar():
     from .pending_enrollment import pending_enrollment_count
 
     pending_count = pending_enrollment_count()
+    doc_pending_count = pending_document_requests_count()
     menu = []
     for slug in REGISTRAR_MODULE_ORDER:
         meta = REGISTRAR_MODULES[slug]
@@ -145,6 +167,8 @@ def registrar_sidebar():
         badge = meta.get("badge")
         if slug == "enrollment" and pending_count:
             badge = str(pending_count)
+        elif slug == "document-requests" and doc_pending_count:
+            badge = str(doc_pending_count)
         if badge:
             item["badge"] = badge
             item["badge_class"] = meta.get("badge_class", "bg-secondary")
@@ -182,6 +206,38 @@ def module_page_context(module, request=None):
         "sidebar_menu": registrar_sidebar(),
         "logout_class": "text-red-600 hover:bg-red-50",
     }
+    if module == "document-requests":
+        from backend.student.models import StudentDocumentRequest
+
+        requests_qs = StudentDocumentRequest.objects.select_related("user", "profile").order_by("-requested_at")
+        req_list = []
+        for r in requests_qs:
+            student_name = r.user.get_full_name() or r.user.email
+            if r.profile:
+                parts = [p for p in [r.profile.last_name, r.profile.first_name] if p]
+                if parts:
+                    student_name = ", ".join(parts)
+            program_name = r.profile.selected_program if r.profile else "N/A"
+
+            req_list.append({
+                "id": r.id,
+                "student_name": student_name,
+                "student_email": r.user.email,
+                "program_name": program_name,
+                "document_name": r.document_name,
+                "purpose": r.purpose or "Personal Record",
+                "status": r.status,
+                "status_display": r.get_status_display(),
+                "remarks": r.remarks or "",
+                "requested_at": r.requested_at.strftime("%B %d, %Y %I:%M %p"),
+            })
+        ctx["document_requests"] = req_list
+        ctx["total_requests"] = len(req_list)
+        ctx["pending_requests"] = sum(1 for x in req_list if x["status"] == "pending")
+        ctx["processing_requests"] = sum(1 for x in req_list if x["status"] == "processing")
+        ctx["ready_requests"] = sum(1 for x in req_list if x["status"] in ("ready", "completed"))
+        ctx["document_requests_json"] = json.dumps(req_list)
+
     if module == "egace-table":
         from django.urls import reverse
 

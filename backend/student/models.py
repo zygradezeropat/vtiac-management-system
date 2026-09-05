@@ -347,3 +347,45 @@ class StudentScheduleOption(models.Model):
 
     def __str__(self):
         return f"{self.label} — {self.profile}"
+
+
+class StudentDocumentRequest(models.Model):
+    """Official document requests submitted by students to the Registrar."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        READY = "ready", "Ready / Completed"
+        REJECTED = "rejected", "Rejected"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="document_requests",
+    )
+    profile = models.ForeignKey(
+        StudentEnrollmentProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="document_requests",
+    )
+    document_name = models.CharField(max_length=128)
+    purpose = models.CharField(max_length=255, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    remarks = models.TextField(blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "student_documentrequest"
+        ordering = ["-requested_at"]
+
+    def __str__(self):
+        user_name = self.user.get_full_name() or self.user.email
+        return f"{self.document_name} — {user_name} ({self.get_status_display()})"
+

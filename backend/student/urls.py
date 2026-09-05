@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import document_views, settings_api, views
+from . import document_views, settings_api, student_documents, views
 
 urlpatterns = [
     path("register/", views.register, name="register"),
@@ -25,6 +25,11 @@ urlpatterns = [
     ),
     path("dashboard/student/payments/", views.payments, name="student_payments"),
     path("dashboard/student/documents/", document_views.documents, name="student_documents"),
+    path(
+        "dashboard/student/api/documents/request/",
+        student_documents.submit_document_request,
+        name="student_document_request_submit",
+    ),
     path("dashboard/student/settings/", views.settings, name="student_settings"),
     path(
         "dashboard/student/api/settings/profile/",
