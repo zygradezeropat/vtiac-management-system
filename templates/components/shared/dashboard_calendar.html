@@ -1,0 +1,147 @@
+{% load static %}
+<section class="vtiac-calendar-card card border-0 shadow-sm rounded-4 mb-4" id="vtiac-dashboard-calendar" data-role="{{ calendar_role|default:'admin' }}">
+  <div class="card-header bg-white border-bottom p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="vtiac-calendar-icon-wrap rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
+        <i class="bi bi-calendar3 fs-4 text-vtiac"></i>
+      </div>
+      <div>
+        <h2 class="h5 fw-bold mb-0 text-dark">Academic &amp; Events Calendar</h2>
+        <p class="text-secondary small mb-0">View upcoming class start dates, exams/assessments, and end of class schedules</p>
+      </div>
+    </div>
+
+    <!-- Calendar Controls -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="btn-group shadow-sm rounded-3" role="group" aria-label="Calendar Navigation">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="cal-prev-btn" title="Previous Month">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold text-dark px-3 disabled" id="cal-month-year-label">
+          Loading...
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="cal-next-btn" title="Next Month">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <button type="button" class="btn btn-vtiac-outline btn-sm fw-semibold rounded-3 px-3" id="cal-today-btn">
+        Today
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body p-3 p-md-4">
+    <!-- Event Legend Bar -->
+    <div class="vtiac-calendar-legend d-flex flex-wrap align-items-center gap-3 mb-4 p-3 bg-light rounded-3 small">
+      <span class="fw-bold text-secondary me-1">Legend:</span>
+      <span class="badge badge-class-start d-inline-flex align-items-center gap-1">
+        <span class="vtiac-dot bg-success"></span> Class Start
+      </span>
+      <span class="badge badge-class-end d-inline-flex align-items-center gap-1">
+        <span class="vtiac-dot bg-warning"></span> End of Class
+      </span>
+      <span class="badge badge-exam d-inline-flex align-items-center gap-1">
+        <span class="vtiac-dot bg-danger"></span> Exam / Assessment
+      </span>
+      <span class="badge badge-event d-inline-flex align-items-center gap-1">
+        <span class="vtiac-dot bg-info"></span> Institutional Event
+      </span>
+    </div>
+
+    <div class="row g-4">
+      <!-- Main Calendar Grid -->
+      <div class="col-lg-8 col-xl-9">
+        <div class="vtiac-calendar-table-responsive">
+          <table class="table table-bordered vtiac-calendar-table mb-0 align-top">
+            <thead>
+              <tr class="text-center bg-light text-secondary small fw-bold">
+                <th scope="col" style="width: 14.28%">Sun</th>
+                <th scope="col" style="width: 14.28%">Mon</th>
+                <th scope="col" style="width: 14.28%">Tue</th>
+                <th scope="col" style="width: 14.28%">Wed</th>
+                <th scope="col" style="width: 14.28%">Thu</th>
+                <th scope="col" style="width: 14.28%">Fri</th>
+                <th scope="col" style="width: 14.28%">Sat</th>
+              </tr>
+            </thead>
+            <tbody id="vtiac-calendar-days-body">
+              <!-- Dynamically rendered days -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Selected Day / Month Events Sidebar -->
+      <div class="col-lg-4 col-xl-3">
+        <div class="card border bg-light-subtle rounded-3 h-100">
+          <div class="card-header bg-white border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+            <h6 class="fw-bold mb-0 text-dark fs-6" id="vtiac-agenda-title">Events Overview</h6>
+            <span class="badge bg-vtiac text-white rounded-pill" id="vtiac-agenda-count">0</span>
+          </div>
+          <div class="card-body p-3 overflow-auto" style="max-height: 480px;" id="vtiac-agenda-list">
+            <p class="text-muted small text-center my-4">Select a day or month to view scheduled events.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Calendar Event Details Modal -->
+<div class="modal fade" id="vtiacEventModal" tabindex="-1" aria-labelledby="vtiacEventModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      <div class="modal-header text-white p-4" id="vtiacEventModalHeader">
+        <div class="d-flex align-items-center gap-3">
+          <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 2.5rem; height: 2.5rem;">
+            <i class="bi bi-calendar-event fs-5" id="vtiacEventModalIcon"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold text-white mb-0" id="vtiacEventModalTitle">Event Details</h5>
+            <span class="badge bg-white bg-opacity-25 text-white fw-normal fs-7" id="vtiacEventModalCategory">Schedule</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4 bg-light-subtle">
+        <div class="d-flex flex-column gap-3">
+          <div class="d-flex align-items-center gap-2 text-dark fw-semibold">
+            <i class="bi bi-clock-history text-vtiac fs-5"></i>
+            <span id="vtiacEventModalDateTime">--</span>
+          </div>
+
+          <div class="card border-0 shadow-sm rounded-3 p-3">
+            <h6 class="fw-bold text-secondary fs-7 text-uppercase mb-2" id="vtiacEventModalCourseLabel">Program / Qualification</h6>
+            <p class="fw-bold text-dark fs-6 mb-1" id="vtiacEventModalCourseName">--</p>
+            <span class="badge bg-light text-dark border align-self-start" id="vtiacEventModalBatchLabel">--</span>
+          </div>
+
+          <div class="row g-2" id="vtiacEventModalPeopleRow">
+            <div class="col-6">
+              <div class="p-2 border rounded bg-white">
+                <span class="text-secondary small d-block">Trainer</span>
+                <strong class="text-dark small" id="vtiacEventModalTrainer">--</strong>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-2 border rounded bg-white">
+                <span class="text-secondary small d-block">Assessor / Examiner</span>
+                <strong class="text-dark small" id="vtiacEventModalExaminer">--</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-info border-0 shadow-sm rounded-3 p-3 mb-0">
+            <h6 class="fw-bold text-info-emphasis small mb-1">Details &amp; Description</h6>
+            <p class="small text-dark mb-0 lh-base" id="vtiacEventModalDetails">--</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer bg-white p-3 border-top">
+        <button type="button" class="btn btn-secondary btn-sm px-4 rounded-3" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

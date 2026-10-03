@@ -23,14 +23,7 @@ urlpatterns = [
         notification_mark_all_read,
         name="portal_notifications_mark_all_read",
     ),
-    path(
-        "api/notifications/<int:notification_id>/read/",
-        notification_mark_read,
-        name="portal_notification_mark_read",
-    ),
-    path(
-        "favicon.ico",
-        RedirectView.as_view(url="/static/img/favicon.ico", permanent=False),
-        name="favicon",
-    ),
+    path("api/notifications/<int:notification_id>/read/", notification_mark_read, name="portal_notification_mark_read"),
+    path("api/calendar/events/", views.calendar_events_api, name="calendar_events_api"),
+    path("favicon.ico", RedirectView.as_view(url="/static/img/favicon.ico", permanent=False), name="favicon"),
 ]

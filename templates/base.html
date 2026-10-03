@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" />
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" />
   <link rel="stylesheet" href="{% static 'css/main.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/dashboard-calendar.css' %}" />
   {# Module CSS: registrar/base.html, cashier/base.html, etc. — see static/css/modules/README.md #}
   {% block extra_head %}{% endblock %}
 </head>
@@ -20,6 +21,7 @@
   {% include "components/shared/logout_confirm_modal.html" %}
   <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>
   <script src="{% static 'js/logout-confirm.js' %}"></script>
+  <script src="{% static 'js/dashboard-calendar.js' %}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
