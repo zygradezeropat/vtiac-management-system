@@ -41,6 +41,27 @@ function isFormComplete() {
   const experience = document.getElementById("field-experience")?.value;
   const { count, needsOtherText } = getCheckedQualifications();
 
+  const passwordAlphanumeric = /[a-zA-Z]/.test(password) && /\d/.test(password);
+  const pwdErr = document.querySelector('[data-error-for="field-password"]');
+
+  if (password && password.length >= 1) {
+    if (password.length < 8) {
+      if (pwdErr) {
+        pwdErr.textContent = "Password must be at least 8 characters.";
+        pwdErr.classList.remove("d-none");
+      }
+    } else if (!passwordAlphanumeric) {
+      if (pwdErr) {
+        pwdErr.textContent = "Password must be alphanumeric (contain both letters and numbers).";
+        pwdErr.classList.remove("d-none");
+      }
+    } else {
+      if (pwdErr) pwdErr.classList.add("d-none");
+    }
+  } else if (pwdErr) {
+    pwdErr.classList.add("d-none");
+  }
+
   return Boolean(
     first &&
       last &&
@@ -48,6 +69,7 @@ function isFormComplete() {
       emailPattern.test(email) &&
       isPhilippineMobileComplete(phone) &&
       password.length >= 8 &&
+      passwordAlphanumeric &&
       password === confirm &&
       count > 0 &&
       !needsOtherText &&

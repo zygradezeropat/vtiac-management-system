@@ -371,8 +371,12 @@ def validate_trainer_request_data(data):
     ).exists():
         errors.append("A pending request already exists for this email.")
 
-    if data.get("password") and len(data["password"]) < 8:
-        errors.append("Password must be at least 8 characters.")
+    if data.get("password"):
+        pwd = data["password"]
+        if len(pwd) < 8:
+            errors.append("Password must be at least 8 characters.")
+        if not (re.search(r"[a-zA-Z]", pwd) and re.search(r"\d", pwd)):
+            errors.append("Password must be alphanumeric (contain both letters and numbers).")
 
     if data.get("password") != data.get("password_confirm"):
         errors.append("Passwords do not match.")

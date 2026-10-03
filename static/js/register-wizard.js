@@ -154,7 +154,9 @@ function wirePasswordToggles(root) {
 function isStep1Complete(formData, emailAvailable = null) {
   const phoneOk = isPhilippineMobileComplete(formData.phoneNumber);
   const emergencyOk = isPhilippineMobileComplete(formData.emergencyPhone);
-  const passwordOk = (formData.password?.length || 0) >= 8;
+  const pwd = formData.password || "";
+  const passwordAlphanumeric = /[a-zA-Z]/.test(pwd) && /\d/.test(pwd);
+  const passwordOk = pwd.length >= 8 && passwordAlphanumeric;
   const passwordsMatch =
     passwordOk && formData.password === formData.passwordConfirm;
   const emailOk =
@@ -452,7 +454,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!emailPattern.test(trimmed)) return "Invalid email";
       if (emailAvailable === false) return EMAIL_TAKEN_MSG;
     }
-    if (field === "password" && value.length < 8) return "Password must be at least 8 characters";
+    if (field === "password") {
+      if (!value) return "This field is required";
+      if (value.length < 8) return "Password must be at least 8 characters";
+      if (!(/[a-zA-Z]/.test(value) && /\d/.test(value))) {
+        return "Password must be alphanumeric (contain both letters and numbers).";
+      }
+    }
     if (field === "passwordConfirm" && value !== formData.password) return "Passwords do not match";
     if (field === "phoneNumber" || field === "emergencyPhone") {
       if (!isPhilippineMobileComplete(value)) {

@@ -996,8 +996,12 @@ def validate_registration_data(data):
     if data.get("email") and email_is_already_registered(data["email"]):
         errors.append(EMAIL_ALREADY_REGISTERED_MSG)
 
-    if data.get("password") and len(data["password"]) < 8:
-        errors.append("Password must be at least 8 characters.")
+    if data.get("password"):
+        pwd = data["password"]
+        if len(pwd) < 8:
+            errors.append("Password must be at least 8 characters.")
+        if not (re.search(r"[a-zA-Z]", pwd) and re.search(r"\d", pwd)):
+            errors.append("Password must be alphanumeric (contain both letters and numbers).")
 
     if data.get("password") != data.get("password_confirm"):
         errors.append("Passwords do not match.")
