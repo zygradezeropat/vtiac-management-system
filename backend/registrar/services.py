@@ -238,6 +238,49 @@ def module_page_context(module, request=None):
         ctx["ready_requests"] = sum(1 for x in req_list if x["status"] in ("ready", "completed"))
         ctx["document_requests_json"] = json.dumps(req_list)
 
+    if module == "reports":
+        from backend.trainer.egace_progress import build_registrar_egace_rows
+        from backend.registrar.models import RegistrarScheduleTemplate
+        from backend.student.models import StudentRegistration
+        from backend.cashier.models import CashierPayment
+        from django.db.models import Count, Sum
+
+        egace_rows = build_registrar_egace_rows()
+        templates_qs = RegistrarScheduleTemplate.objects.all()
+        batch_reports = []
+        for t in templates_qs:
+            batch_reports.append({
+                "id": t.id,
+                "course_name": t.course_name,
+                "batch_label": t.batch_label or "Batch 1",
+                "trainer_name": t.trainer_name or "Assigned Trainer",
+                "examiner_name": t.examiner_name or "TESDA Assessor",
+                "start_date": t.available_from.strftime("%b %d, %Y") if t.available_from else "—",
+                "end_date": t.available_until.strftime("%b %d, %Y") if t.available_until else "—",
+                "assessment_date": t.assessment_at.strftime("%b %d, %Y") if t.assessment_at else "TBA",
+                "status": t.get_status_display(),
+                "students_count": len(t.students_snapshot) if isinstance(t.students_snapshot, list) else 0,
+            })
+
+        by_status = list(StudentRegistration.objects.values("status").annotate(count=Count("id")))
+        by_program = list(StudentRegistration.objects.values("selected_program").annotate(count=Count("id")).order_by("-count"))
+        enrollment_stats = {
+            "total": StudentRegistration.objects.count(),
+            "by_status": by_status,
+            "by_program": by_program,
+        }
+
+        payments_agg = CashierPayment.objects.aggregate(total=Sum("paid_amount"), count=Count("id"))
+        payment_stats = {
+            "total_collected": float(payments_agg["total"] or 0),
+            "count": payments_agg["count"] or 0,
+        }
+
+        ctx["reports_egace_data_json"] = json.dumps(egace_rows)
+        ctx["reports_batches_data_json"] = json.dumps(batch_reports)
+        ctx["reports_enrollment_data_json"] = json.dumps(enrollment_stats)
+        ctx["reports_payments_data_json"] = json.dumps(payment_stats)
+
     if module == "egace-table":
         from django.urls import reverse
 

@@ -2615,3 +2615,48 @@
       flex: 1 0 auto;
     }
   }
+}
+
+/* =========================================================
+   Official Registrar Reports Print Media Styles
+   ========================================================= */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .registrar-sidebar,
+  .registrar-topbar,
+  .registrar-page-header,
+  .registrar-tabs,
+  .no-print,
+  button {
+    display: none !important;
+  }
+
+  #printable-report-area {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+}
