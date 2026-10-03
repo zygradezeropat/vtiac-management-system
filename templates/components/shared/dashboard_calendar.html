@@ -1,13 +1,16 @@
 {% load static %}
-<section class="vtiac-calendar-card card border-0 shadow-sm rounded-4 mb-4" id="vtiac-dashboard-calendar" data-role="{{ calendar_role|default:'admin' }}">
+<section class="vtiac-calendar-card card border-0 shadow-sm rounded-4 mb-4" id="vtiac-dashboard-calendar"
+  data-role="{{ calendar_role|default:'admin' }}">
   <div class="card-header bg-white border-bottom p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div class="d-flex align-items-center gap-3">
-      <div class="vtiac-calendar-icon-wrap rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
+      <div
+        class="vtiac-calendar-icon-wrap rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
         <i class="bi bi-calendar3 fs-4 text-vtiac"></i>
       </div>
       <div>
         <h2 class="h5 fw-bold mb-0 text-dark">Academic &amp; Events Calendar</h2>
-        <p class="text-secondary small mb-0">View upcoming class start dates, exams/assessments, and end of class schedules</p>
+        <p class="text-secondary small mb-0">View upcoming class start dates, exams/assessments, and end of class
+          schedules</p>
       </div>
     </div>
 
@@ -17,7 +20,8 @@
         <button type="button" class="btn btn-outline-secondary btn-sm" id="cal-prev-btn" title="Previous Month">
           <i class="bi bi-chevron-left"></i>
         </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold text-dark px-3 disabled" id="cal-month-year-label">
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold text-dark px-3 disabled"
+          id="cal-month-year-label">
           Loading...
         </button>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="cal-next-btn" title="Next Month">
@@ -93,12 +97,14 @@
     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
       <div class="modal-header text-white p-4" id="vtiacEventModalHeader">
         <div class="d-flex align-items-center gap-3">
-          <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 2.5rem; height: 2.5rem;">
+          <div class="bg-white text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+            style="width: 2.5rem; height: 2.5rem;">
             <i class="bi bi-calendar-event fs-5" id="vtiacEventModalIcon"></i>
           </div>
           <div>
             <h5 class="modal-title fw-bold text-white mb-0" id="vtiacEventModalTitle">Event Details</h5>
-            <span class="badge bg-white bg-opacity-25 text-white fw-normal fs-7" id="vtiacEventModalCategory">Schedule</span>
+            <span class="badge bg-white bg-opacity-25 text-white fw-normal fs-7"
+              id="vtiacEventModalCategory">Schedule</span>
           </div>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -112,7 +118,8 @@
           </div>
 
           <div class="card border-0 shadow-sm rounded-3 p-3">
-            <h6 class="fw-bold text-secondary fs-7 text-uppercase mb-2" id="vtiacEventModalCourseLabel">Program / Qualification</h6>
+            <h6 class="fw-bold text-secondary fs-7 text-uppercase mb-2" id="vtiacEventModalCourseLabel">Program /
+              Qualification</h6>
             <p class="fw-bold text-dark fs-6 mb-1" id="vtiacEventModalCourseName">--</p>
             <span class="badge bg-light text-dark border align-self-start" id="vtiacEventModalBatchLabel">--</span>
           </div>
@@ -135,6 +142,18 @@
           <div class="alert alert-info border-0 shadow-sm rounded-3 p-3 mb-0">
             <h6 class="fw-bold text-info-emphasis small mb-1">Details &amp; Description</h6>
             <p class="small text-dark mb-0 lh-base" id="vtiacEventModalDetails">--</p>
+          </div>
+
+          <!-- Enrolled Students Database Roster -->
+          <div class="card border-0 shadow-sm rounded-3 p-3 d-none" id="vtiacEventModalStudentsCard">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h6 class="fw-bold text-dark fs-7 text-uppercase mb-0"><i class="bi bi-people-fill text-vtiac me-1"></i>
+                Enrolled Students </h6>
+              <span class="badge bg-success text-white rounded-pill" id="vtiacEventModalStudentsCount">0</span>
+            </div>
+            <div class="list-group list-group-flush border rounded-3 overflow-auto" style="max-height: 180px;"
+              id="vtiacEventModalStudentsList">
+            </div>
           </div>
         </div>
       </div>

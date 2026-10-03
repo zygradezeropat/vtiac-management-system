@@ -123,6 +123,7 @@ def batch_to_dashboard_dict(template: RegistrarScheduleTemplate) -> dict:
     if template.time_from and template.time_to:
         time_display = f"{template.time_from} – {template.time_to}"
     schedule_display = f"{day_display} · {time_display}" if time_display else day_display
+    students_list = _students_for_batch(template)
     return {
         "id": template.pk,
         "course_name": template.course_name,
@@ -132,10 +133,16 @@ def batch_to_dashboard_dict(template: RegistrarScheduleTemplate) -> dict:
         "day_display": day_display,
         "time_from": template.time_from,
         "time_to": template.time_to,
+        "daily_hours": float(template.daily_hours or 0),
         "schedule_display": schedule_display,
         "start_date_display": _format_date(template.available_from),
         "end_date_display": _format_date(template.available_until),
-        "student_count": _batch_student_count(template),
+        "assessment_at_display": _format_date(template.assessment_at.date() if template.assessment_at else None),
+        "assessment_time_display": template.assessment_at.strftime("%I:%M %p") if template.assessment_at else "",
+        "trainer_name": template.trainer_name or "Assigned Trainer",
+        "examiner_name": template.examiner_name or "TESDA Accredited Assessor",
+        "student_count": len(students_list) or _batch_student_count(template),
+        "students": students_list,
         "finalized_at_display": _format_date(
             template.finalized_at.date() if template.finalized_at else None
         ),

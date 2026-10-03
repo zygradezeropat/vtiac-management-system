@@ -220,6 +220,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const detailsEl = document.getElementById("vtiacEventModalDetails");
     const peopleRowEl = document.getElementById("vtiacEventModalPeopleRow");
 
+    const studentsCardEl = document.getElementById("vtiacEventModalStudentsCard");
+    const studentsCountEl = document.getElementById("vtiacEventModalStudentsCount");
+    const studentsListEl = document.getElementById("vtiacEventModalStudentsList");
+
     if (titleEl) titleEl.textContent = ev.title;
     if (categoryEl) categoryEl.textContent = ev.category || "General Event";
     if (dateTimeEl) dateTimeEl.textContent = `${ev.date} • ${ev.time || "All Day"}`;
@@ -239,6 +243,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (peopleRowEl) {
       peopleRowEl.classList.toggle("d-none", !ev.trainer && !ev.examiner);
+    }
+
+    if (studentsCardEl && studentsListEl) {
+      if (Array.isArray(ev.students) && ev.students.length > 0) {
+        studentsCardEl.classList.remove("d-none");
+        if (studentsCountEl) studentsCountEl.textContent = String(ev.students.length);
+        studentsListEl.innerHTML = ev.students.map(s => {
+          const first = s.first_name || s.firstName || "";
+          const last = s.last_name || s.lastName || "";
+          const fullName = `${first} ${last}`.trim() || s.name || "Student";
+          const ref = s.reference_id || "ENROLLED";
+          const phone = s.phone || s.phone_number || "";
+          return `
+            <div class="list-group-item d-flex align-items-center justify-content-between py-2 px-3">
+              <div class="d-flex align-items-center gap-2">
+                <div class="rounded-circle bg-success-subtle text-success fw-bold d-flex align-items-center justify-content-center" style="width: 2rem; height: 2rem; font-size: 0.75rem;">
+                  ${first[0] || ""}${last[0] || ""}
+                </div>
+                <div>
+                  <h6 class="mb-0 fw-bold small text-dark">${fullName}</h6>
+                  <span class="text-muted text-xs" style="font-size: 0.75rem;">Ref: ${ref} ${phone ? '• ' + phone : ''}</span>
+                </div>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill text-xs">Approved</span>
+            </div>
+          `;
+        }).join("");
+      } else {
+        studentsCardEl.classList.add("d-none");
+        studentsListEl.innerHTML = "";
+      }
     }
 
     if (eventModal) {
