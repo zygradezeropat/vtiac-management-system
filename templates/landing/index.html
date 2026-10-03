@@ -113,8 +113,10 @@
 </div>
 
 {% include "components/shared/staff_login_drawer.html" %}
+{% include "components/shared/data_privacy_modal.html" %}
 {% endblock %}
 
 {% block scripts %}
 <script type="module" src="{% static 'js/staff-login-drawer.js' %}"></script>
+<script src="{% static 'js/landing-privacy-modal.js' %}"></script>
 {% endblock %}

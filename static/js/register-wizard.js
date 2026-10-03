@@ -23,6 +23,7 @@ const INITIAL_FORM_STATE = {
   programType: "",
   selectedProgram: "",
   preferredSchedule: "",
+  privacyConsent: false,
 };
 
 const FALLBACK_PROGRAM_OPTIONS = [
@@ -72,6 +73,11 @@ const PROGRAM_TYPE_LABELS = {
 function getPresetProgramType() {
   const raw = new URLSearchParams(window.location.search).get("program_type");
   return raw && VALID_PROGRAM_TYPES.has(raw) ? raw : "";
+}
+
+function getPresetConsent() {
+  const raw = new URLSearchParams(window.location.search).get("consent");
+  return raw === "1" || raw === "true";
 }
 
 function updateRegisterPathBanner(programType) {
@@ -170,7 +176,8 @@ function isStep1Complete(formData, emailAvailable = null) {
       formData.gender &&
       formData.civilStatus &&
       formData.emergencyName?.trim() &&
-      emergencyOk
+      emergencyOk &&
+      formData.privacyConsent
   );
 }
 
@@ -233,7 +240,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let currentStep = 1;
   const presetProgramType = getPresetProgramType();
-  let formData = { ...INITIAL_FORM_STATE, programType: presetProgramType };
+  const presetConsent = getPresetConsent();
+  let formData = { ...INITIAL_FORM_STATE, programType: presetProgramType, privacyConsent: presetConsent };
   updateRegisterPathBanner(formData.programType);
   let emailAvailable = null;
   let emailCheckRequestId = 0;
@@ -433,6 +441,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   function getFieldError(field) {
     if (!touched[field]) return null;
     const value = formData[field];
+    if (field === "privacyConsent") {
+      if (!value) return "You must agree to the Data Privacy Consent to proceed.";
+      return null;
+    }
     if (!value || value === "09") return "This field is required";
     if (field === "emailAddress") {
       const trimmed = (value || "").trim();
@@ -561,6 +573,33 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindTextField("field-birthDate", "birthDate");
   bindTextField("field-emergencyName", "emergencyName");
   bindPhoneField("field-emergencyPhone", "emergencyPhone");
+
+  const privacyCheckbox = document.getElementById("field-privacyConsent");
+  if (privacyCheckbox) {
+    privacyCheckbox.checked = formData.privacyConsent;
+    privacyCheckbox.addEventListener("change", (e) => {
+      formData.privacyConsent = e.target.checked;
+      touched.privacyConsent = true;
+      showFieldError("field-privacyConsent", getFieldError("privacyConsent"));
+      updateContinueBtn();
+    });
+  }
+
+  const modalAgreeBtn = document.getElementById("dataPrivacyAgreeBtn");
+  if (modalAgreeBtn) {
+    modalAgreeBtn.addEventListener("click", () => {
+      formData.privacyConsent = true;
+      if (privacyCheckbox) privacyCheckbox.checked = true;
+      if (window.bootstrap && window.bootstrap.Modal) {
+        const modalEl = document.getElementById("dataPrivacyModal");
+        if (modalEl) {
+          const modal = window.bootstrap.Modal.getInstance(modalEl);
+          modal?.hide();
+        }
+      }
+      updateContinueBtn();
+    });
+  }
 
   ["field-gender", "field-civilStatus"].forEach((id) => {
     const el = document.getElementById(id);

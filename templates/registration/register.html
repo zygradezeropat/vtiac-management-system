@@ -124,6 +124,21 @@
               <span data-error-for="field-emergencyPhone" class="text-danger small fw-bold d-none"></span>
             </div>
           </div>
+        <section class="mb-4">
+          <h3 class="h5 fw-bold border-bottom pb-3 mb-4">Data Privacy Consent</h3>
+          <div class="card border border-success-subtle bg-light-subtle rounded-4 p-4">
+            <div class="form-check d-flex align-items-start gap-3 mb-0">
+              <input class="form-check-input flex-shrink-0 mt-1" type="checkbox" id="field-privacyConsent" style="width: 1.25rem; height: 1.25rem;" />
+              <label class="form-check-label text-dark fs-6 lh-base" for="field-privacyConsent">
+                I have read and agree to the 
+                <button type="button" class="btn btn-link p-0 fw-bold text-vtiac text-decoration-underline align-baseline fs-6" data-bs-toggle="modal" data-bs-target="#dataPrivacyModal">
+                  Data Privacy Consent
+                </button> 
+                in accordance with RA 10173 (Data Privacy Act of 2012). <span class="text-danger">*</span>
+              </label>
+            </div>
+            <span data-error-for="field-privacyConsent" class="text-danger small fw-bold d-none mt-2">You must agree to the Data Privacy Consent to proceed.</span>
+          </div>
         </section>
         <div class="text-end">
           <button type="button" id="step1-continue" disabled class="btn btn-vtiac btn-primary btn-lg rounded-3 px-4">Continue to Program Selection</button>
@@ -209,6 +224,8 @@
     </div>
   </div>
 </main>
+
+{% include "components/shared/data_privacy_modal.html" %}
 {% endblock %}
 
 {% block scripts %}
