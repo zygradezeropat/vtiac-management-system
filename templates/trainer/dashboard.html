@@ -171,9 +171,9 @@
 <div class="modal fade" id="batchDetailModal" tabindex="-1" aria-labelledby="batchDetailModalTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-      <div class="modal-header bg-dark text-white p-4" id="batchModalHeader">
+      <div class="modal-header bg-vtiac text-white p-4" id="batchModalHeader">
         <div class="d-flex align-items-center gap-3">
-          <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 3rem; height: 3rem;">
+          <div class="bg-white text-vtiac rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 3rem; height: 3rem;">
             <i class="bi bi-journal-check fs-4"></i>
           </div>
           <div>
@@ -375,15 +375,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (examinerEl) examinerEl.textContent = batch.examiner_name || "TESDA Representative";
 
       if (statusBadgeEl) {
-        statusBadgeEl.className = "badge fw-normal fs-7 mb-1 ";
+        statusBadgeEl.className = "badge bg-white bg-opacity-25 text-white fw-normal fs-7 mb-1";
         if (batch.display_status === "active") {
-          statusBadgeEl.classList.add("bg-success", "text-white");
           statusBadgeEl.textContent = "Active Training Batch";
         } else if (batch.display_status === "completed") {
-          statusBadgeEl.classList.add("bg-secondary", "text-white");
           statusBadgeEl.textContent = "Completed Batch";
         } else {
-          statusBadgeEl.classList.add("bg-primary", "text-white");
           statusBadgeEl.textContent = "Scheduled Batch";
         }
       }
