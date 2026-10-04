@@ -229,6 +229,8 @@ def module_page_context(module, request=None):
                 "status": r.status,
                 "status_display": r.get_status_display(),
                 "remarks": r.remarks or "",
+                "release_date": r.release_date.strftime("%B %d, %Y") if r.release_date else "",
+                "release_date_iso": r.release_date.strftime("%Y-%m-%d") if r.release_date else "",
                 "requested_at": r.requested_at.strftime("%B %d, %Y %I:%M %p"),
             })
         ctx["document_requests"] = req_list

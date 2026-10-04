@@ -378,6 +378,7 @@ class StudentDocumentRequest(models.Model):
         default=Status.PENDING,
     )
     remarks = models.TextField(blank=True)
+    release_date = models.DateField(null=True, blank=True, help_text="Date when student can pick up / get the document")
     requested_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -17,52 +17,56 @@
 <!-- Summary Cards -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white summary-card-btn" data-tab-target="all" style="cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;">
       <div class="d-flex align-items-center justify-content-between">
         <div>
           <span class="text-muted small fw-semibold text-uppercase">Total Requests</span>
           <h3 class="h3 fw-bold mb-0 text-dark mt-1">{{ total_requests }}</h3>
         </div>
-        <div class="rounded-3 p-2 bg-light text-primary fs-4 d-flex align-items-center justify-content-center" style="width:2.75rem;height:2.75rem">
+        <div class="rounded-3 p-2 bg-light text-primary fs-4 d-flex align-items-center justify-content-center"
+          style="width:2.75rem;height:2.75rem">
           <i class="bi bi-file-earmark-text"></i>
         </div>
       </div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white summary-card-btn" data-tab-target="pending" style="cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;">
       <div class="d-flex align-items-center justify-content-between">
         <div>
           <span class="text-muted small fw-semibold text-uppercase">Pending</span>
           <h3 class="h3 fw-bold mb-0 text-warning mt-1">{{ pending_requests }}</h3>
         </div>
-        <div class="rounded-3 p-2 bg-warning-subtle text-warning fs-4 d-flex align-items-center justify-content-center" style="width:2.75rem;height:2.75rem">
+        <div class="rounded-3 p-2 bg-warning-subtle text-warning fs-4 d-flex align-items-center justify-content-center"
+          style="width:2.75rem;height:2.75rem">
           <i class="bi bi-clock-history"></i>
         </div>
       </div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white summary-card-btn" data-tab-target="processing" style="cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;">
       <div class="d-flex align-items-center justify-content-between">
         <div>
           <span class="text-muted small fw-semibold text-uppercase">In Processing</span>
           <h3 class="h3 fw-bold mb-0 text-info mt-1">{{ processing_requests }}</h3>
         </div>
-        <div class="rounded-3 p-2 bg-info-subtle text-info fs-4 d-flex align-items-center justify-content-center" style="width:2.75rem;height:2.75rem">
+        <div class="rounded-3 p-2 bg-info-subtle text-info fs-4 d-flex align-items-center justify-content-center"
+          style="width:2.75rem;height:2.75rem">
           <i class="bi bi-gear-wide-connected"></i>
         </div>
       </div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+    <div class="card border-0 shadow-sm rounded-3 p-3 bg-white summary-card-btn" data-tab-target="ready" style="cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;">
       <div class="d-flex align-items-center justify-content-between">
         <div>
           <span class="text-muted small fw-semibold text-uppercase">Ready / Fulfilled</span>
           <h3 class="h3 fw-bold mb-0 text-success mt-1">{{ ready_requests }}</h3>
         </div>
-        <div class="rounded-3 p-2 bg-success-subtle text-success fs-4 d-flex align-items-center justify-content-center" style="width:2.75rem;height:2.75rem">
+        <div class="rounded-3 p-2 bg-success-subtle text-success fs-4 d-flex align-items-center justify-content-center"
+          style="width:2.75rem;height:2.75rem">
           <i class="bi bi-check-circle"></i>
         </div>
       </div>
@@ -72,19 +76,47 @@
 
 <article class="registrar-panel">
   <div class="registrar-panel__body">
+    <!-- Datatable Tabs & Toolbar Header -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-      <div class="d-flex align-items-center gap-2">
-        <h2 class="h5 fw-bold mb-0">Requested Documents List</h2>
+      <div class="registrar-tabs" role="tablist" id="docReqTabs">
+        <button type="button" class="module-tab-btn btn btn-sm active" data-tab="all">
+          <i class="bi bi-collection me-1"></i> All Requests
+          <span class="badge rounded-pill bg-secondary ms-1" id="tab-count-all">{{ total_requests }}</span>
+        </button>
+        <button type="button" class="module-tab-btn btn btn-sm" data-tab="pending">
+          <i class="bi bi-clock-history me-1"></i> Pending
+          <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning-subtle ms-1" id="tab-count-pending">{{ pending_requests }}</span>
+        </button>
+        <button type="button" class="module-tab-btn btn btn-sm" data-tab="processing">
+          <i class="bi bi-gear-wide-connected me-1"></i> In Processing
+          <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle ms-1" id="tab-count-processing">{{ processing_requests }}</span>
+        </button>
+        <button type="button" class="module-tab-btn btn btn-sm" data-tab="ready">
+          <i class="bi bi-check-circle me-1"></i> Ready / Completed
+          <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle ms-1" id="tab-count-ready">{{ ready_requests }}</span>
+        </button>
+        <button type="button" class="module-tab-btn btn btn-sm" data-tab="rejected">
+          <i class="bi bi-x-circle me-1"></i> Rejected
+          <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle ms-1" id="tab-count-rejected">0</span>
+        </button>
       </div>
+
       <div class="d-flex flex-wrap align-items-center gap-2">
-        <input type="search" id="docReqSearchInput" class="form-control form-control-sm rounded-3" placeholder="Search student name, document..." style="min-width: 14rem;">
-        <select id="docReqStatusFilter" class="form-select form-select-sm rounded-3" style="min-width: 10rem;">
-          <option value="">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="processing">Processing</option>
-          <option value="ready">Ready / Completed</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        <div class="d-flex align-items-center gap-1.5 text-muted small me-md-2">
+          <span>Show</span>
+          <select id="docReqPageSize" class="form-select form-select-sm rounded-3 py-1 ps-2.5 pe-4" style="width: auto; min-width: 4.5rem;">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <div class="position-relative">
+          <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2.5 text-muted small pointer-events-none" style="z-index: 4;"></i>
+          <input type="search" id="docReqSearchInput" class="form-control form-control-sm rounded-3 ps-4"
+            placeholder="Search student, document..." style="min-width: 14rem;">
+        </div>
       </div>
     </div>
 
@@ -102,13 +134,15 @@
             <th>Purpose</th>
             <th>Date Requested</th>
             <th>Status</th>
+            <th>Claim / Pick-Up Date</th>
             <th>Remarks</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for req in document_requests %}
-          <tr data-req-id="{{ req.id }}" data-status="{{ req.status }}" data-text="{{ req.student_name }} {{ req.student_email }} {{ req.document_name }} {{ req.program_name }}">
+          <tr data-req-id="{{ req.id }}" data-status="{{ req.status }}"
+            data-text="{{ req.student_name }} {{ req.student_email }} {{ req.document_name }} {{ req.program_name }} {{ req.purpose }} {{ req.status_display }} {{ req.release_date }}">
             <td>
               <div class="fw-semibold text-dark">{{ req.student_name }}</div>
               <div class="text-muted small">{{ req.student_email }}</div>
@@ -127,15 +161,30 @@
             </td>
             <td>
               {% if req.status == 'pending' %}
-                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1 rounded-pill">Pending</span>
+              <span
+                class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1 rounded-pill">Pending</span>
               {% elif req.status == 'processing' %}
-                <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1 rounded-pill">Processing</span>
+              <span
+                class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1 rounded-pill">Processing</span>
               {% elif req.status == 'ready' or req.status == 'completed' %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill">Ready / Completed</span>
+              <span
+                class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill">Ready
+                / Completed</span>
               {% elif req.status == 'rejected' %}
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill">Rejected</span>
+              <span
+                class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill">Rejected</span>
               {% else %}
-                <span class="badge bg-secondary-subtle text-secondary px-2.5 py-1 rounded-pill">{{ req.status_display }}</span>
+              <span class="badge bg-secondary-subtle text-secondary px-2.5 py-1 rounded-pill">{{ req.status_display
+                }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if req.release_date %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                <i class="bi bi-calendar-check me-1"></i>{{ req.release_date }}
+              </span>
+              {% else %}
+              <span class="text-muted small fst-italic">—</span>
               {% endif %}
             </td>
             <td>
@@ -144,18 +193,17 @@
             <td class="text-end">
               <div class="btn-group btn-group-sm">
                 {% if req.status == 'pending' %}
-                <button type="button" class="btn btn-outline-primary btn-change-status" data-id="{{ req.id }}" data-status="processing" title="Mark as Processing">
+                <button type="button" class="btn btn-outline-primary btn-change-status" data-id="{{ req.id }}"
+                  data-status="processing" title="Mark as Processing">
                   <i class="bi bi-gear me-1"></i> Process
                 </button>
                 {% endif %}
-                
-                {% if req.status == 'pending' or req.status == 'processing' %}
-                <button type="button" class="btn btn-success btn-change-status" data-id="{{ req.id }}" data-status="ready" style="background:#00a859;border-color:#00a859" title="Mark as Ready / Completed">
-                  <i class="bi bi-check-lg me-1"></i> Ready
-                </button>
-                {% endif %}
 
-                <button type="button" class="btn btn-outline-secondary btn-open-modal" data-id="{{ req.id }}" data-doc="{{ req.document_name }}" data-student="{{ req.student_name }}" data-current-status="{{ req.status }}" data-remarks="{{ req.remarks }}" title="Update Details / Remarks">
+                <button type="button" class="btn btn-outline-secondary btn-open-modal" data-id="{{ req.id }}"
+                  data-doc="{{ req.document_name }}" data-student="{{ req.student_name }}"
+                  data-current-status="{{ req.status }}" data-remarks="{{ req.remarks }}"
+                  data-release-date="{{ req.release_date_iso }}"
+                  title="Update Details / Remarks">
                   <i class="bi bi-pencil-square"></i>
                 </button>
               </div>
@@ -163,7 +211,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="text-center py-4 text-muted">
+            <td colspan="8" class="text-center py-4 text-muted">
               <i class="bi bi-inbox fs-2 d-block mb-2"></i>
               No document requests have been submitted yet.
             </td>
@@ -172,11 +220,23 @@
         </tbody>
       </table>
     </div>
+
+    <!-- DataTables Bottom Footer (Info & Pagination) -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3 pt-3 border-top" id="docReqTableFooter">
+      <div class="text-muted small fw-medium" id="docReqInfoSummary">
+        Showing 0 to 0 of 0 entries
+      </div>
+      <nav aria-label="Page navigation">
+        <ul class="pagination pagination-sm mb-0 gap-1" id="docReqPagination">
+        </ul>
+      </nav>
+    </div>
   </div>
 </article>
 
 <!-- Update Status Modal -->
-<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4 border-0 shadow-lg">
       <div class="modal-header border-bottom-0 pb-0">
@@ -187,7 +247,7 @@
         <form id="updateStatusForm">
           {% csrf_token %}
           <input type="hidden" id="modalReqId" name="request_id">
-          
+
           <div class="mb-3">
             <label class="form-label text-muted small mb-1">Student</label>
             <div id="modalStudentName" class="fw-bold text-dark"></div>
@@ -207,15 +267,26 @@
             </select>
           </div>
 
+          <!-- Claim / Pick-up Date Input (Visible when Ready / Completed selected) -->
+          <div class="mb-3 d-none" id="modalReleaseDateGroup">
+            <label for="modalReleaseDate" class="form-label fw-semibold small">Date Student Will Pick-Up / Get Document <span class="text-danger">*</span></label>
+            <input type="date" id="modalReleaseDate" name="release_date" class="form-control rounded-3">
+            <div class="form-text small">Select the scheduled date when the student can pick up this document.</div>
+          </div>
+
           <div class="mb-3">
-            <label for="modalRemarks" class="form-label fw-semibold small">Registrar Remarks / Note <span class="text-muted fw-normal">(Optional)</span></label>
-            <textarea id="modalRemarks" name="remarks" class="form-control rounded-3" rows="3" placeholder="Add instructions, release location, or rejection notes..."></textarea>
+            <label for="modalRemarks" class="form-label fw-semibold small">Registrar Remarks / Note <span
+                class="text-muted fw-normal">(Optional)</span></label>
+            <textarea id="modalRemarks" name="remarks" class="form-control rounded-3" rows="3"
+              placeholder="Add instructions, release location, or rejection notes..."></textarea>
           </div>
         </form>
       </div>
       <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
-        <button type="button" class="btn btn-outline-secondary rounded-3 px-4 fw-semibold" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" id="saveStatusBtn" class="btn btn-primary rounded-3 px-4 fw-semibold" style="background:#00a859;border-color:#00a859">
+        <button type="button" class="btn btn-outline-secondary rounded-3 px-4 fw-semibold"
+          data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="saveStatusBtn" class="btn btn-primary rounded-3 px-4 fw-semibold"
+          style="background:#00a859;border-color:#00a859">
           Save Changes
         </button>
       </div>
@@ -224,20 +295,25 @@
 </div>
 
 <!-- Registrar Status Confirmation Modal -->
-<div class="modal fade" id="registrarConfirmModal" tabindex="-1" aria-labelledby="registrarConfirmModalLabel" aria-hidden="true">
+<div class="modal fade" id="registrarConfirmModal" tabindex="-1" aria-labelledby="registrarConfirmModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4 border-0 shadow-lg">
       <div class="modal-body p-4 text-center">
-        <div class="portal-settings-modal__icon portal-settings-modal__icon--success mx-auto mb-3" aria-hidden="true" style="background:#f0fdf4;color:#00a859">
+        <div class="portal-settings-modal__icon portal-settings-modal__icon--success mx-auto mb-3" aria-hidden="true"
+          style="background:#f0fdf4;color:#00a859">
           <i class="bi bi-exclamation-circle fs-2"></i>
         </div>
         <h3 class="h5 fw-bold mb-2" id="registrarConfirmModalLabel">Confirm Status Change</h3>
         <p class="text-secondary small mb-3">
-          Are you sure you want to update the request status to <strong id="confirmStatusDisplay" class="text-primary"></strong> for <strong id="confirmStudentName" class="text-dark"></strong>?
+          Are you sure you want to update the request status to <strong id="confirmStatusDisplay"
+            class="text-primary"></strong> for <strong id="confirmStudentName" class="text-dark"></strong>?
         </p>
         <div class="d-flex flex-column flex-sm-row gap-2 mt-4">
-          <button type="button" class="btn btn-outline-secondary w-100 fw-semibold rounded-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" id="executeStatusUpdateBtn" class="btn btn-success w-100 fw-semibold rounded-3" style="background:#00a859;border-color:#00a859">
+          <button type="button" class="btn btn-outline-secondary w-100 fw-semibold rounded-3"
+            data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="executeStatusUpdateBtn" class="btn btn-success w-100 fw-semibold rounded-3"
+            style="background:#00a859;border-color:#00a859">
             <i class="bi bi-check-lg me-1"></i> Yes, Confirm Update
           </button>
         </div>
@@ -251,152 +327,372 @@
 
 {% block scripts %}
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const searchInput = document.getElementById("docReqSearchInput");
-  const statusFilter = document.getElementById("docReqStatusFilter");
-  const tableRows = document.querySelectorAll("#docReqTable tbody tr[data-req-id]");
-  const alertBox = document.getElementById("docReqAlert");
-  const alertMsg = document.getElementById("docReqAlertMsg");
+  document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("docReqSearchInput");
+    const pageSizeSelect = document.getElementById("docReqPageSize");
+    const tabButtons = document.querySelectorAll("#docReqTabs .module-tab-btn");
+    const summaryCards = document.querySelectorAll(".summary-card-btn");
+    const tableRows = Array.from(document.querySelectorAll("#docReqTable tbody tr[data-req-id]"));
+    const tbody = document.querySelector("#docReqTable tbody");
+    const alertBox = document.getElementById("docReqAlert");
+    const alertMsg = document.getElementById("docReqAlertMsg");
+    const infoSummary = document.getElementById("docReqInfoSummary");
+    const paginationNav = document.getElementById("docReqPagination");
 
-  const confirmModalEl = document.getElementById("registrarConfirmModal");
-  const confirmModal = confirmModalEl && window.bootstrap ? new bootstrap.Modal(confirmModalEl) : null;
-  const executeUpdateBtn = document.getElementById("executeStatusUpdateBtn");
+    const confirmModalEl = document.getElementById("registrarConfirmModal");
+    const confirmModal = confirmModalEl && window.bootstrap ? new bootstrap.Modal(confirmModalEl) : null;
+    const executeUpdateBtn = document.getElementById("executeStatusUpdateBtn");
 
-  let pendingReqId = null;
-  let pendingStatus = "";
-  let pendingRemarks = "";
+    const statusSelect = document.getElementById("modalStatusSelect");
+    const releaseDateGroup = document.getElementById("modalReleaseDateGroup");
+    const releaseDateInput = document.getElementById("modalReleaseDate");
 
-  // Filtering function
-  function filterTable() {
-    const q = (searchInput.value || "").toLowerCase().trim();
-    const st = (statusFilter.value || "").toLowerCase().trim();
+    let activeTab = "all";
+    let currentPage = 1;
+    let pageSize = 10;
+    let pendingReqId = null;
+    let pendingStatus = "";
+    let pendingRemarks = "";
+    let pendingReleaseDate = "";
 
-    tableRows.forEach(row => {
-      const text = (row.dataset.text || "").toLowerCase();
-      const status = (row.dataset.status || "").toLowerCase();
-
-      const matchesSearch = !q || text.includes(q);
-      const matchesStatus = !st || status === st;
-
-      if (matchesSearch && matchesStatus) {
-        row.style.display = "";
+    function toggleReleaseDateGroup() {
+      const val = statusSelect ? statusSelect.value : "";
+      if (val === "ready" || val === "completed") {
+        releaseDateGroup?.classList.remove("d-none");
+        if (releaseDateInput && !releaseDateInput.value) {
+          releaseDateInput.value = new Date().toISOString().split("T")[0];
+        }
       } else {
-        row.style.display = "none";
+        releaseDateGroup?.classList.add("d-none");
       }
-    });
-  }
-
-  if (searchInput) searchInput.addEventListener("input", filterTable);
-  if (statusFilter) statusFilter.addEventListener("change", filterTable);
-
-  const statusLabels = {
-    pending: "Pending",
-    processing: "Processing",
-    ready: "Ready / Completed",
-    rejected: "Rejected"
-  };
-
-  function requestConfirmation(reqId, studentName, newStatus, remarks) {
-    pendingReqId = reqId;
-    pendingStatus = newStatus;
-    pendingRemarks = remarks;
-
-    document.getElementById("confirmStudentName").textContent = studentName || "Student";
-    document.getElementById("confirmStatusDisplay").textContent = statusLabels[newStatus] || newStatus;
-
-    if (confirmModal) {
-      confirmModal.show();
-    } else {
-      confirmModalEl.classList.add("show");
-      confirmModalEl.style.display = "block";
     }
-  }
 
-  // Quick Action Buttons
-  document.querySelectorAll(".btn-change-status").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const reqId = btn.dataset.id;
-      const newStatus = btn.dataset.status;
-      const row = btn.closest("tr");
-      const studentName = row ? row.querySelector("td div.fw-semibold").textContent.trim() : "Student";
-      
-      requestConfirmation(reqId, studentName, newStatus, "");
+    if (statusSelect) {
+      statusSelect.addEventListener("change", toggleReleaseDateGroup);
+    }
+
+    function updateTabCounts() {
+      const counts = { all: 0, pending: 0, processing: 0, ready: 0, rejected: 0 };
+      tableRows.forEach(row => {
+        const st = (row.dataset.status || "").toLowerCase();
+        counts.all++;
+        if (st === "pending") counts.pending++;
+        else if (st === "processing") counts.processing++;
+        else if (st === "ready" || st === "completed") counts.ready++;
+        else if (st === "rejected") counts.rejected++;
+      });
+
+      for (const [key, count] of Object.entries(counts)) {
+        const el = document.getElementById(`tab-count-${key}`);
+        if (el) el.textContent = count;
+      }
+    }
+
+    function getMatchingRows() {
+      const q = (searchInput?.value || "").toLowerCase().trim();
+      return tableRows.filter(row => {
+        const st = (row.dataset.status || "").toLowerCase();
+        const text = (row.dataset.text || "").toLowerCase();
+
+        let matchesTab = false;
+        if (activeTab === "all") matchesTab = true;
+        else if (activeTab === "ready") matchesTab = (st === "ready" || st === "completed");
+        else matchesTab = (st === activeTab);
+
+        if (!matchesTab) return false;
+        if (!q) return true;
+        return text.includes(q);
+      });
+    }
+
+    function renderTable() {
+      const matchingRows = getMatchingRows();
+      const totalMatching = matchingRows.length;
+      const totalAllForTab = tableRows.filter(row => {
+        const st = (row.dataset.status || "").toLowerCase();
+        if (activeTab === "all") return true;
+        if (activeTab === "ready") return st === "ready" || st === "completed";
+        return st === activeTab;
+      }).length;
+
+      const effectivePageSize = pageSize === "100" ? 100 : (pageSize === "50" ? 50 : (pageSize === "25" ? 25 : 10));
+      const totalPages = Math.max(1, Math.ceil(totalMatching / effectivePageSize));
+
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const startIdx = totalMatching === 0 ? 0 : (currentPage - 1) * effectivePageSize;
+      const endIdx = Math.min(startIdx + effectivePageSize, totalMatching);
+
+      tableRows.forEach(row => row.style.display = "none");
+
+      const existingEmpty = document.getElementById("docReqDynamicEmptyRow");
+      if (existingEmpty) existingEmpty.remove();
+
+      if (totalMatching === 0) {
+        const emptyTr = document.createElement("tr");
+        emptyTr.id = "docReqDynamicEmptyRow";
+        emptyTr.innerHTML = `
+          <td colspan="8" class="text-center py-5 text-muted">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+            No document requests found matching your filter.
+          </td>`;
+        tbody.appendChild(emptyTr);
+      } else {
+        const visibleRows = matchingRows.slice(startIdx, endIdx);
+        visibleRows.forEach(row => row.style.display = "");
+      }
+
+      const displayStart = totalMatching === 0 ? 0 : startIdx + 1;
+      const displayEnd = endIdx;
+      const isFiltered = (searchInput?.value || "").trim().length > 0;
+
+      if (infoSummary) {
+        let infoText = `Showing ${displayStart} to ${displayEnd} of ${totalMatching} entries`;
+        if (isFiltered) {
+          infoText += ` (filtered from ${totalAllForTab} total entries in this view)`;
+        }
+        infoSummary.textContent = infoText;
+      }
+
+      renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+      if (!paginationNav) return;
+      paginationNav.innerHTML = "";
+
+      if (totalPages <= 1) return;
+
+      const prevLi = document.createElement("li");
+      prevLi.className = `page-item ${currentPage === 1 ? "disabled" : ""}`;
+      prevLi.innerHTML = `<button type="button" class="page-link rounded-2 px-2.5 py-1">Previous</button>`;
+      prevLi.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable();
+        }
+      });
+      paginationNav.appendChild(prevLi);
+
+      const pageRange = getPageRange(currentPage, totalPages);
+      pageRange.forEach(p => {
+        const li = document.createElement("li");
+        if (p === "...") {
+          li.className = "page-item disabled";
+          li.innerHTML = `<span class="page-link rounded-2 px-2.5 py-1">...</span>`;
+        } else {
+          li.className = `page-item ${p === currentPage ? "active" : ""}`;
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "page-link rounded-2 px-2.5 py-1";
+          btn.textContent = p;
+          if (p === currentPage) {
+            btn.style.backgroundColor = "#00a859";
+            btn.style.borderColor = "#00a859";
+            btn.style.color = "#ffffff";
+          }
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            currentPage = p;
+            renderTable();
+          });
+          li.appendChild(btn);
+        }
+        paginationNav.appendChild(li);
+      });
+
+      const nextLi = document.createElement("li");
+      nextLi.className = `page-item ${currentPage === totalPages ? "disabled" : ""}`;
+      nextLi.innerHTML = `<button type="button" class="page-link rounded-2 px-2.5 py-1">Next</button>`;
+      nextLi.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable();
+        }
+      });
+      paginationNav.appendChild(nextLi);
+    }
+
+    function getPageRange(current, total) {
+      const range = [];
+      const maxVisible = 5;
+      if (total <= maxVisible) {
+        for (let i = 1; i <= total; i++) range.push(i);
+      } else {
+        range.push(1);
+        if (current > 3) range.push("...");
+        const start = Math.max(2, current - 1);
+        const end = Math.min(total - 1, current + 1);
+        for (let i = start; i <= end; i++) {
+          if (i > 1 && i < total) range.push(i);
+        }
+        if (current < total - 2) range.push("...");
+        range.push(total);
+      }
+      return range;
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        tabButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeTab = btn.dataset.tab;
+        currentPage = 1;
+        renderTable();
+      });
     });
-  });
 
-  // Modal Action Handling
-  const modalEl = document.getElementById("updateStatusModal");
-  const updateModal = modalEl ? new bootstrap.Modal(modalEl) : null;
-  const saveBtn = document.getElementById("saveStatusBtn");
-
-  document.querySelectorAll(".btn-open-modal").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.getElementById("modalReqId").value = btn.dataset.id;
-      document.getElementById("modalStudentName").textContent = btn.dataset.student;
-      document.getElementById("modalDocName").textContent = btn.dataset.doc;
-      document.getElementById("modalStatusSelect").value = btn.dataset.currentStatus;
-      document.getElementById("modalRemarks").value = btn.dataset.remarks || "";
-      if (updateModal) updateModal.show();
+    summaryCards.forEach(card => {
+      card.addEventListener("click", () => {
+        const targetTab = card.dataset.tabTarget;
+        if (!targetTab) return;
+        const matchingTabBtn = document.querySelector(`#docReqTabs .module-tab-btn[data-tab="${targetTab}"]`);
+        if (matchingTabBtn) {
+          matchingTabBtn.click();
+        }
+      });
     });
-  });
 
-  if (saveBtn) {
-    saveBtn.addEventListener("click", () => {
-      const reqId = document.getElementById("modalReqId").value;
-      const status = document.getElementById("modalStatusSelect").value;
-      const remarks = document.getElementById("modalRemarks").value;
-      const studentName = document.getElementById("modalStudentName").textContent;
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        currentPage = 1;
+        renderTable();
+      });
+    }
 
-      if (updateModal) updateModal.hide();
-      requestConfirmation(reqId, studentName, status, remarks);
+    if (pageSizeSelect) {
+      pageSizeSelect.addEventListener("change", (e) => {
+        pageSize = e.target.value;
+        currentPage = 1;
+        renderTable();
+      });
+    }
+
+    const statusLabels = {
+      pending: "Pending",
+      processing: "Processing",
+      ready: "Ready / Completed",
+      rejected: "Rejected"
+    };
+
+    function requestConfirmation(reqId, studentName, newStatus, remarks, releaseDate = "") {
+      pendingReqId = reqId;
+      pendingStatus = newStatus;
+      pendingRemarks = remarks;
+      pendingReleaseDate = releaseDate;
+
+      document.getElementById("confirmStudentName").textContent = studentName || "Student";
+      document.getElementById("confirmStatusDisplay").textContent = statusLabels[newStatus] || newStatus;
+
+      if (confirmModal) {
+        confirmModal.show();
+      } else {
+        confirmModalEl.classList.add("show");
+        confirmModalEl.style.display = "block";
+      }
+    }
+
+    // Quick Action Buttons
+    document.querySelectorAll(".btn-change-status").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const reqId = btn.dataset.id;
+        const newStatus = btn.dataset.status;
+        const row = btn.closest("tr");
+        const studentName = row ? row.querySelector("td div.fw-semibold").textContent.trim() : "Student";
+
+        requestConfirmation(reqId, studentName, newStatus, "", "");
+      });
     });
-  }
 
-  if (executeUpdateBtn) {
-    executeUpdateBtn.addEventListener("click", async () => {
-      if (!pendingReqId || !pendingStatus) return;
+    // Modal Action Handling
+    const modalEl = document.getElementById("updateStatusModal");
+    const updateModal = modalEl ? new bootstrap.Modal(modalEl) : null;
+    const saveBtn = document.getElementById("saveStatusBtn");
 
-      executeUpdateBtn.disabled = true;
-      executeUpdateBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Updating...`;
+    document.querySelectorAll(".btn-open-modal").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.getElementById("modalReqId").value = btn.dataset.id;
+        document.getElementById("modalStudentName").textContent = btn.dataset.student;
+        document.getElementById("modalDocName").textContent = btn.dataset.doc;
+        document.getElementById("modalStatusSelect").value = btn.dataset.currentStatus;
+        document.getElementById("modalRemarks").value = btn.dataset.remarks || "";
+        if (releaseDateInput) {
+          releaseDateInput.value = btn.dataset.releaseDate || "";
+        }
+        toggleReleaseDateGroup();
+        if (updateModal) updateModal.show();
+      });
+    });
+
+    if (saveBtn) {
+      saveBtn.addEventListener("click", () => {
+        const reqId = document.getElementById("modalReqId").value;
+        const status = document.getElementById("modalStatusSelect").value;
+        const remarks = document.getElementById("modalRemarks").value;
+        const studentName = document.getElementById("modalStudentName").textContent;
+        const releaseDate = (status === "ready" || status === "completed") ? (releaseDateInput?.value || "") : "";
+
+        if ((status === "ready" || status === "completed") && !releaseDate) {
+          alert("Please select the date when the student will pick up / get the document.");
+          return;
+        }
+
+        if (updateModal) updateModal.hide();
+        requestConfirmation(reqId, studentName, status, remarks, releaseDate);
+      });
+    }
+
+    if (executeUpdateBtn) {
+      executeUpdateBtn.addEventListener("click", async () => {
+        if (!pendingReqId || !pendingStatus) return;
+
+        executeUpdateBtn.disabled = true;
+        executeUpdateBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Updating...`;
+
+        try {
+          await postStatusUpdate(pendingReqId, pendingStatus, pendingRemarks, pendingReleaseDate);
+          if (confirmModal) confirmModal.hide();
+        } finally {
+          executeUpdateBtn.disabled = false;
+          executeUpdateBtn.innerHTML = `<i class="bi bi-check-lg me-1"></i> Yes, Confirm Update`;
+        }
+      });
+    }
+
+    async function postStatusUpdate(reqId, status, remarks, releaseDate = "") {
+      const formData = new FormData();
+      formData.append("request_id", reqId);
+      formData.append("status", status);
+      formData.append("remarks", remarks);
+      formData.append("release_date", releaseDate);
+
+      const csrfEl = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      const csrfToken = csrfEl ? csrfEl.value : "";
 
       try {
-        await postStatusUpdate(pendingReqId, pendingStatus, pendingRemarks);
-        if (confirmModal) confirmModal.hide();
-      } finally {
-        executeUpdateBtn.disabled = false;
-        executeUpdateBtn.innerHTML = `<i class="bi bi-check-lg me-1"></i> Yes, Confirm Update`;
+        const resp = await fetch("{% url 'registrar_update_document_request_status' %}", {
+          method: "POST",
+          headers: { "X-CSRFToken": csrfToken },
+          body: formData
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          alertMsg.textContent = data.message || "Status updated successfully.";
+          alertBox.classList.remove("d-none");
+          setTimeout(() => { window.location.reload(); }, 1000);
+        } else {
+          alert(data.error || "Failed to update status.");
+        }
+      } catch (err) {
+        alert("An error occurred while updating status.");
       }
-    });
-  }
-
-  async function postStatusUpdate(reqId, status, remarks) {
-    const formData = new FormData();
-    formData.append("request_id", reqId);
-    formData.append("status", status);
-    formData.append("remarks", remarks);
-
-    const csrfEl = document.querySelector('input[name="csrfmiddlewaretoken"]');
-    const csrfToken = csrfEl ? csrfEl.value : "";
-
-    try {
-      const resp = await fetch("{% url 'registrar_update_document_request_status' %}", {
-        method: "POST",
-        headers: { "X-CSRFToken": csrfToken },
-        body: formData
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        alertMsg.textContent = data.message || "Status updated successfully.";
-        alertBox.classList.remove("d-none");
-        setTimeout(() => { window.location.reload(); }, 1000);
-      } else {
-        alert(data.error || "Failed to update status.");
-      }
-    } catch (err) {
-      alert("An error occurred while updating status.");
     }
-  }
-});
+
+    updateTabCounts();
+    renderTable();
+  });
 </script>
 {% endblock %}
-

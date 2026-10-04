@@ -174,6 +174,7 @@ def student_documents_context(request):
                 "status": r.status,
                 "status_display": r.get_status_display(),
                 "remarks": r.remarks,
+                "release_date": r.release_date.strftime("%B %d, %Y") if r.release_date else "",
                 "requested_at": _format_doc_date(r.requested_at),
             })
 

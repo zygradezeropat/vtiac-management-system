@@ -59,25 +59,71 @@ def update_document_request_status(request):
     request_id = request.POST.get("request_id")
     new_status = request.POST.get("status")
     remarks = (request.POST.get("remarks") or "").strip()
+    release_date_raw = (request.POST.get("release_date") or "").strip()
 
     if not request_id or not new_status:
         return JsonResponse({"ok": False, "error": "Request ID and Status are required."}, status=400)
 
     from backend.student.models import StudentDocumentRequest
+    from backend.core.notification_service import create_notification
+    from backend.core.models import PortalNotification
+    from datetime import datetime
 
     try:
         doc_req = StudentDocumentRequest.objects.get(id=request_id)
         if new_status in StudentDocumentRequest.Status.values:
             doc_req.status = new_status
-            if remarks:
-                doc_req.remarks = remarks
+            doc_req.remarks = remarks
+
+            if release_date_raw:
+                try:
+                    doc_req.release_date = datetime.strptime(release_date_raw, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+
             doc_req.save()
+
+            # Create notification for student
+            if doc_req.user:
+                if new_status in ("ready", "completed"):
+                    date_str = doc_req.release_date.strftime("%B %d, %Y") if doc_req.release_date else "soon"
+                    create_notification(
+                        doc_req.user,
+                        category=PortalNotification.Category.DOCUMENTS_RELEASED,
+                        title="Document Ready for Pick-Up",
+                        message=f"Your requested document '{doc_req.document_name}' is ready! Pick-up / Claim Date: {date_str}.",
+                        link_url="/dashboard/student/documents/",
+                        related_profile_id=doc_req.profile_id,
+                    )
+                elif new_status == "processing":
+                    create_notification(
+                        doc_req.user,
+                        category=PortalNotification.Category.DOCUMENT_APPROVED,
+                        title="Document Request Processing",
+                        message=f"Your request for '{doc_req.document_name}' is now being processed by the Registrar.",
+                        link_url="/dashboard/student/documents/",
+                        related_profile_id=doc_req.profile_id,
+                    )
+                elif new_status == "rejected":
+                    msg = f"Your request for '{doc_req.document_name}' was not approved."
+                    if doc_req.remarks:
+                        msg += f" Reason: {doc_req.remarks}"
+                    create_notification(
+                        doc_req.user,
+                        category=PortalNotification.Category.DOCUMENT_REJECTED,
+                        title="Document Request Update",
+                        message=msg,
+                        link_url="/dashboard/student/documents/",
+                        related_profile_id=doc_req.profile_id,
+                    )
+
             return JsonResponse({
                 "ok": True,
                 "message": f"Document request status updated to {doc_req.get_status_display()}.",
                 "id": doc_req.id,
                 "status": doc_req.status,
                 "status_display": doc_req.get_status_display(),
+                "release_date": doc_req.release_date.strftime("%B %d, %Y") if doc_req.release_date else "",
             })
         else:
             return JsonResponse({"ok": False, "error": "Invalid status option."}, status=400)
