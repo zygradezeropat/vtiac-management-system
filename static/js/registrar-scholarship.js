@@ -1,5 +1,5 @@
 /**
- * Registrar — scholarship management: upload, parse Excel/PDF, validate, integrate (demo).
+ * Registrar — scholarship management: upload, parse Excel/PDF, extract columns, import and manage masterlist.
  */
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -18,8 +18,8 @@ function loadStudentRegistry() {
 
 let STUDENT_REGISTRY = loadStudentRegistry();
 
-function loadEnrolledScholars() {
-  const el = document.getElementById("scholarship-scholars-seed");
+function loadMasterlistRecords() {
+  const el = document.getElementById("scholarship-masterlist-seed");
   if (!el?.textContent?.trim()) return [];
   try {
     const parsed = JSON.parse(el.textContent);
@@ -29,12 +29,20 @@ function loadEnrolledScholars() {
   }
 }
 
+let MASTERLIST_RECORDS = loadMasterlistRecords();
+let masterlistFilter = "";
+let masterlistPage = 1;
+const MASTERLIST_PAGE_SIZE = 10;
+
 const COLUMN_ALIASES = {
+  no: ["no", "no.", "id", "num", "number", "seq", "#", "sl no", "item", "count"],
   scholarName: ["scholar name", "name", "student name", "full name", "scholar", "beneficiary"],
   firstName: ["first name", "firstname", "given name", "first_name"],
   lastName: ["last name", "lastname", "surname", "family name", "last_name"],
   middleName: ["middle name", "middlename", "middle nar", "middle_name"],
   birthDate: ["birth date", "birthdate", "bday", "b-day", "date of birth", "dob", "birth_date", "birthday"],
+  address: ["address", "home address", "residence", "addr", "street", "location"],
+  email: ["email", "email address", "email_address", "e-mail"],
   program: ["program", "course", "qualification", "program/course"],
   sponsor: ["sponsor", "grant", "funder", "organization"],
   slotId: ["slot id", "slot", "slot no", "allocation", "slot #"],
@@ -48,14 +56,15 @@ const HEADER_CATEGORIES = [
   { name: "middleName", keywords: ["middle name", "middlename", "middle nar", "middle_name"] },
   { name: "fullName", keywords: ["scholar name", "full name", "student name", "scholar", "beneficiary"] },
   { name: "birthDate", keywords: ["birthdate", "birth date", "bday", "b-day", "date of birth", "dob", "birthday"] },
+  { name: "address", keywords: ["address", "home address", "residence", "addr", "street"] },
+  { name: "email", keywords: ["email", "email address", "email_address", "e-mail"] },
   { name: "program", keywords: ["program", "course", "qualification", "program/course"] },
   { name: "sponsor", keywords: ["sponsor", "grant", "funder", "organization"] },
-  { name: "contact", keywords: ["email", "address", "phone", "contact"] },
   { name: "idNo", keywords: ["no", "no.", "id", "slot", "num", "number"] },
 ];
 
 function escapeHtml(text) {
-  return String(text)
+  return String(text || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -75,8 +84,21 @@ function normalizeDateStr(raw) {
     if (isNaN(raw.getTime())) return "";
     return raw.toISOString().split("T")[0];
   }
-  const s = String(raw).trim();
+  let s = String(raw).trim();
   if (!s) return "";
+
+  if (s.endsWith("-01-01")) {
+    const num = s.split("-")[0];
+    if (/^\d{5}$/.test(num)) s = num;
+  }
+
+  if (/^\d{5}$/.test(s)) {
+    const n = parseInt(s, 10);
+    if (n >= 10000 && n <= 60000) {
+      const d = new Date(Math.round((n - 25569) * 86400 * 1000));
+      if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+    }
+  }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
@@ -89,7 +111,7 @@ function normalizeDateStr(raw) {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  return s.toLowerCase();
+  return s;
 }
 
 function isExactOrWordMatch(cellText, keyword) {
@@ -130,9 +152,12 @@ function pickField(row, aliases) {
 }
 
 function normalizeParsedRow(raw, index) {
+  const no = pickField(raw, COLUMN_ALIASES.no) || String(index + 1);
   const firstName = pickField(raw, COLUMN_ALIASES.firstName);
   const lastName = pickField(raw, COLUMN_ALIASES.lastName);
   const middleName = pickField(raw, COLUMN_ALIASES.middleName);
+  const address = pickField(raw, COLUMN_ALIASES.address);
+  const email = pickField(raw, COLUMN_ALIASES.email);
 
   let scholarName = "";
   if (firstName || lastName) {
@@ -145,16 +170,19 @@ function normalizeParsedRow(raw, index) {
   }
 
   const rawBday = pickField(raw, COLUMN_ALIASES.birthDate);
-  const birthDate = normalizeDateStr(rawBday);
+  const birthDate = normalizeDateStr(rawBday) || rawBday;
 
   return {
     id: `row-${index}`,
+    no,
     scholarName,
     firstName,
     lastName,
     middleName,
     birthDate,
     rawBirthDate: rawBday,
+    address,
+    email,
     rawObject: raw,
     program: pickField(raw, COLUMN_ALIASES.program) || "—",
     sponsor: pickField(raw, COLUMN_ALIASES.sponsor) || "",
@@ -163,7 +191,7 @@ function normalizeParsedRow(raw, index) {
     status: pickField(raw, COLUMN_ALIASES.status) || "Pending",
     matchStatus: "pending",
     matchDetails: "",
-    slotStatus: "pending",
+    slotStatus: "valid",
     studentId: null,
     registrationId: null,
     profileId: null,
@@ -180,41 +208,56 @@ function isHeaderOrInvalidRow(scholarName) {
 }
 
 function matchStudentStrict(scholarName, birthDate, rowObj) {
-  const key = normalizeKey(scholarName);
-  if (!key || isHeaderOrInvalidRow(scholarName)) return null;
+  if (isHeaderOrInvalidRow(scholarName)) return null;
 
-  const targetBday = birthDate ? normalizeDateStr(birthDate) : "";
   const rowFirst = normalizeKey(rowObj?.firstName || pickField(rowObj || {}, COLUMN_ALIASES.firstName));
   const rowLast = normalizeKey(rowObj?.lastName || pickField(rowObj || {}, COLUMN_ALIASES.lastName));
+  const rowEmail = normalizeKey(rowObj?.email || pickField(rowObj || {}, COLUMN_ALIASES.email));
+  const targetBday = birthDate ? normalizeDateStr(birthDate) : "";
+
+  const key = normalizeKey(scholarName).replace(/[,.]/g, " ");
 
   for (const s of STUDENT_REGISTRY) {
     const sFirst = normalizeKey(s.firstName || s.name.split(" ")[0]);
     const sLast = normalizeKey(s.lastName || s.name.split(" ").slice(-1)[0]);
-    const sFullName = normalizeKey(s.name);
+    const sEmail = normalizeKey(s.email || "");
+    const sFullNameNorm = normalizeKey(s.name).replace(/[,.]/g, " ");
     const sBday = s.birthDate ? normalizeDateStr(s.birthDate) : "";
 
-    let nameMatch = false;
+    let isMatch = false;
 
-    if (sFullName === key || key.includes(sFullName) || sFullName.includes(key)) {
-      if (rowFirst && sFirst) {
-        const firstWordsRow = rowFirst.split(" ").filter((w) => w.length > 1);
-        const firstWordsS = sFirst.split(" ").filter((w) => w.length > 1);
-        const sameFirstCount = firstWordsS.filter((w) => firstWordsRow.includes(w)).length;
-        if (sameFirstCount >= Math.min(firstWordsRow.length, firstWordsS.length)) {
-          nameMatch = true;
-        }
-      } else {
-        nameMatch = true;
+    // 1. Direct email match
+    if (rowEmail && sEmail && rowEmail === sEmail) {
+      isMatch = true;
+    }
+
+    // 2. Direct first_name + last_name match
+    if (!isMatch && rowFirst && rowLast && sFirst && sLast) {
+      const firstMatches = rowFirst.includes(sFirst) || sFirst.includes(rowFirst);
+      const lastMatches = rowLast === sLast || rowLast.includes(sLast) || sLast.includes(rowLast);
+      if (firstMatches && lastMatches) {
+        isMatch = true;
       }
     }
 
-    if (!nameMatch) continue;
-
-    if (targetBday) {
-      if (sBday && sBday === targetBday) {
-        return { hit: s, confidence: "exact_name_and_bday" };
+    // 3. Full name token match
+    if (!isMatch && sFullNameNorm && key) {
+      if (sFullNameNorm === key || key.includes(sFullNameNorm) || sFullNameNorm.includes(key)) {
+        isMatch = true;
+      } else {
+        const keyWords = key.split(/\s+/).filter((w) => w.length > 2);
+        const sWords = sFullNameNorm.split(/\s+/).filter((w) => w.length > 2);
+        const commonWords = keyWords.filter((w) => sWords.includes(w));
+        if (commonWords.length >= 2 && (rowLast ? sWords.includes(rowLast) : true)) {
+          isMatch = true;
+        }
       }
-      continue;
+    }
+
+    if (!isMatch) continue;
+
+    if (targetBday && sBday && targetBday === sBday) {
+      return { hit: s, confidence: "exact_name_and_bday" };
     }
 
     return { hit: s, confidence: "exact_name" };
@@ -224,9 +267,6 @@ function matchStudentStrict(scholarName, birthDate, rowObj) {
 }
 
 function validateRows(rows) {
-  const usedSlots = new Set();
-  let slotSeq = 0;
-
   return rows.map((row) => {
     const matchRes = matchStudentStrict(row.scholarName, row.birthDate || row.rawBirthDate, row.rawObject);
     const match = matchRes?.hit || null;
@@ -234,8 +274,8 @@ function validateRows(rows) {
     if (match) {
       row.matchStatus = "matched";
       row.matchDetails = matchRes.confidence === "exact_name_and_bday"
-        ? "Matched (Name & DOB)"
-        : "Matched (Name)";
+        ? "Student Match"
+        : "Student Match (Name)";
       row.studentId = match.studentId ?? null;
       row.registrationId = match.registrationId ?? null;
       row.profileId = match.profileId ?? null;
@@ -243,28 +283,13 @@ function validateRows(rows) {
       if (!row.birthDate && match.birthDateStr) row.birthDate = match.birthDateStr;
     } else {
       row.matchStatus = "unmatched";
-      row.matchDetails = "Unmatched";
+      row.matchDetails = "Scholar Record";
       row.studentId = null;
       row.registrationId = null;
       row.profileId = null;
     }
 
-    let slot = row.slotId;
-    if (!slot && match) {
-      slotSeq += 1;
-      slot = `AUTO-${String(slotSeq).padStart(2, "0")}`;
-      row.slotId = slot;
-    }
-
-    if (!slot) {
-      row.slotStatus = "missing_slot";
-    } else if (usedSlots.has(slot)) {
-      row.slotStatus = "duplicate_slot";
-    } else {
-      usedSlots.add(slot);
-      row.slotStatus = "valid";
-    }
-
+    row.slotStatus = "valid";
     return row;
   });
 }
@@ -415,6 +440,120 @@ function saveIntegrations(list) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
+function filteredMasterlist() {
+  const q = masterlistFilter.trim().toLowerCase();
+  if (!q) return MASTERLIST_RECORDS;
+  return MASTERLIST_RECORDS.filter(
+    (r) =>
+      (r.scholarName && r.scholarName.toLowerCase().includes(q)) ||
+      (r.lastName && r.lastName.toLowerCase().includes(q)) ||
+      (r.firstName && r.firstName.toLowerCase().includes(q)) ||
+      (r.email && r.email.toLowerCase().includes(q)) ||
+      (r.program && r.program.toLowerCase().includes(q)) ||
+      (r.sponsor && r.sponsor.toLowerCase().includes(q)) ||
+      (r.slotId && r.slotId.toLowerCase().includes(q))
+  );
+}
+
+function renderMasterlist() {
+  const container = document.getElementById("masterlist-table-container");
+  const infoEl = document.getElementById("masterlist-page-info");
+  const paginationEl = document.getElementById("masterlist-pagination");
+  if (!container) return;
+
+  const records = filteredMasterlist();
+  const total = records.length;
+  const totalPages = Math.ceil(total / MASTERLIST_PAGE_SIZE) || 1;
+  if (masterlistPage > totalPages) masterlistPage = totalPages;
+  if (masterlistPage < 1) masterlistPage = 1;
+
+  const startIdx = (masterlistPage - 1) * MASTERLIST_PAGE_SIZE;
+  const pageRecords = records.slice(startIdx, startIdx + MASTERLIST_PAGE_SIZE);
+
+  if (records.length === 0) {
+    container.innerHTML = `
+      <div class="text-center text-muted py-4 border rounded-3 bg-light">
+        <i class="bi bi-inbox opacity-50 fs-2" aria-hidden="true"></i>
+        <p class="small mb-0 mt-2">No scholar records saved yet. Import a sponsor file to see masterlist records.</p>
+      </div>`;
+    if (infoEl) infoEl.textContent = "Showing 0 to 0 of 0 records";
+    if (paginationEl) paginationEl.innerHTML = "";
+    return;
+  }
+
+  const rowsHtml = pageRecords
+    .map(
+      (r) => `
+    <tr>
+      <td class="fw-semibold text-muted">${escapeHtml(r.no || "—")}</td>
+      <td class="fw-medium">${escapeHtml(r.lastName || "—")}</td>
+      <td class="fw-medium">${escapeHtml(r.firstName || "—")}</td>
+      <td>${escapeHtml(r.middleName || "—")}</td>
+      <td><small class="text-muted">${escapeHtml(r.birthDate || "—")}</small></td>
+      <td><small class="text-muted">${escapeHtml(r.address || "—")}</small></td>
+      <td><small>${escapeHtml(r.email || "—")}</small></td>
+      <td><span class="badge text-bg-light text-dark border">${escapeHtml(r.sponsor || "—")}</span></td>
+      <td>${r.isLinked ? '<span class="badge text-bg-success"><i class="bi bi-person-check-fill me-1"></i>Enrolled Student</span>' : '<span class="badge text-bg-secondary"><i class="bi bi-person-plus me-1"></i>Scholar Record</span>'}</td>
+    </tr>`
+    )
+    .join("");
+
+  container.innerHTML = `
+    <table class="table registrar-table registrar-scholarship-table mb-0" style="font-size:0.875rem">
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>Last Name</th>
+          <th>First Name</th>
+          <th>Middle Name</th>
+          <th>Birthdate</th>
+          <th>Address</th>
+          <th>Email</th>
+          <th>Sponsor</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+
+  const endIdx = Math.min(startIdx + MASTERLIST_PAGE_SIZE, total);
+  if (infoEl) {
+    infoEl.textContent = `Showing ${startIdx + 1} to ${endIdx} of ${total} record${total !== 1 ? "s" : ""}`;
+  }
+
+  if (paginationEl) {
+    let pagesHtml = "";
+    pagesHtml += `
+      <li class="page-item ${masterlistPage === 1 ? "disabled" : ""}">
+        <button class="page-link" type="button" data-page="${masterlistPage - 1}">Previous</button>
+      </li>`;
+
+    for (let p = 1; p <= totalPages; p++) {
+      pagesHtml += `
+        <li class="page-item ${p === masterlistPage ? "active" : ""}">
+          <button class="page-link" type="button" data-page="${p}">${p}</button>
+        </li>`;
+    }
+
+    pagesHtml += `
+      <li class="page-item ${masterlistPage === totalPages ? "disabled" : ""}">
+        <button class="page-link" type="button" data-page="${masterlistPage + 1}">Next</button>
+      </li>`;
+
+    paginationEl.innerHTML = pagesHtml;
+
+    paginationEl.querySelectorAll("button[data-page]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const p = parseInt(e.target.dataset.page, 10);
+        if (!isNaN(p) && p >= 1 && p <= totalPages) {
+          masterlistPage = p;
+          renderMasterlist();
+        }
+      });
+    });
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const dropzone = document.getElementById("scholarship-dropzone");
   const fileInput = document.getElementById("scholarship-file-input");
@@ -430,14 +569,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const rowSearch = document.getElementById("scholarship-row-search");
   const statsEl = document.getElementById("scholarship-stats");
   const pendingCount = document.getElementById("scholarship-pending-count");
-  const slotCapEl = document.getElementById("scholarship-slot-cap");
   const sponsorEl = document.getElementById("scholarship-sponsor");
   const pipelineSteps = document.querySelectorAll(".registrar-scholarship-pipeline__step");
+  const masterlistSearch = document.getElementById("masterlist-search");
 
   let selectedFile = null;
   let parsedRows = [];
   let rowFilter = "";
-  let lastParseMeta = null;
 
   function setPipeline(step) {
     const order = ["upload", "parse", "validate", "integrate"];
@@ -466,7 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
-      alert("File exceeds 10 MB limit (demo).");
+      alert("File exceeds 10 MB limit.");
       return;
     }
     selectedFile = file;
@@ -490,82 +628,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateStats() {
-    const matched = parsedRows.filter((r) => r.matchStatus === "matched").length;
-    const validSlots = parsedRows.filter((r) => r.slotStatus === "valid").length;
-    const integrated = getIntegrations().length;
-    const pending = parsedRows.filter((r) => r.matchStatus === "matched" && !r.integrated).length;
+    const total = parsedRows.length;
+    const matches = parsedRows.filter((r) => r.matchStatus === "matched").length;
+    const pendingToImport = parsedRows.filter((r) => !r.integrated).length;
 
-    if (pendingCount) pendingCount.textContent = String(pending || parsedRows.length);
+    if (pendingCount) pendingCount.textContent = String(pendingToImport || total);
 
     if (!statsEl) return;
-    if (parsedRows.length === 0 && integrated === 0) {
-      const scholars = loadEnrolledScholars();
-      statsEl.innerHTML = scholars.length
-        ? `
-      <div class="col-md-4">
-        <div class="registrar-finalized-stat">
-          <span class="registrar-finalized-stat__value">${scholars.length}</span>
-          <span class="registrar-finalized-stat__label">Scholars on enrollment profiles</span>
-        </div>
-      </div>
-      <div class="col-md-8">
-        <p class="text-muted small mb-0 pt-2">Upload sponsor lists to match against <strong>${STUDENT_REGISTRY.length}</strong> enrolled students in the system.</p>
-      </div>`
-        : `<div class="col-12"><p class="text-muted small mb-0">No scholars on file yet. Students can select a scholarship type during enrollment.</p></div>`;
-      return;
-    }
 
     statsEl.innerHTML = `
       <div class="col-6 col-md-3">
         <div class="registrar-finalized-stat">
-          <span class="registrar-finalized-stat__value">${parsedRows.length}</span>
+          <span class="registrar-finalized-stat__value">${total}</span>
           <span class="registrar-finalized-stat__label">Parsed rows</span>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="registrar-finalized-stat">
-          <span class="registrar-finalized-stat__value">${matched}</span>
-          <span class="registrar-finalized-stat__label">Matched names</span>
+          <span class="registrar-finalized-stat__value">${matches}</span>
+          <span class="registrar-finalized-stat__label">Student matches</span>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="registrar-finalized-stat">
-          <span class="registrar-finalized-stat__value">${validSlots}</span>
-          <span class="registrar-finalized-stat__label">Valid slots</span>
+          <span class="registrar-finalized-stat__value">${pendingToImport}</span>
+          <span class="registrar-finalized-stat__label">Ready to save</span>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="registrar-finalized-stat">
-          <span class="registrar-finalized-stat__value">${integrated}</span>
-          <span class="registrar-finalized-stat__label">Integrated</span>
+          <span class="registrar-finalized-stat__value">${parsedRows.filter(r => r.integrated).length}</span>
+          <span class="registrar-finalized-stat__label">Saved scholars</span>
         </div>
       </div>`;
   }
 
   function badgeMatch(row) {
     if (row.matchStatus === "matched") {
-      if (row.matchDetails?.includes("DOB")) {
-        return `<span class="badge text-bg-success"><i class="bi bi-patch-check-fill me-1"></i>${escapeHtml(row.matchDetails)}</span>`;
-      }
-      return `<span class="badge text-bg-success"><i class="bi bi-check-circle me-1"></i>${escapeHtml(row.matchDetails || "Matched")}</span>`;
+      return `<span class="badge text-bg-success"><i class="bi bi-person-check-fill me-1"></i>Student Match</span>`;
     }
-    return '<span class="badge text-bg-danger">Unmatched</span>';
-  }
-
-  function badgeSlot(row) {
-    const map = {
-      valid: "text-bg-success",
-      over_capacity: "text-bg-danger",
-      duplicate_slot: "text-bg-danger",
-      missing_slot: "text-bg-warning",
-    };
-    const labels = {
-      valid: "Valid slot",
-      over_capacity: "Over cap",
-      duplicate_slot: "Duplicate",
-      missing_slot: "No slot",
-    };
-    return `<span class="badge ${map[row.slotStatus] || "text-bg-secondary"}">${labels[row.slotStatus] || row.slotStatus}</span>`;
+    return '<span class="badge text-bg-secondary"><i class="bi bi-person-plus me-1"></i>Scholar Record</span>';
   }
 
   function filteredRows() {
@@ -573,9 +675,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!q) return parsedRows;
     return parsedRows.filter(
       (r) =>
-        r.scholarName.toLowerCase().includes(q) ||
-        r.program.toLowerCase().includes(q) ||
-        (r.sponsor && r.sponsor.toLowerCase().includes(q))
+        (r.scholarName && r.scholarName.toLowerCase().includes(q)) ||
+        (r.lastName && r.lastName.toLowerCase().includes(q)) ||
+        (r.firstName && r.firstName.toLowerCase().includes(q)) ||
+        (r.email && r.email.toLowerCase().includes(q)) ||
+        (r.program && r.program.toLowerCase().includes(q))
     );
   }
 
@@ -600,41 +704,40 @@ document.addEventListener("DOMContentLoaded", () => {
       .map(
         (r) => `
       <tr>
-        <td class="fw-medium">
-          <div>${escapeHtml(r.scholarName)}</div>
-          ${r.birthDate ? `<small class="text-muted" style="font-size:0.75rem"><i class="bi bi-calendar-event me-1"></i>${escapeHtml(r.birthDate)}</small>` : ""}
-        </td>
-        <td>${escapeHtml(r.program)}</td>
-        <td>${escapeHtml(r.sponsor || sponsorEl?.value || "—")}</td>
-        <td>${escapeHtml(r.slotId || "—")}</td>
-        <td>${escapeHtml(r.amount || "—")}</td>
+        <td class="fw-semibold text-muted">${escapeHtml(r.no || "—")}</td>
+        <td class="fw-medium">${escapeHtml(r.lastName || "—")}</td>
+        <td class="fw-medium">${escapeHtml(r.firstName || "—")}</td>
+        <td>${escapeHtml(r.middleName || "—")}</td>
+        <td><small class="text-muted">${escapeHtml(r.birthDate || "—")}</small></td>
+        <td><small class="text-muted">${escapeHtml(r.address || "—")}</small></td>
+        <td><small>${escapeHtml(r.email || "—")}</small></td>
         <td>${badgeMatch(r)}</td>
-        <td>${badgeSlot(r)}</td>
-        <td>${r.integrated ? '<span class="badge text-bg-primary"><i class="bi bi-check2-all me-1"></i>Applied</span>' : '<span class="badge text-bg-light text-dark">Pending</span>'}</td>
+        <td>${r.integrated ? '<span class="badge text-bg-primary"><i class="bi bi-check2-all me-1"></i>Saved</span>' : '<span class="badge text-bg-light text-dark">Pending</span>'}</td>
       </tr>`
       )
       .join("");
 
     if (resultsTable) {
       resultsTable.innerHTML = `
-        <table class="table registrar-table registrar-scholarship-table mb-0">
+        <table class="table registrar-table registrar-scholarship-table mb-0" style="font-size:0.875rem">
           <thead>
             <tr>
-              <th>Scholar</th>
-              <th>Program</th>
-              <th>Sponsor</th>
-              <th>Slot</th>
-              <th>Amount</th>
-              <th>Match</th>
-              <th>Slot check</th>
-              <th>Integration</th>
+              <th>No.</th>
+              <th>Last Name</th>
+              <th>First Name</th>
+              <th>Middle Name</th>
+              <th>Birthdate</th>
+              <th>Address</th>
+              <th>Email</th>
+              <th>Match Status</th>
+              <th>Status</th>
             </tr>
           </thead>
-          <tbody>${body || '<tr><td colspan="8" class="text-center text-muted py-3">No rows match filter.</td></tr>'}</tbody>
+          <tbody>${body || '<tr><td colspan="9" class="text-center text-muted py-3">No rows match filter.</td></tr>'}</tbody>
         </table>`;
     }
 
-    const canIntegrate = parsedRows.some((r) => r.matchStatus === "matched" && r.slotStatus === "valid" && !r.integrated);
+    const canIntegrate = parsedRows.some((r) => !r.integrated);
     if (integrateBtn) integrateBtn.disabled = !canIntegrate;
   }
 
@@ -648,7 +751,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function runParse() {
     if (!selectedFile) return;
     parseBtn.disabled = true;
-    showStatus("info", '<i class="bi bi-hourglass-split me-1"></i> Reading and parsing file...');
+    showStatus("info", '<i class="bi bi-hourglass-split me-1"></i> Reading and parsing sponsor list file...');
     setPipeline("parse");
 
     try {
@@ -660,13 +763,13 @@ document.addEventListener("DOMContentLoaded", () => {
         result = await parseExcelFile(selectedFile);
       }
 
+      parsedRows = result.rows || [];
       parsedRows = validateRows(parsedRows);
-      lastParseMeta = result;
 
       setPipeline("validate");
       showStatus(
         "success",
-        `<i class="bi bi-check-circle me-1"></i> Parsed <strong>${parsedRows.length}</strong> record(s) from ${result.format.toUpperCase()} (${escapeHtml(result.sheetName)}). Names and DOB validated against registry.`
+        `<i class="bi bi-check-circle me-1"></i> Extracted <strong>${parsedRows.length}</strong> record(s) from ${result.format.toUpperCase()} (${escapeHtml(result.sheetName)}). Ready for saving.`
       );
       renderResults();
       updateStats();
@@ -681,7 +784,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function clearAll() {
     selectedFile = null;
     parsedRows = [];
-    lastParseMeta = null;
     if (fileInput) fileInput.value = "";
     if (fileMeta) fileMeta.classList.add("d-none");
     if (parseBtn) parseBtn.disabled = true;
@@ -700,17 +802,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function integrateMatched() {
     const sponsor = sponsorEl?.value || "External Grant / Scholarship";
-    const toApply = parsedRows.filter((r) => r.matchStatus === "matched" && r.slotStatus === "valid" && !r.integrated);
+    const toApply = parsedRows.filter((r) => !r.integrated);
     if (!toApply.length) return;
 
     if (integrateBtn) integrateBtn.disabled = true;
-    showStatus("info", '<i class="bi bi-hourglass-split me-1"></i> Saving matched scholar records to system database...');
+    showStatus("info", '<i class="bi bi-hourglass-split me-1"></i> Saving scholar records into system...');
 
     try {
       const scholarsPayload = toApply.map((r) => ({
+        no: r.no,
+        lastName: r.lastName,
+        firstName: r.firstName,
+        middleName: r.middleName,
+        scholarName: r.scholarName,
+        birthDate: r.birthDate,
+        address: r.address,
+        email: r.email,
+        program: r.program,
+        slotId: r.slotId,
+        amount: r.amount,
         registrationId: r.registrationId,
         profileId: r.profileId,
-        scholarName: r.scholarName,
         scholarshipType: sponsor.toLowerCase().includes("tesda")
           ? "tesda"
           : sponsor.toLowerCase().includes("twsp")
@@ -730,13 +842,15 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         body: JSON.stringify({
           sponsor,
+          filename: selectedFile ? selectedFile.name : "",
+          totalParsedRows: parsedRows.length,
           scholars: scholarsPayload,
         }),
       });
 
       const data = await response.json();
       if (!response.ok || !data.ok) {
-        throw new Error(data.message || "Could not integrate records into database.");
+        throw new Error(data.message || "Could not save records into system.");
       }
 
       const log = getIntegrations();
@@ -753,18 +867,41 @@ document.addEventListener("DOMContentLoaded", () => {
           amount: row.amount,
           integratedAt: now,
         });
+
+        // Also add to active masterlist array
+        MASTERLIST_RECORDS.unshift({
+          id: String(Date.now()),
+          no: row.no || "—",
+          scholarName: row.scholarName,
+          lastName: row.lastName || "—",
+          firstName: row.firstName || "—",
+          middleName: row.middleName || "—",
+          birthDate: row.birthDate || "—",
+          address: row.address || "—",
+          email: row.email || "—",
+          program: row.program || "—",
+          sponsor,
+          slotId: row.slotId || "—",
+          amount: row.amount || "—",
+          scholarshipType: "tesda",
+          scholarshipLabel: "TESDA",
+          isLinked: Boolean(row.profileId || row.registrationId),
+          statusLabel: row.profileId || row.registrationId ? "Linked (Enrolled Student)" : "Saved Scholar Record",
+          grantedAt: new Date().toLocaleString(),
+        });
       });
 
       saveIntegrations(log.slice(0, 200));
       setPipeline("integrate");
       showStatus(
         "success",
-        `<i class="bi bi-database-check me-1"></i> Successfully saved <strong>${data.updatedCount || toApply.length}</strong> scholar record(s) directly to the system database!`
+        `<i class="bi bi-check-circle-fill me-1"></i> Successfully saved <strong>${data.updatedCount || toApply.length}</strong> scholar record(s) to system masterlist!`
       );
       renderResults();
+      renderMasterlist();
       updateStats();
     } catch (err) {
-      showStatus("danger", `<i class="bi bi-x-circle me-1"></i> ${escapeHtml(err.message || "Integration failed.")}`);
+      showStatus("danger", `<i class="bi bi-x-circle me-1"></i> ${escapeHtml(err.message || "Import failed.")}`);
     } finally {
       if (integrateBtn) integrateBtn.disabled = false;
     }
@@ -772,17 +909,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function exportCsv() {
     if (!parsedRows.length) return;
-    const headers = ["Scholar Name", "Program", "Sponsor", "Slot", "Amount", "Match", "Slot Status", "Integrated"];
+    const headers = ["No", "Last Name", "First Name", "Middle Name", "Birthdate", "Address", "Email", "Match Status", "Status"];
     const lines = parsedRows.map((r) =>
-      [r.scholarName, r.program, r.sponsor, r.slotId, r.amount, r.matchStatus, r.slotStatus, r.integrated]
-        .map((c) => `"${String(c).replace(/"/g, '""')}"`)
+      [r.no, r.lastName, r.firstName, r.middleName, r.birthDate, r.address, r.email, r.matchStatus, r.integrated ? "Saved" : "Pending"]
+        .map((c) => `"${String(c || "").replace(/"/g, '""')}"`)
         .join(",")
     );
     const csv = [headers.join(","), ...lines].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `scholarship-parse-${Date.now()}.csv`;
+    a.download = `scholarship-import-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -799,17 +936,28 @@ document.addEventListener("DOMContentLoaded", () => {
     handleFile(file);
   });
 
-  fileInput?.addEventListener("change", (e) => handleFile(e.target.files?.[0]));
+  fileInput?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    handleFile(file);
+  });
 
   parseBtn?.addEventListener("click", runParse);
   clearBtn?.addEventListener("click", clearAll);
   integrateBtn?.addEventListener("click", integrateMatched);
   exportBtn?.addEventListener("click", exportCsv);
+
   rowSearch?.addEventListener("input", (e) => {
     rowFilter = e.target.value;
     renderResults();
   });
 
+  masterlistSearch?.addEventListener("input", (e) => {
+    masterlistFilter = e.target.value;
+    masterlistPage = 1;
+    renderMasterlist();
+  });
+
+  renderResults();
+  renderMasterlist();
   updateStats();
-  setPipeline("upload");
 });

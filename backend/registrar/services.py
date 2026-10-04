@@ -297,11 +297,13 @@ def module_page_context(module, request=None):
     if module == "scholarship":
         from .scholarship_registry import (
             scholarship_enrolled_scholars,
+            scholarship_masterlist_records,
             scholarship_student_registry,
         )
 
         ctx["scholarship_registry_json"] = json.dumps(scholarship_student_registry())
         ctx["scholarship_scholars_json"] = json.dumps(scholarship_enrolled_scholars())
+        ctx["scholarship_masterlist_json"] = json.dumps(scholarship_masterlist_records())
     if module == "settings":
         user = getattr(request, "user", None) if request else None
         profile = settings_profile_defaults(user)

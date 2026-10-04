@@ -54,6 +54,20 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
         profile.program_type if profile and profile.program_type else reg.program_type
     )
 
+    if not scholarship_type and reg:
+        from .models import ScholarGrantRecord
+        grant = reg.scholarship_grants.filter(is_active=True).first()
+        if not grant:
+            from django.db import models as db_models
+            grant = ScholarGrantRecord.objects.filter(
+                is_active=True
+            ).filter(
+                db_models.Q(email__iexact=email) |
+                (db_models.Q(last_name__iexact=last) & db_models.Q(first_name__icontains=first))
+            ).first()
+        if grant:
+            scholarship_type = grant.scholarship_type or "tesda"
+
     scholar_label = _scholarship_label(scholarship_type)
     scholar_detail = _SCHOLARSHIP_LABELS.get(scholarship_type, scholarship_type) if scholarship_type else ""
 
@@ -86,6 +100,9 @@ def approved_students_queryset():
 
 def registrar_students_module_data():
     """Tabs payload for registrar student list (training vs assessment-only)."""
+    from .scholarship_api import sync_unlinked_scholar_grants
+
+    sync_unlinked_scholar_grants()
     training = []
     assessment = []
     programs = set(enrollment_program_options())

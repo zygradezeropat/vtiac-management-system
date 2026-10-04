@@ -12,6 +12,7 @@
 {% include "components/registrar/layout_start.html" %}
 <script id="scholarship-registry-seed" type="application/json">{{ scholarship_registry_json|default:"[]"|safe }}</script>
 <script id="scholarship-scholars-seed" type="application/json">{{ scholarship_scholars_json|default:"[]"|safe }}</script>
+<script id="scholarship-masterlist-seed" type="application/json">{{ scholarship_masterlist_json|default:"[]"|safe }}</script>
 
 <header class="registrar-page-header">
   <div>
@@ -23,65 +24,109 @@
   </span>
 </header>
 
-<div id="scholarship-stats" class="row g-3 mb-4"></div>
+<ul class="nav nav-tabs registrar-nav-tabs mb-4" id="scholarship-tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active fw-semibold" id="tab-import-btn" data-bs-toggle="tab" data-bs-target="#tab-import-content" type="button" role="tab" aria-controls="tab-import-content" aria-selected="true">
+      <i class="bi bi-file-earmark-arrow-up me-2" aria-hidden="true"></i>Import Scholar Record
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-semibold" id="tab-masterlist-btn" data-bs-toggle="tab" data-bs-target="#tab-masterlist-content" type="button" role="tab" aria-controls="tab-masterlist-content" aria-selected="false">
+      <i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Scholar Masterlist
+    </button>
+  </li>
+</ul>
 
-<div class="row g-3">
-  <div class="col-lg-5">
-    <article class="registrar-panel h-100">
-      <div class="registrar-panel__body">
-        <h2 class="h6 fw-semibold mb-3"><i class="bi bi-cloud-upload me-2 text-success" aria-hidden="true"></i>Document ingestion</h2>
-        <p class="text-muted small mb-3">Upload sponsor lists from Excel (.xls, .xlsx) or PDF (.pdf). The system reads and parses rows automatically.</p>
+<div class="tab-content" id="scholarship-tabs-content">
+  <!-- Tab 1: Import Scholar Record -->
+  <div class="tab-pane fade show active" id="tab-import-content" role="tabpanel" aria-labelledby="tab-import-btn">
+    <div id="scholarship-stats" class="row g-3 mb-4"></div>
 
-        <label class="registrar-scholarship-dropzone" id="scholarship-dropzone" for="scholarship-file-input">
-          <input type="file" id="scholarship-file-input" class="visually-hidden" accept=".xls,.xlsx,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-          <i class="bi bi-file-earmark-arrow-up display-6 text-success mb-2" aria-hidden="true"></i>
-          <p class="fw-semibold mb-1">Drop file here or click to browse</p>
-          <p class="text-muted small mb-0">.xls · .xlsx · .pdf — max 10 MB (demo)</p>
-        </label>
+    <div class="row g-3">
+      <div class="col-lg-5">
+        <article class="registrar-panel h-100">
+          <div class="registrar-panel__body">
+            <h2 class="h6 fw-semibold mb-3"><i class="bi bi-cloud-upload me-2 text-success" aria-hidden="true"></i>Document ingestion</h2>
+            <p class="text-muted small mb-3">Upload sponsor lists from Excel (.xls, .xlsx) or PDF (.pdf). The system reads and parses rows automatically.</p>
 
-        <div id="scholarship-file-meta" class="registrar-scholarship-file-meta d-none mt-3"></div>
+            <label class="registrar-scholarship-dropzone" id="scholarship-dropzone" for="scholarship-file-input">
+              <input type="file" id="scholarship-file-input" class="visually-hidden" accept=".xls,.xlsx,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              <i class="bi bi-file-earmark-arrow-up display-6 text-success mb-2" aria-hidden="true"></i>
+              <p class="fw-semibold mb-1">Drop file here or click to browse</p>
+              <p class="text-muted small mb-0">.xls · .xlsx · .pdf — max 10 MB (demo)</p>
+            </label>
 
-        <div class="d-flex flex-wrap gap-2 mt-4">
-          <button type="button" id="scholarship-parse-btn" class="btn btn-success btn-sm fw-semibold" disabled>
-            <i class="bi bi-cpu me-1" aria-hidden="true"></i>Parse file
-          </button>
-          <button type="button" id="scholarship-clear-btn" class="btn btn-outline-secondary btn-sm">Clear</button>
-        </div>
+            <div id="scholarship-file-meta" class="registrar-scholarship-file-meta d-none mt-3"></div>
+
+            <div class="d-flex flex-wrap gap-2 mt-4">
+              <button type="button" id="scholarship-parse-btn" class="btn btn-success btn-sm fw-semibold" disabled>
+                <i class="bi bi-cpu me-1" aria-hidden="true"></i>Parse file
+              </button>
+              <button type="button" id="scholarship-clear-btn" class="btn btn-outline-secondary btn-sm">Clear</button>
+            </div>
+          </div>
+        </article>
       </div>
-    </article>
+
+      <div class="col-lg-7">
+        <article class="registrar-panel h-100">
+          <div class="registrar-panel__body">
+            <h2 class="h6 fw-semibold mb-3"><i class="bi bi-diagram-3 me-2 text-primary" aria-hidden="true"></i>Processing pipeline</h2>
+            <ol class="registrar-scholarship-pipeline list-unstyled mb-4" id="scholarship-pipeline">
+              <li class="registrar-scholarship-pipeline__step is-active" data-step="upload"><span>1</span> Upload document</li>
+              <li class="registrar-scholarship-pipeline__step" data-step="parse"><span>2</span> Parse &amp; extract</li>
+              <li class="registrar-scholarship-pipeline__step" data-step="validate"><span>3</span> Validate names &amp; slots</li>
+              <li class="registrar-scholarship-pipeline__step" data-step="integrate"><span>4</span> Save scholar records</li>
+            </ol>
+
+            <div id="scholarship-parse-status" class="registrar-scholarship-status d-none mb-3"></div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+              <h3 class="h6 fw-semibold mb-0">Extracted scholars</h3>
+              <input type="search" id="scholarship-row-search" class="form-control form-control-sm registrar-verification-search" placeholder="Filter rows..." disabled style="max-width:14rem" />
+            </div>
+
+            <div id="scholarship-results-empty" class="text-center text-muted py-4 border rounded-3 bg-light">
+              <i class="bi bi-table opacity-50 fs-2" aria-hidden="true"></i>
+              <p class="small mb-0 mt-2">Upload and parse a file to see extracted data.</p>
+            </div>
+            <div id="scholarship-results-table" class="table-responsive d-none"></div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3 d-none" id="scholarship-actions">
+              <button type="button" id="scholarship-integrate-btn" class="btn btn-primary btn-sm fw-semibold" disabled>
+                <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Import scholar records
+              </button>
+              <button type="button" id="scholarship-export-btn" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-download me-1" aria-hidden="true"></i>Export CSV
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
   </div>
 
-  <div class="col-lg-7">
-    <article class="registrar-panel h-100">
+  <!-- Tab 2: Scholar Masterlist -->
+  <div class="tab-pane fade" id="tab-masterlist-content" role="tabpanel" aria-labelledby="tab-masterlist-btn">
+    <article class="registrar-panel">
       <div class="registrar-panel__body">
-        <h2 class="h6 fw-semibold mb-3"><i class="bi bi-diagram-3 me-2 text-primary" aria-hidden="true"></i>Processing pipeline</h2>
-        <ol class="registrar-scholarship-pipeline list-unstyled mb-4" id="scholarship-pipeline">
-          <li class="registrar-scholarship-pipeline__step is-active" data-step="upload"><span>1</span> Upload document</li>
-          <li class="registrar-scholarship-pipeline__step" data-step="parse"><span>2</span> Parse &amp; extract</li>
-          <li class="registrar-scholarship-pipeline__step" data-step="validate"><span>3</span> Validate slots &amp; names</li>
-          <li class="registrar-scholarship-pipeline__step" data-step="integrate"><span>4</span> Integrate records</li>
-        </ol>
-
-        <div id="scholarship-parse-status" class="registrar-scholarship-status d-none mb-3"></div>
-
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-          <h3 class="h6 fw-semibold mb-0">Extracted scholars</h3>
-          <input type="search" id="scholarship-row-search" class="form-control form-control-sm registrar-verification-search" placeholder="Filter rows..." disabled style="max-width:14rem" />
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h6 fw-semibold mb-1"><i class="bi bi-card-checklist me-2 text-primary" aria-hidden="true"></i>Scholar Masterlist</h2>
+            <p class="text-muted small mb-0">All saved and imported scholar records across all batches.</p>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <input type="search" id="masterlist-search" class="form-control form-control-sm" placeholder="Search masterlist..." style="max-width:15rem" />
+          </div>
         </div>
 
-        <div id="scholarship-results-empty" class="text-center text-muted py-4 border rounded-3 bg-light">
-          <i class="bi bi-table opacity-50 fs-2" aria-hidden="true"></i>
-          <p class="small mb-0 mt-2">Upload and parse a file to see extracted data.</p>
-        </div>
-        <div id="scholarship-results-table" class="table-responsive d-none"></div>
+        <div id="masterlist-table-container" class="table-responsive"></div>
 
-        <div class="d-flex flex-wrap gap-2 mt-3 d-none" id="scholarship-actions">
-          <button type="button" id="scholarship-integrate-btn" class="btn btn-primary btn-sm fw-semibold" disabled>
-            <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Apply matched records
-          </button>
-          <button type="button" id="scholarship-export-btn" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-download me-1" aria-hidden="true"></i>Export CSV
-          </button>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-3 border-top" id="masterlist-pagination-container">
+          <span class="text-muted small" id="masterlist-page-info">Showing 0 to 0 of 0 entries</span>
+          <nav aria-label="Masterlist pagination">
+            <ul class="pagination pagination-sm mb-0" id="masterlist-pagination"></ul>
+          </nav>
         </div>
       </div>
     </article>
