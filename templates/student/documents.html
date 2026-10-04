@@ -252,10 +252,8 @@
             {% if req.status == 'ready' or req.status == 'completed' %}
             {% if req.release_date %}
             <div class="mb-1">
-              <span
-                class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fs-7 fw-semibold">
-                <i class="bi bi-calendar-check-fill me-1"></i> Available for Pick-Up: <strong>{{ req.release_date
-                  }}</strong>
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fs-7 fw-semibold">
+                <i class="bi bi-calendar-check-fill me-1"></i> Available for Pick-Up: <strong>{{ req.release_date }}</strong>
               </span>
             </div>
             {% endif %}
