@@ -18,7 +18,7 @@ def _initials(first: str, last: str) -> str:
 
 
 def _scholarship_label(scholarship_type: str) -> str:
-    if not scholarship_type or scholarship_type in ("", "others"):
+    if not scholarship_type or scholarship_type.strip().lower() in ("", "none", "regular"):
         return "Regular"
     return "Scholar"
 
@@ -33,6 +33,7 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
         email = profile.email or reg.email
         date_dt = profile.updated_at
         row_id = profile.pk
+        bday = profile.birth_date or reg.birth_date
     else:
         first = reg.first_name
         last = reg.last_name
@@ -42,6 +43,7 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
         email = reg.email
         date_dt = reg.created_at
         row_id = None
+        bday = reg.birth_date
 
     if date_dt:
         date_display = timezone.localtime(date_dt).strftime("%Y-%m-%d")
@@ -52,15 +54,20 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
         profile.program_type if profile and profile.program_type else reg.program_type
     )
 
+    scholar_label = _scholarship_label(scholarship_type)
+    scholar_detail = _SCHOLARSHIP_LABELS.get(scholarship_type, scholarship_type) if scholarship_type else ""
+
     return {
         "id": row_id,
         "registrationId": str(reg.pk),
         "initials": _initials(first, last),
         "name": name,
-        "scholarship": _scholarship_label(scholarship_type),
-        "scholarshipDetail": _SCHOLARSHIP_LABELS.get(scholarship_type, "") if scholarship_type else "",
+        "scholarship": scholar_label,
+        "scholarshipType": scholarship_type or "",
+        "scholarshipDetail": scholar_detail,
         "status": "Enrolled",
         "date": date_display,
+        "birthDate": bday.strftime("%B %d, %Y") if bday else "—",
         "program": program or "—",
         "email": email,
         "referenceId": reg.reference_id,

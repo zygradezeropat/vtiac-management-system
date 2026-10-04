@@ -31,12 +31,28 @@ function loadEnrolledScholars() {
 
 const COLUMN_ALIASES = {
   scholarName: ["scholar name", "name", "student name", "full name", "scholar", "beneficiary"],
+  firstName: ["first name", "firstname", "given name", "first_name"],
+  lastName: ["last name", "lastname", "surname", "family name", "last_name"],
+  middleName: ["middle name", "middlename", "middle nar", "middle_name"],
+  birthDate: ["birth date", "birthdate", "bday", "b-day", "date of birth", "dob", "birth_date", "birthday"],
   program: ["program", "course", "qualification", "program/course"],
   sponsor: ["sponsor", "grant", "funder", "organization"],
   slotId: ["slot id", "slot", "slot no", "allocation", "slot #"],
   amount: ["amount", "grant amount", "subsidy", "value", "php"],
   status: ["status", "remarks", "note"],
 };
+
+const HEADER_CATEGORIES = [
+  { name: "lastName", keywords: ["last name", "lastname", "surname", "family name", "last_name"] },
+  { name: "firstName", keywords: ["first name", "firstname", "given name", "first_name"] },
+  { name: "middleName", keywords: ["middle name", "middlename", "middle nar", "middle_name"] },
+  { name: "fullName", keywords: ["scholar name", "full name", "student name", "scholar", "beneficiary"] },
+  { name: "birthDate", keywords: ["birthdate", "birth date", "bday", "b-day", "date of birth", "dob", "birthday"] },
+  { name: "program", keywords: ["program", "course", "qualification", "program/course"] },
+  { name: "sponsor", keywords: ["sponsor", "grant", "funder", "organization"] },
+  { name: "contact", keywords: ["email", "address", "phone", "contact"] },
+  { name: "idNo", keywords: ["no", "no.", "id", "slot", "num", "number"] },
+];
 
 function escapeHtml(text) {
   return String(text)
@@ -53,6 +69,53 @@ function normalizeKey(s) {
     .trim();
 }
 
+function normalizeDateStr(raw) {
+  if (!raw) return "";
+  if (raw instanceof Date) {
+    if (isNaN(raw.getTime())) return "";
+    return raw.toISOString().split("T")[0];
+  }
+  const s = String(raw).trim();
+  if (!s) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const parsed = Date.parse(s);
+  if (!isNaN(parsed)) {
+    const d = new Date(parsed);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return s.toLowerCase();
+}
+
+function isExactOrWordMatch(cellText, keyword) {
+  const normCell = normalizeKey(cellText);
+  const normKw = normalizeKey(keyword);
+  if (!normCell || !normKw) return false;
+  if (normCell === normKw) return true;
+  if (normKw.length >= 4 && normCell.includes(normKw)) return true;
+  const regex = new RegExp(`\\b${normKw.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`, "i");
+  return regex.test(normCell);
+}
+
+function countMatchedCategories(rowArray) {
+  const matchedCats = new Set();
+  (rowArray || []).forEach((cell) => {
+    const text = String(cell || "").trim();
+    if (!text) return;
+    HEADER_CATEGORIES.forEach((cat) => {
+      if (cat.keywords.some((kw) => isExactOrWordMatch(text, kw))) {
+        matchedCats.add(cat.name);
+      }
+    });
+  });
+  return matchedCats.size;
+}
+
 function pickField(row, aliases) {
   const keys = Object.keys(row);
   for (const alias of aliases) {
@@ -67,40 +130,124 @@ function pickField(row, aliases) {
 }
 
 function normalizeParsedRow(raw, index) {
-  const scholarName =
-    pickField(raw, COLUMN_ALIASES.scholarName) ||
-    Object.values(raw).find((v) => typeof v === "string" && v.length > 2) ||
-    `Row ${index + 1}`;
+  const firstName = pickField(raw, COLUMN_ALIASES.firstName);
+  const lastName = pickField(raw, COLUMN_ALIASES.lastName);
+  const middleName = pickField(raw, COLUMN_ALIASES.middleName);
+
+  let scholarName = "";
+  if (firstName || lastName) {
+    scholarName = [firstName, middleName, lastName].filter(Boolean).join(" ");
+  } else {
+    scholarName =
+      pickField(raw, COLUMN_ALIASES.scholarName) ||
+      Object.values(raw).find((v) => typeof v === "string" && v.length > 2) ||
+      `Row ${index + 1}`;
+  }
+
+  const rawBday = pickField(raw, COLUMN_ALIASES.birthDate);
+  const birthDate = normalizeDateStr(rawBday);
+
   return {
     id: `row-${index}`,
     scholarName,
+    firstName,
+    lastName,
+    middleName,
+    birthDate,
+    rawBirthDate: rawBday,
+    rawObject: raw,
     program: pickField(raw, COLUMN_ALIASES.program) || "—",
     sponsor: pickField(raw, COLUMN_ALIASES.sponsor) || "",
     slotId: pickField(raw, COLUMN_ALIASES.slotId) || "",
     amount: pickField(raw, COLUMN_ALIASES.amount) || "",
     status: pickField(raw, COLUMN_ALIASES.status) || "Pending",
     matchStatus: "pending",
+    matchDetails: "",
     slotStatus: "pending",
     studentId: null,
+    registrationId: null,
+    profileId: null,
     integrated: false,
   };
 }
 
-function matchStudent(scholarName) {
-  const key = normalizeKey(scholarName);
-  const hit = STUDENT_REGISTRY.find((s) => s.key === key || key.includes(s.key) || s.key.includes(key));
-  return hit || null;
+function isHeaderOrInvalidRow(scholarName) {
+  const s = normalizeKey(scholarName);
+  if (!s || s === "row" || s.startsWith("row ")) return true;
+  if (s === "last name" || s === "first name" || s === "middle name" || s === "birthdate" || s === "no" || s === "student data") return true;
+  if (s.includes("valiant technological") || s.includes("system generated") || s.includes("new visayas")) return true;
+  return false;
 }
 
-function validateRows(rows, slotCap) {
+function matchStudentStrict(scholarName, birthDate, rowObj) {
+  const key = normalizeKey(scholarName);
+  if (!key || isHeaderOrInvalidRow(scholarName)) return null;
+
+  const targetBday = birthDate ? normalizeDateStr(birthDate) : "";
+  const rowFirst = normalizeKey(rowObj?.firstName || pickField(rowObj || {}, COLUMN_ALIASES.firstName));
+  const rowLast = normalizeKey(rowObj?.lastName || pickField(rowObj || {}, COLUMN_ALIASES.lastName));
+
+  for (const s of STUDENT_REGISTRY) {
+    const sFirst = normalizeKey(s.firstName || s.name.split(" ")[0]);
+    const sLast = normalizeKey(s.lastName || s.name.split(" ").slice(-1)[0]);
+    const sFullName = normalizeKey(s.name);
+    const sBday = s.birthDate ? normalizeDateStr(s.birthDate) : "";
+
+    let nameMatch = false;
+
+    if (sFullName === key || key.includes(sFullName) || sFullName.includes(key)) {
+      if (rowFirst && sFirst) {
+        const firstWordsRow = rowFirst.split(" ").filter((w) => w.length > 1);
+        const firstWordsS = sFirst.split(" ").filter((w) => w.length > 1);
+        const sameFirstCount = firstWordsS.filter((w) => firstWordsRow.includes(w)).length;
+        if (sameFirstCount >= Math.min(firstWordsRow.length, firstWordsS.length)) {
+          nameMatch = true;
+        }
+      } else {
+        nameMatch = true;
+      }
+    }
+
+    if (!nameMatch) continue;
+
+    if (targetBday) {
+      if (sBday && sBday === targetBday) {
+        return { hit: s, confidence: "exact_name_and_bday" };
+      }
+      continue;
+    }
+
+    return { hit: s, confidence: "exact_name" };
+  }
+
+  return null;
+}
+
+function validateRows(rows) {
   const usedSlots = new Set();
   let slotSeq = 0;
 
   return rows.map((row) => {
-    const match = matchStudent(row.scholarName);
-    row.matchStatus = match ? "matched" : "unmatched";
-    row.studentId = match?.studentId ?? null;
-    if (match && !row.program) row.program = match.program;
+    const matchRes = matchStudentStrict(row.scholarName, row.birthDate || row.rawBirthDate, row.rawObject);
+    const match = matchRes?.hit || null;
+
+    if (match) {
+      row.matchStatus = "matched";
+      row.matchDetails = matchRes.confidence === "exact_name_and_bday"
+        ? "Matched (Name & DOB)"
+        : "Matched (Name)";
+      row.studentId = match.studentId ?? null;
+      row.registrationId = match.registrationId ?? null;
+      row.profileId = match.profileId ?? null;
+      if (!row.program || row.program === "—") row.program = match.program;
+      if (!row.birthDate && match.birthDateStr) row.birthDate = match.birthDateStr;
+    } else {
+      row.matchStatus = "unmatched";
+      row.matchDetails = "Unmatched";
+      row.studentId = null;
+      row.registrationId = null;
+      row.profileId = null;
+    }
 
     let slot = row.slotId;
     if (!slot && match) {
@@ -115,14 +262,7 @@ function validateRows(rows, slotCap) {
       row.slotStatus = "duplicate_slot";
     } else {
       usedSlots.add(slot);
-      const slotNum = parseInt(slot.replace(/\D/g, ""), 10);
-      if (!Number.isNaN(slotNum) && slotNum > slotCap) {
-        row.slotStatus = "over_capacity";
-      } else if (usedSlots.size > slotCap) {
-        row.slotStatus = "over_capacity";
-      } else {
-        row.slotStatus = "valid";
-      }
+      row.slotStatus = "valid";
     }
 
     return row;
@@ -141,8 +281,48 @@ function parseExcelFile(file) {
         const wb = XLSX.read(e.target.result, { type: "array" });
         const sheetName = wb.SheetNames[0];
         const sheet = wb.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-        const rows = json.map((r, i) => normalizeParsedRow(r, i));
+
+        const rawMatrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        if (!rawMatrix || !rawMatrix.length) {
+          resolve({ rows: [], sheetName, format: "excel" });
+          return;
+        }
+
+        let headerRowIdx = -1;
+        let maxCats = 0;
+
+        for (let r = 0; r < rawMatrix.length; r++) {
+          const catCount = countMatchedCategories(rawMatrix[r]);
+          if (catCount >= 2 && catCount > maxCats) {
+            maxCats = catCount;
+            headerRowIdx = r;
+          }
+        }
+
+        let jsonObjects = [];
+        if (headerRowIdx !== -1) {
+          const headerRow = rawMatrix[headerRowIdx].map((c) => String(c).trim());
+          const dataRows = rawMatrix.slice(headerRowIdx + 1);
+
+          jsonObjects = dataRows
+            .filter((row) => Array.isArray(row) && row.some((cell) => cell !== undefined && cell !== null && String(cell).trim() !== ""))
+            .map((row) => {
+              const obj = {};
+              headerRow.forEach((colName, colIdx) => {
+                if (colName) {
+                  obj[colName] = row[colIdx] !== undefined ? row[colIdx] : "";
+                }
+              });
+              return obj;
+            });
+        } else {
+          jsonObjects = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        }
+
+        const rows = jsonObjects
+          .map((r, i) => normalizeParsedRow(r, i))
+          .filter((r) => !isHeaderOrInvalidRow(r.scholarName));
+
         resolve({ rows, sheetName, format: "excel" });
       } catch (err) {
         reject(err);
@@ -363,7 +543,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function badgeMatch(row) {
-    if (row.matchStatus === "matched") return '<span class="badge text-bg-success">Matched</span>';
+    if (row.matchStatus === "matched") {
+      if (row.matchDetails?.includes("DOB")) {
+        return `<span class="badge text-bg-success"><i class="bi bi-patch-check-fill me-1"></i>${escapeHtml(row.matchDetails)}</span>`;
+      }
+      return `<span class="badge text-bg-success"><i class="bi bi-check-circle me-1"></i>${escapeHtml(row.matchDetails || "Matched")}</span>`;
+    }
     return '<span class="badge text-bg-danger">Unmatched</span>';
   }
 
@@ -415,14 +600,17 @@ document.addEventListener("DOMContentLoaded", () => {
       .map(
         (r) => `
       <tr>
-        <td class="fw-medium">${escapeHtml(r.scholarName)}</td>
+        <td class="fw-medium">
+          <div>${escapeHtml(r.scholarName)}</div>
+          ${r.birthDate ? `<small class="text-muted" style="font-size:0.75rem"><i class="bi bi-calendar-event me-1"></i>${escapeHtml(r.birthDate)}</small>` : ""}
+        </td>
         <td>${escapeHtml(r.program)}</td>
         <td>${escapeHtml(r.sponsor || sponsorEl?.value || "—")}</td>
         <td>${escapeHtml(r.slotId || "—")}</td>
         <td>${escapeHtml(r.amount || "—")}</td>
         <td>${badgeMatch(r)}</td>
         <td>${badgeSlot(r)}</td>
-        <td>${r.integrated ? '<span class="badge text-bg-primary">Applied</span>' : '<span class="badge text-bg-light text-dark">Pending</span>'}</td>
+        <td>${r.integrated ? '<span class="badge text-bg-primary"><i class="bi bi-check2-all me-1"></i>Applied</span>' : '<span class="badge text-bg-light text-dark">Pending</span>'}</td>
       </tr>`
       )
       .join("");
@@ -472,20 +660,13 @@ document.addEventListener("DOMContentLoaded", () => {
         result = await parseExcelFile(selectedFile);
       }
 
-      const sponsor = sponsorEl?.value || "";
-      parsedRows = result.rows.map((r) => ({
-        ...r,
-        sponsor: r.sponsor || sponsor,
-      }));
-
-      const cap = Number(slotCapEl?.value) || 25;
-      parsedRows = validateRows(parsedRows, cap);
+      parsedRows = validateRows(parsedRows);
       lastParseMeta = result;
 
       setPipeline("validate");
       showStatus(
         "success",
-        `<i class="bi bi-check-circle me-1"></i> Parsed <strong>${parsedRows.length}</strong> record(s) from ${result.format.toUpperCase()} (${escapeHtml(result.sheetName)}). Names and slots validated against the registry (demo).`
+        `<i class="bi bi-check-circle me-1"></i> Parsed <strong>${parsedRows.length}</strong> record(s) from ${result.format.toUpperCase()} (${escapeHtml(result.sheetName)}). Names and DOB validated against registry.`
       );
       renderResults();
       updateStats();
@@ -510,35 +691,83 @@ document.addEventListener("DOMContentLoaded", () => {
     updateStats();
   }
 
-  function integrateMatched() {
-    const sponsor = sponsorEl?.value || "External sponsor";
+  function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.content;
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : "";
+  }
+
+  async function integrateMatched() {
+    const sponsor = sponsorEl?.value || "External Grant / Scholarship";
     const toApply = parsedRows.filter((r) => r.matchStatus === "matched" && r.slotStatus === "valid" && !r.integrated);
     if (!toApply.length) return;
 
-    const log = getIntegrations();
-    const now = new Date().toISOString();
+    if (integrateBtn) integrateBtn.disabled = true;
+    showStatus("info", '<i class="bi bi-hourglass-split me-1"></i> Saving matched scholar records to system database...');
 
-    toApply.forEach((row) => {
-      row.integrated = true;
-      log.unshift({
-        scholarName: row.scholarName,
-        studentId: row.studentId,
-        program: row.program,
-        sponsor,
-        slotId: row.slotId,
-        amount: row.amount,
-        integratedAt: now,
+    try {
+      const scholarsPayload = toApply.map((r) => ({
+        registrationId: r.registrationId,
+        profileId: r.profileId,
+        scholarName: r.scholarName,
+        scholarshipType: sponsor.toLowerCase().includes("tesda")
+          ? "tesda"
+          : sponsor.toLowerCase().includes("twsp")
+            ? "twsp"
+            : sponsor.toLowerCase().includes("pesa")
+              ? "pesa"
+              : sponsor.toLowerCase().includes("uaqtea")
+                ? "uaqtea"
+                : "others",
+      }));
+
+      const response = await fetch("/registrar/api/scholarship/integrate/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrfToken(),
+        },
+        body: JSON.stringify({
+          sponsor,
+          scholars: scholarsPayload,
+        }),
       });
-    });
 
-    saveIntegrations(log.slice(0, 200));
-    setPipeline("integrate");
-    showStatus(
-      "success",
-      `<i class="bi bi-database-check me-1"></i> Applied <strong>${toApply.length}</strong> scholarship record(s) to student financial profiles (demo).`
-    );
-    renderResults();
-    updateStats();
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "Could not integrate records into database.");
+      }
+
+      const log = getIntegrations();
+      const now = new Date().toISOString();
+
+      toApply.forEach((row) => {
+        row.integrated = true;
+        log.unshift({
+          scholarName: row.scholarName,
+          studentId: row.studentId,
+          program: row.program,
+          sponsor,
+          slotId: row.slotId,
+          amount: row.amount,
+          integratedAt: now,
+        });
+      });
+
+      saveIntegrations(log.slice(0, 200));
+      setPipeline("integrate");
+      showStatus(
+        "success",
+        `<i class="bi bi-database-check me-1"></i> Successfully saved <strong>${data.updatedCount || toApply.length}</strong> scholar record(s) directly to the system database!`
+      );
+      renderResults();
+      updateStats();
+    } catch (err) {
+      showStatus("danger", `<i class="bi bi-x-circle me-1"></i> ${escapeHtml(err.message || "Integration failed.")}`);
+    } finally {
+      if (integrateBtn) integrateBtn.disabled = false;
+    }
   }
 
   function exportCsv() {
@@ -579,14 +808,6 @@ document.addEventListener("DOMContentLoaded", () => {
   rowSearch?.addEventListener("input", (e) => {
     rowFilter = e.target.value;
     renderResults();
-  });
-
-  slotCapEl?.addEventListener("change", () => {
-    if (parsedRows.length) {
-      parsedRows = validateRows(parsedRows, Number(slotCapEl.value) || 25);
-      renderResults();
-      updateStats();
-    }
   });
 
   updateStats();

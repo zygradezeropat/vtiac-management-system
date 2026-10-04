@@ -196,13 +196,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const pageRows = mod.students.slice(start, start + ROWS_PER_PAGE);
 
     const rows = pageRows
-      .map(
-        (s, i) => `
+      .map((s, i) => {
+        const isScholar =
+          (s.scholarship && s.scholarship.toLowerCase().includes("scholar")) ||
+          Boolean(s.scholarshipType && s.scholarshipType.toLowerCase() !== "none" && s.scholarshipType !== "");
+
+        const scholarBadge = isScholar
+          ? `<span class="badge border rounded-pill px-2 py-1 mt-1 d-inline-flex align-items-center gap-1" style="font-size:0.7rem; background-color:#fff3cd !important; color:#856404 !important; border-color:#ffeeba !important;"><i class="bi bi-mortarboard-fill me-1" style="color:#d39e00 !important;" aria-hidden="true"></i><strong>Scholar</strong>${s.scholarshipDetail ? ` (${escapeHtml(s.scholarshipDetail)})` : ""}</span>`
+          : `<span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-1 mt-1" style="font-size:0.68rem">Regular</span>`;
+
+        return `
       <tr>
         <td>${start + i + 1}</td>
         <td>
-          <div class="fw-medium">${escapeHtml(s.name)}</div>
-          <span class="badge text-bg-light text-primary" style="font-size:0.65rem">${escapeHtml(s.scholarship)}</span>
+          <div class="fw-semibold d-inline-flex align-items-center gap-1">
+            <span>${escapeHtml(s.name)}</span>
+            ${isScholar ? `<span class="badge rounded-pill ms-1" style="background-color:#ffc107 !important; color:#212529 !important; font-size:0.65rem;" title="Scholarship Beneficiary"><i class="bi bi-award-fill me-1"></i>Scholar</span>` : ""}
+          </div>
+          <div>${scholarBadge}</div>
         </td>
         <td class="text-secondary">${escapeHtml(s.program)}</td>
         <td><span class="badge ${statusBadgeClass(s.status)}">${escapeHtml(s.status)}</span></td>
@@ -210,8 +221,8 @@ document.addEventListener("DOMContentLoaded", () => {
         <td class="text-center text-nowrap">
           <button type="button" class="btn registrar-table-action registrar-table-action--view btn-sm view-student-btn" data-module-key="${activeTab}" data-student-id="${s.id != null ? s.id : ""}" data-registration-id="${escapeHtml(s.registrationId || "")}" aria-label="View ${escapeHtml(s.name)}"><i class="bi bi-eye" aria-hidden="true"></i></button>
         </td>
-      </tr>`
-      )
+      </tr>`;
+      })
       .join("");
 
     tableContainer.innerHTML = `

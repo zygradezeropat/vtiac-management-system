@@ -72,7 +72,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{% static 'js/registrar-student.js' %}"></script>
+<script type="module" src="{% static 'js/registrar-student.js' %}?v=20261004_3"></script>
 <script type="module">
   import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
   initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");

@@ -12,7 +12,14 @@ from .enrollment_detail import enrollment_detail
 from .egace_api import egace_set_certificate, egace_set_employment
 from .pending_enrollment import enrollment_approve, enrollment_bulk_approve, enrollment_reject
 from .schedule_api import student_schedule_options
+from .scholarship_api import scholarship_integrate_records
+
 urlpatterns = [
+    path(
+        "registrar/api/scholarship/integrate/",
+        scholarship_integrate_records,
+        name="registrar_scholarship_integrate",
+    ),
     path(
         "dashboard/registrar/",
         views.dashboard_redirect,
