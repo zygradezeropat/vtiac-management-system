@@ -34,7 +34,6 @@
   flex: 1;
   min-width: 0;
   min-height: 100vh;
-  overflow-x: auto;
 }
 
 .trainer-layout a.trainer-nav-link,
@@ -56,12 +55,14 @@
   flex-direction: column;
   flex-shrink: 0;
   width: var(--trainer-sidebar-w);
-  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   background: var(--trainer-surface);
   border-right: 1px solid var(--trainer-border);
   padding: 1.25rem 1rem;
-  position: relative;
   z-index: 30;
+  overflow-y: auto;
 }
 
 .trainer-brand {

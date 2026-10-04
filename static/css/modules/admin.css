@@ -14,7 +14,6 @@
   --admin-emerald-700: #047857;
   display: flex;
   min-height: 100vh;
-  overflow: hidden;
   background: #f9fafb;
   font-family: "Inter", "Poppins", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 0.875rem;
@@ -41,10 +40,14 @@
   flex-direction: column;
   flex-shrink: 0;
   width: var(--admin-sidebar-w);
-  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   background: var(--admin-surface);
   border-right: 1px solid var(--admin-border);
   padding: 1.25rem 1rem;
+  z-index: 40;
+  overflow-y: auto;
 }
 
 .admin-brand {
@@ -146,6 +149,12 @@
 
 .admin-menu-btn {
   border-radius: 0.625rem;
+}
+
+@media (min-width: 992px) {
+  .admin-menu-btn {
+    display: none !important;
+  }
 }
 
 .admin-topbar-actions {

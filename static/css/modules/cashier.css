@@ -28,7 +28,6 @@
   flex: 1;
   min-width: 0;
   min-height: 100vh;
-  overflow-x: auto;
 }
 
 /* Reset link styling inside portal (Bootstrap defaults = blue underline) */
@@ -53,12 +52,14 @@
   flex-direction: column;
   flex-shrink: 0;
   width: var(--cashier-sidebar-w);
-  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   background: var(--cashier-surface);
   border-right: 1px solid var(--cashier-border);
   padding: 1.25rem 1rem;
-  position: relative;
   z-index: 40;
+  overflow-y: auto;
 }
 
 .cashier-brand {

@@ -15,12 +15,15 @@
 
 .student-sidebar {
   width: var(--student-sidebar-w);
+  height: 100vh;
+  position: sticky;
+  top: 0;
   background: var(--student-surface);
   border-right: 1px solid var(--student-border);
   padding: 1.25rem 1rem;
   flex-shrink: 0;
-  position: relative;
   z-index: 40;
+  overflow-y: auto;
 }
 
 .student-offcanvas {
@@ -118,6 +121,9 @@
   padding: 0 1.25rem;
   background: var(--student-surface);
   border-bottom: 1px solid var(--student-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .student-menu-btn {
