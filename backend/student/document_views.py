@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from backend.accounts.services import require_portal_access
 
@@ -48,6 +49,7 @@ def documents(request):
 
 
 @login_required(login_url="/")
+@xframe_options_sameorigin
 def document_view(request, doc_key):
     redirect_resp, profile, registration, row = _require_document(request, doc_key)
     if redirect_resp:

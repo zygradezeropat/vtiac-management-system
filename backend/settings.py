@@ -158,3 +158,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 LOGIN_URL = "/login/student/"
+
+# Allow internal same-origin framing for modal document previews
+X_FRAME_OPTIONS = "SAMEORIGIN"
+

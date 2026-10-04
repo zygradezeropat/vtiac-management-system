@@ -1,34 +1,19 @@
 {% extends "student/base.html" %}
 {% load static %}
 
-
 {% block body %}
 {% include "components/student/layout_start.html" %}
 
-<header class="student-page-header">
+<header class="student-page-header mb-4">
   <div>
     <div class="d-flex align-items-center gap-3 flex-wrap mb-1">
       <h1 class="student-page-title mb-0">{{ page_title }}</h1>
-      
-      {# PLACEHOLDER FOR FUTURE DEVELOPMENT: Show "Request Document" button only when the student is graduated #}
-      {% comment %}
-      Future condition check example:
-      {% if student_profile and student_profile.is_graduated %}
-      {% endcomment %}
       {% if True %}
-      <button
-        type="button"
-        class="student-request-btn"
-        data-bs-toggle="modal"
-        data-bs-target="#requestDocumentModal"
-      >
+      <button type="button" class="student-request-btn" data-bs-toggle="modal" data-bs-target="#requestDocumentModal">
         <i class="bi bi-file-earmark-plus" aria-hidden="true"></i>
         <span>Request Document</span>
       </button>
       {% endif %}
-      {% comment %}
-      {% endif %}
-      {% endcomment %}
     </div>
     <p class="student-page-subtitle mb-0">{{ page_subtitle }}</p>
   </div>
@@ -43,94 +28,265 @@
 </div>
 {% endif %}
 
-<div class="student-doc-list">
-  {% for doc in documents %}
-  <article class="student-panel student-doc-card">
-    <div class="student-doc-card__main">
-      <span class="student-doc-card__icon" aria-hidden="true">
-        <i class="bi {{ doc.icon }}"></i>
-      </span>
-      <div class="student-doc-card__info">
-        <h2 class="student-doc-card__title">{{ doc.title }}</h2>
-        <p class="student-doc-card__meta">{{ doc.meta_line }}</p>
+<!-- Available Issued Documents Section -->
+<section class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden bg-white">
+  <div
+    class="card-header bg-white p-3 p-md-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <div class="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center"
+        style="width: 2.5rem; height: 2.5rem;">
+        <i class="bi bi-folder-check fs-5"></i>
       </div>
-      <span class="student-doc-badge student-doc-badge--{{ doc.status }}">{{ doc.status_label }}</span>
+      <div>
+        <h2 class="h6 fw-bold text-dark mb-0">My Available Documents</h2>
+        <span class="text-muted small">Issued official forms, receipts, and handbooks</span>
+      </div>
     </div>
-    <div class="student-doc-card__actions">
-      {% if doc.can_view %}
-      <button
-        type="button"
-        class="file-preview-btn"
-        data-preview-url="{{ doc.view_url }}"
-        data-preview-name="{{ doc.title }}"
-        aria-label="Preview {{ doc.title }}"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-      </button>
-      {% else %}
-      <span class="file-preview-btn file-preview-btn--disabled" aria-hidden="true" title="Not available yet">
-        <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-      </span>
-      {% endif %}
 
-      {% if doc.can_download %}
-      <a
-        href="{{ doc.download_url }}"
-        class="student-doc-btn student-doc-btn--download"
-        aria-label="Download {{ doc.title }}"
-      >
-        <i class="bi bi-download" aria-hidden="true"></i>
-      </a>
-      {% else %}
-      <span class="student-doc-btn student-doc-btn--download student-doc-btn--disabled" aria-hidden="true" title="Not available yet">
-        <i class="bi bi-download"></i>
-      </span>
-      {% endif %}
+    <!-- Search & Page Size Toolbar -->
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+      <div class="d-flex align-items-center gap-1">
+        <label for="issuedDocPageSize" class="text-muted small mb-0">Show:</label>
+        <select id="issuedDocPageSize" class="form-select form-select-sm rounded-3" style="width: 4.5rem;">
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div class="position-relative" style="min-width: 200px;">
+        <input type="text" id="issuedDocSearchInput" class="form-control form-control-sm ps-4 rounded-3"
+          placeholder="Search document...">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2.5 text-muted small"></i>
+      </div>
     </div>
-  </article>
-  {% empty %}
-  <section class="student-panel student-doc-card">
-    <p class="student-schedule-box mb-0">No documents are available yet. Complete enrollment to generate your documents.</p>
-  </section>
-  {% endfor %}
-</div>
+  </div>
 
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 small" id="issuedDocsTable">
+      <thead class="bg-light text-secondary text-uppercase fw-semibold"
+        style="font-size: 0.75rem; letter-spacing: 0.05em;">
+        <tr>
+          <th scope="col" class="ps-4 py-3">Document Title</th>
+          <th scope="col" class="py-3">Date Issued</th>
+          <th scope="col" class="py-3">File Size</th>
+          <th scope="col" class="py-3">Status</th>
+          <th scope="col" class="pe-4 py-3 text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="issuedDocsTbody">
+        {% for doc in documents %}
+        <tr data-doc-title="{{ doc.title|lower }}" data-doc-status="{{ doc.status|lower }}">
+          <td class="ps-4 py-3">
+            <div class="d-flex align-items-center gap-3">
+              <div
+                class="rounded-3 bg-light text-success d-flex align-items-center justify-content-center flex-shrink-0"
+                style="width: 2.5rem; height: 2.5rem;">
+                <i class="bi {{ doc.icon }} fs-5"></i>
+              </div>
+              <div>
+                <strong class="d-block text-dark fw-semibold fs-6">{{ doc.title }}</strong>
+              </div>
+            </div>
+          </td>
+          <td class="text-secondary py-3">{{ doc.date_display }}</td>
+          <td class="text-secondary py-3">{{ doc.size_display|default:"—" }}</td>
+          <td class="py-3">
+            {% if doc.status == 'ready' %}
+            <span
+              class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 font-normal fs-7">
+              <i class="bi bi-check-circle-fill me-1"></i>Ready
+            </span>
+            {% elif doc.status == 'processing' %}
+            <span
+              class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2.5 py-1 font-normal fs-7">
+              <i class="bi bi-gear-wide-connected me-1"></i>Processing
+            </span>
+            {% else %}
+            <span
+              class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1 font-normal fs-7">
+              <i class="bi bi-clock-history me-1"></i>Pending Payment
+            </span>
+            {% endif %}
+          </td>
+          <td class="pe-4 py-3 text-end">
+            <div class="d-flex align-items-center justify-content-end gap-1">
+              {% if doc.can_view %}
+              <button type="button"
+                class="file-preview-btn btn btn-sm btn-light border text-secondary rounded-3 px-2.5 py-1 me-1"
+                data-preview-url="{{ doc.view_url }}" data-preview-name="{{ doc.title }}"
+                title="Preview {{ doc.title }}">
+                <i class="bi bi-eye"></i>
+              </button>
+              {% else %}
+              <button type="button" class="btn btn-sm btn-light border text-muted rounded-3 px-2.5 py-1 me-1 disabled"
+                title="Not available yet">
+                <i class="bi bi-eye"></i>
+              </button>
+              {% endif %}
+
+              {% if doc.can_download %}
+              <a href="{{ doc.download_url }}"
+                class="btn btn-sm btn-success-subtle text-success border border-success-subtle rounded-3 px-2.5 py-1"
+                title="Download {{ doc.title }}">
+                <i class="bi bi-download"></i>
+              </a>
+              {% else %}
+              <span class="btn btn-sm btn-light border text-muted rounded-3 px-2.5 py-1 disabled"
+                title="Not available yet">
+                <i class="bi bi-download"></i>
+              </span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            No documents are available yet. Complete enrollment to generate your documents.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-footer bg-white border-top p-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <span class="text-muted small" id="issuedDocsInfoSummary">Showing 0 to 0 of 0 entries</span>
+    <nav aria-label="Issued Documents Pagination">
+      <ul class="pagination pagination-sm mb-0 gap-1" id="issuedDocsPagination"></ul>
+    </nav>
+  </div>
+</section>
+
+<!-- My Document Requests Section -->
 {% if requested_documents %}
-<section class="mt-4 mb-4">
-  <h2 class="h5 fw-bold mb-3"><i class="bi bi-clock-history me-2 text-success"></i>My Document Requests</h2>
-  <div class="student-doc-list">
-    {% for req in requested_documents %}
-    <article class="student-panel student-doc-card">
-      <div class="student-doc-card__main">
-        <span class="student-doc-card__icon" aria-hidden="true">
-          <i class="bi bi-file-earmark-text"></i>
-        </span>
-        <div class="student-doc-card__info">
-          <h2 class="student-doc-card__title">{{ req.document_name }}</h2>
-          <p class="student-doc-card__meta">Requested on {{ req.requested_at }}{% if req.purpose %} • Purpose: {{ req.purpose }}{% endif %}</p>
-          {% if req.status == 'ready' or req.status == 'completed' %}
+<section class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden bg-white">
+  <div
+    class="card-header bg-white p-3 p-md-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center"
+        style="width: 2.5rem; height: 2.5rem;">
+        <i class="bi bi-clock-history fs-5"></i>
+      </div>
+      <div>
+        <h2 class="h6 fw-bold text-dark mb-0">My Document Requests</h2>
+        <span class="text-muted small">Status of official requests submitted to the Registrar</span>
+      </div>
+    </div>
+
+    <!-- Search & Page Size Toolbar -->
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+      <div class="d-flex align-items-center gap-1">
+        <label for="reqDocPageSize" class="text-muted small mb-0">Show:</label>
+        <select id="reqDocPageSize" class="form-select form-select-sm rounded-3" style="width: 4.5rem;">
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div class="position-relative" style="min-width: 200px;">
+        <input type="text" id="reqDocSearchInput" class="form-control form-control-sm ps-4 rounded-3"
+          placeholder="Search request...">
+        <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2.5 text-muted small"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 small" id="reqDocsTable">
+      <thead class="bg-light text-secondary text-uppercase fw-semibold"
+        style="font-size: 0.75rem; letter-spacing: 0.05em;">
+        <tr>
+          <th scope="col" class="ps-4 py-3">Document Requested</th>
+          <th scope="col" class="py-3">Requested Date</th>
+          <th scope="col" class="py-3">Status</th>
+          <th scope="col" class="pe-4 py-3">Pick-up / Registrar Info</th>
+        </tr>
+      </thead>
+      <tbody id="reqDocsTbody">
+        {% for req in requested_documents %}
+        <tr data-req-title="{{ req.document_name|lower }}" data-req-status="{{ req.status|lower }}"
+          data-req-purpose="{{ req.purpose|lower }}">
+          <td class="ps-4 py-3">
+            <div class="d-flex align-items-center gap-3">
+              <div
+                class="rounded-3 bg-light text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                style="width: 2.5rem; height: 2.5rem;">
+                <i class="bi bi-file-earmark-text fs-5"></i>
+              </div>
+              <div>
+                <strong class="d-block text-dark fw-semibold fs-6">{{ req.document_name }}</strong>
+                {% if req.purpose %}
+                <span class="text-muted small">Purpose: {{ req.purpose }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td class="text-secondary py-3">{{ req.requested_at }}</td>
+          <td class="py-3">
+            {% if req.status == 'ready' or req.status == 'completed' %}
+            <span
+              class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 font-normal fs-7">
+              <i class="bi bi-check-circle-fill me-1"></i>Ready / Completed
+            </span>
+            {% elif req.status == 'processing' %}
+            <span
+              class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2.5 py-1 font-normal fs-7">
+              <i class="bi bi-gear-wide-connected me-1"></i>In Processing
+            </span>
+            {% elif req.status == 'rejected' %}
+            <span
+              class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1 font-normal fs-7">
+              <i class="bi bi-x-circle-fill me-1"></i>Rejected
+            </span>
+            {% else %}
+            <span
+              class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1 font-normal fs-7">
+              <i class="bi bi-clock-history me-1"></i>Pending
+            </span>
+            {% endif %}
+          </td>
+          <td class="pe-4 py-3">
+            {% if req.status == 'ready' or req.status == 'completed' %}
             {% if req.release_date %}
-            <div class="mt-2 mb-1">
-              <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 rounded-pill fs-7 fw-semibold">
-                <i class="bi bi-calendar-check-fill me-1"></i> Available for Pick-Up: <strong>{{ req.release_date }}</strong>
+            <div class="mb-1">
+              <span
+                class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fs-7 fw-semibold">
+                <i class="bi bi-calendar-check-fill me-1"></i> Available for Pick-Up: <strong>{{ req.release_date
+                  }}</strong>
               </span>
             </div>
             {% endif %}
-          {% endif %}
-          {% if req.remarks %}
-          <p class="text-secondary small mt-1 mb-0"><i class="bi bi-info-circle me-1"></i>Registrar Note: {{ req.remarks }}</p>
-          {% endif %}
-        </div>
-        <span class="student-doc-badge student-doc-badge--{{ req.status }}">{{ req.status_display }}</span>
-      </div>
-    </article>
-    {% endfor %}
+            {% endif %}
+            {% if req.remarks %}
+            <div class="text-secondary small">
+              <i class="bi bi-info-circle me-1 text-primary"></i>Registrar Note: {{ req.remarks }}
+            </div>
+            {% endif %}
+            {% if not req.release_date and not req.remarks %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card-footer bg-white border-top p-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <span class="text-muted small" id="reqDocsInfoSummary">Showing 0 to 0 of 0 entries</span>
+    <nav aria-label="Requested Documents Pagination">
+      <ul class="pagination pagination-sm mb-0 gap-1" id="reqDocsPagination"></ul>
+    </nav>
   </div>
 </section>
 {% endif %}
 
 <!-- Request Document Modal -->
-<div class="modal fade" id="requestDocumentModal" tabindex="-1" aria-labelledby="requestDocumentModalLabel" aria-hidden="true">
+<div class="modal fade" id="requestDocumentModal" tabindex="-1" aria-labelledby="requestDocumentModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content student-confirm-modal rounded-4 border-0 shadow-lg">
       <div class="modal-header border-bottom-0 pb-0 px-4 pt-4">
@@ -149,40 +305,47 @@
         <form id="requestDocumentForm">
           {% csrf_token %}
           <div class="mb-3">
-            <label class="form-label fw-semibold small text-uppercase tracking-wide text-secondary mb-2">Available Official Documents</label>
+            <label class="form-label fw-semibold small text-uppercase tracking-wide text-secondary mb-2">Available
+              Official Documents</label>
             <div class="student-doc-req-list">
-              
+
               <!-- Certificate of Enrollment -->
               <label class="student-doc-req-item student-doc-req-itemHasRadio">
-                <input type="radio" name="requested_document" value="Certificate of Enrollment" class="form-check-input me-3" checked>
+                <input type="radio" name="requested_document" value="Certificate of Enrollment"
+                  class="form-check-input me-3" checked>
                 <span class="student-doc-req-icon"><i class="bi bi-file-earmark-text"></i></span>
                 <div class="flex-grow-1">
                   <div class="fw-semibold text-dark">Certificate of Enrollment</div>
                   <div class="text-muted small">Proof of active student registration and current course load</div>
                 </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+                <span
+                  class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
               </label>
 
               <!-- Transcript of Records -->
               <label class="student-doc-req-item student-doc-req-itemHasRadio">
-                <input type="radio" name="requested_document" value="Transcript of Records" class="form-check-input me-3">
+                <input type="radio" name="requested_document" value="Transcript of Records"
+                  class="form-check-input me-3">
                 <span class="student-doc-req-icon"><i class="bi bi-journal-text"></i></span>
                 <div class="flex-grow-1">
                   <div class="fw-semibold text-dark">Transcript of Records</div>
                   <div class="text-muted small">Official academic transcript detailing subjects and grades</div>
                 </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+                <span
+                  class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
               </label>
 
               <!-- Certificate of Graduation -->
               <label class="student-doc-req-item student-doc-req-itemHasRadio">
-                <input type="radio" name="requested_document" value="Certificate of Graduation" class="form-check-input me-3">
+                <input type="radio" name="requested_document" value="Certificate of Graduation"
+                  class="form-check-input me-3">
                 <span class="student-doc-req-icon"><i class="bi bi-award"></i></span>
                 <div class="flex-grow-1">
                   <div class="fw-semibold text-dark">Certificate of Graduation</div>
                   <div class="text-muted small">Certification confirming successful completion of program</div>
                 </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+                <span
+                  class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
               </label>
 
               <!-- Diploma -->
@@ -193,26 +356,32 @@
                   <div class="fw-semibold text-dark">Diploma</div>
                   <div class="text-muted small">Official institutional diploma document</div>
                 </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+                <span
+                  class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
               </label>
 
               <!-- Good Moral Certificate -->
               <label class="student-doc-req-item student-doc-req-itemHasRadio">
-                <input type="radio" name="requested_document" value="Good Moral Certificate" class="form-check-input me-3">
+                <input type="radio" name="requested_document" value="Good Moral Certificate"
+                  class="form-check-input me-3">
                 <span class="student-doc-req-icon"><i class="bi bi-shield-check"></i></span>
                 <div class="flex-grow-1">
                   <div class="fw-semibold text-dark">Good Moral Certificate</div>
                   <div class="text-muted small">Clearance certificate of good moral character and conduct</div>
                 </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
+                <span
+                  class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 small">Official</span>
               </label>
 
             </div>
           </div>
 
           <div class="mb-3">
-            <label for="requestPurpose" class="form-label fw-semibold small text-uppercase tracking-wide text-secondary">Purpose of Request <span class="text-muted fw-normal">(Optional)</span></label>
-            <input type="text" id="requestPurpose" name="purpose" class="form-control rounded-3" placeholder="e.g., Employment, Scholarship, Transfer, Further Studies">
+            <label for="requestPurpose"
+              class="form-label fw-semibold small text-uppercase tracking-wide text-secondary">Purpose of Request <span
+                class="text-muted fw-normal">(Optional)</span></label>
+            <input type="text" id="requestPurpose" name="purpose" class="form-control rounded-3"
+              placeholder="e.g., Employment, Scholarship, Transfer, Further Studies">
           </div>
 
           <div class="alert alert-info d-flex align-items-center gap-2 mb-0 rounded-3 text-secondary small py-2.5">
@@ -223,8 +392,10 @@
       </div>
 
       <div class="modal-footer border-top-0 pt-0 px-4 pb-4">
-        <button type="button" class="btn btn-outline-secondary rounded-3 px-4 fw-semibold" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success rounded-3 px-4 fw-semibold" id="submitDocumentRequestBtn" style="background:#00a859;border-color:#00a859">
+        <button type="button" class="btn btn-outline-secondary rounded-3 px-4 fw-semibold"
+          data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success rounded-3 px-4 fw-semibold" id="submitDocumentRequestBtn"
+          style="background:#00a859;border-color:#00a859">
           <i class="bi bi-send me-1"></i> Submit Request
         </button>
       </div>
@@ -233,11 +404,13 @@
 </div>
 
 <!-- Request Confirmation Modal -->
-<div class="modal fade" id="requestConfirmModal" tabindex="-1" aria-labelledby="requestConfirmModalLabel" aria-hidden="true">
+<div class="modal fade" id="requestConfirmModal" tabindex="-1" aria-labelledby="requestConfirmModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content student-confirm-modal rounded-4 border-0 shadow-lg">
       <div class="modal-body p-4 text-center">
-        <div class="portal-settings-modal__icon portal-settings-modal__icon--success mx-auto mb-3" aria-hidden="true" style="background:#f0fdf4;color:#00a859">
+        <div class="portal-settings-modal__icon portal-settings-modal__icon--success mx-auto mb-3" aria-hidden="true"
+          style="background:#f0fdf4;color:#00a859">
           <i class="bi bi-question-circle fs-2"></i>
         </div>
         <h3 class="h5 fw-bold mb-2" id="requestConfirmModalLabel">Confirm Document Request</h3>
@@ -247,8 +420,10 @@
         <p id="confirmDocPurpose" class="text-muted small fst-italic mb-4"></p>
 
         <div class="d-flex flex-column flex-sm-row gap-2">
-          <button type="button" class="btn btn-outline-secondary w-100 fw-semibold rounded-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" id="confirmSubmitDocBtn" class="btn btn-success w-100 fw-semibold rounded-3" style="background:#00a859;border-color:#00a859">
+          <button type="button" class="btn btn-outline-secondary w-100 fw-semibold rounded-3"
+            data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="confirmSubmitDocBtn" class="btn btn-success w-100 fw-semibold rounded-3"
+            style="background:#00a859;border-color:#00a859">
             <i class="bi bi-check-lg me-1"></i> Yes, Submit Request
           </button>
         </div>
@@ -289,6 +464,152 @@
     tick();
     setInterval(tick, 1000);
   }
+
+  // --- Table Pagination Setup ---
+  function setupTablePagination({ tbodyId, searchInputId, pageSizeId, infoSummaryId, paginationId }) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+
+    const searchInput = document.getElementById(searchInputId);
+    const pageSizeSelect = document.getElementById(pageSizeId);
+    const infoSummary = document.getElementById(infoSummaryId);
+    const paginationNav = document.getElementById(paginationId);
+
+    const tableRows = Array.from(tbody.querySelectorAll("tr:not([class*='dynamic-table-empty-row'])"));
+    let currentPage = 1;
+
+    function getMatchingRows() {
+      const q = (searchInput?.value || "").toLowerCase().trim();
+      return tableRows.filter(row => {
+        if (!q) return true;
+        const text = row.textContent.toLowerCase();
+        return text.includes(q);
+      });
+    }
+
+    function renderTable() {
+      const pageSize = parseInt(pageSizeSelect ? pageSizeSelect.value : 10, 10);
+      const matchingRows = getMatchingRows();
+      const totalMatching = matchingRows.length;
+      const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
+
+      if (currentPage > totalPages) currentPage = totalPages;
+      if (currentPage < 1) currentPage = 1;
+
+      const startIdx = totalMatching === 0 ? 0 : (currentPage - 1) * pageSize;
+      const endIdx = Math.min(startIdx + pageSize, totalMatching);
+
+      tableRows.forEach(row => row.style.display = "none");
+
+      const existingEmpty = tbody.querySelector(".dynamic-table-empty-row");
+      if (existingEmpty) existingEmpty.remove();
+
+      if (totalMatching === 0) {
+        const emptyTr = document.createElement("tr");
+        emptyTr.className = "dynamic-table-empty-row";
+        const colCount = tbody.closest("table")?.querySelectorAll("thead th").length || 4;
+        emptyTr.innerHTML = `
+          <td colspan="${colCount}" class="text-center py-4 text-muted">
+            <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+            No matching records found.
+          </td>`;
+        tbody.appendChild(emptyTr);
+      } else {
+        const visibleRows = matchingRows.slice(startIdx, endIdx);
+        visibleRows.forEach(row => row.style.display = "");
+      }
+
+      const displayStart = totalMatching === 0 ? 0 : startIdx + 1;
+      const displayEnd = endIdx;
+
+      if (infoSummary) {
+        infoSummary.textContent = `Showing ${displayStart} to ${displayEnd} of ${totalMatching} entries`;
+      }
+
+      renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+      if (!paginationNav) return;
+      paginationNav.innerHTML = "";
+
+      if (totalPages <= 1) return;
+
+      const prevLi = document.createElement("li");
+      prevLi.className = `page-item ${currentPage === 1 ? "disabled" : ""}`;
+      prevLi.innerHTML = `<button type="button" class="page-link rounded-2 px-2.5 py-1">Previous</button>`;
+      prevLi.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable();
+        }
+      });
+      paginationNav.appendChild(prevLi);
+
+      for (let i = 1; i <= totalPages; i++) {
+        const li = document.createElement("li");
+        li.className = `page-item ${i === currentPage ? "active" : ""}`;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "page-link rounded-2 px-2.5 py-1";
+        btn.textContent = i;
+        if (i === currentPage) {
+          btn.style.backgroundColor = "#00a859";
+          btn.style.borderColor = "#00a859";
+          btn.style.color = "#ffffff";
+        }
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          currentPage = i;
+          renderTable();
+        });
+        li.appendChild(btn);
+        paginationNav.appendChild(li);
+      }
+
+      const nextLi = document.createElement("li");
+      nextLi.className = `page-item ${currentPage === totalPages ? "disabled" : ""}`;
+      nextLi.innerHTML = `<button type="button" class="page-link rounded-2 px-2.5 py-1">Next</button>`;
+      nextLi.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable();
+        }
+      });
+      paginationNav.appendChild(nextLi);
+    }
+
+    searchInput?.addEventListener("input", () => {
+      currentPage = 1;
+      renderTable();
+    });
+
+    pageSizeSelect?.addEventListener("change", () => {
+      currentPage = 1;
+      renderTable();
+    });
+
+    renderTable();
+  }
+
+  // Initialize pagination for both tables
+  setupTablePagination({
+    tbodyId: "issuedDocsTbody",
+    searchInputId: "issuedDocSearchInput",
+    pageSizeId: "issuedDocPageSize",
+    infoSummaryId: "issuedDocsInfoSummary",
+    paginationId: "issuedDocsPagination"
+  });
+
+  setupTablePagination({
+    tbodyId: "reqDocsTbody",
+    searchInputId: "reqDocSearchInput",
+    pageSizeId: "reqDocPageSize",
+    infoSummaryId: "reqDocsInfoSummary",
+    paginationId: "reqDocsPagination"
+  });
 
   let pendingDocTitle = "";
   let pendingPurpose = "";
@@ -405,6 +726,3 @@
   }
 </script>
 {% endblock %}
-
-
-

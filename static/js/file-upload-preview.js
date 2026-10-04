@@ -12,10 +12,15 @@ export function filePreviewButtonHtml({ extraClass = "", ariaLabel = "Preview fi
 const MODAL_ID = "file-preview-modal";
 let activeObjectUrl = null;
 
-function isPdfFile(filename, url) {
+function isImageFile(filename, url) {
   const name = (filename || "").toLowerCase();
   const href = (url || "").toLowerCase();
-  return name.endsWith(".pdf") || href.includes(".pdf") || href.includes("application/pdf");
+  if (href.startsWith("data:image/")) return true;
+  if (href.startsWith("blob:")) {
+    return !name.endsWith(".pdf");
+  }
+  const imageExtensions = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".bmp", ".ico"];
+  return imageExtensions.some((ext) => name.endsWith(ext) || href.includes(ext));
 }
 
 export function ensureFilePreviewModal() {
@@ -81,15 +86,17 @@ export function openFilePreview({ url, filename = "Document", revokeOnClose = fa
     activeObjectUrl = url.startsWith("blob:") ? url : null;
   }
 
-  const pdf = isPdfFile(filename, url);
+  const isImg = isImageFile(filename, url);
+  const useFrame = !isImg;
+
   if (previewFrame) {
-    previewFrame.classList.toggle("file-preview-modal__frame--pdf", pdf);
-    previewFrame.classList.toggle("file-preview-modal__frame--image", !pdf);
+    previewFrame.classList.toggle("file-preview-modal__frame--pdf", useFrame);
+    previewFrame.classList.toggle("file-preview-modal__frame--image", isImg);
     previewFrame.scrollTop = 0;
     previewFrame.scrollLeft = 0;
   }
   if (img && pdfFrame) {
-    if (pdf) {
+    if (useFrame) {
       img.classList.add("d-none");
       img.removeAttribute("src");
       pdfFrame.classList.remove("d-none");
