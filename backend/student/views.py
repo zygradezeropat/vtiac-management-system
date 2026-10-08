@@ -512,12 +512,20 @@ def settings(request):
 
 @login_required
 def trainer_evaluation(request):
-    
     from backend.student.services import student_trainer_evaluation_context
     
     denied = require_portal_access(request, STUDENT_ROLE)
     if denied:
         return denied
+
+    if request.method == "POST":
+        try:
+            from backend.student.services import save_student_trainer_evaluation
+            save_student_trainer_evaluation(request.user, request.POST)
+            messages.success(request, "Evaluation submitted successfully! Thank you for your feedback.")
+        except Exception as exc:
+            messages.error(request, f"Could not submit evaluation: {exc}")
+        return redirect("/dashboard/student/trainer-evaluation/?tab=history")
 
     return render(
         request,

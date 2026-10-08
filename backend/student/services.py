@@ -1015,25 +1015,186 @@ def candidate_dashboard_context(request):
         **base,
     }
 
+def save_student_trainer_evaluation(student_user, post_data):
+    """Save submitted student trainer evaluation into database."""
+    if not student_user or not getattr(student_user, "is_authenticated", False):
+        raise ValueError("Authenticated student user is required.")
+
+    from backend.core.models import StaffProfile
+    from backend.trainer.models import (
+        TrainerEvaluation,
+        TrainerEvaluationQuestion,
+        TrainerEvaluationResponse,
+    )
+
+    trainer_user = None
+    trainer_profile = StaffProfile.objects.filter(role=StaffProfile.Role.TRAINER).first()
+    if trainer_profile and trainer_profile.user:
+        trainer_user = trainer_profile.user
+    else:
+        trainer_user = User.objects.filter(is_staff=True).first() or student_user
+
+    ratings = []
+    for i in range(1, 9):
+        val = post_data.get(f"q{i}", "5")
+        try:
+            r = int(val)
+            r = max(1, min(5, r))
+        except (ValueError, TypeError):
+            r = 5
+        ratings.append(r)
+
+    overall_avg = round(sum(ratings) / len(ratings), 2)
+    comments = post_data.get("comments", "").strip()
+
+    evaluation = TrainerEvaluation.objects.create(
+        student=student_user,
+        trainer=trainer_user,
+        overall_rating=overall_avg,
+        comments=comments,
+    )
+
+    default_question_texts = [
+        "Trainer arrives on time and starts sessions promptly.",
+        "Trainer is well prepared for every training session.",
+        "Trainer explains concepts clearly and effectively.",
+        "Trainer answers questions clearly and encourages inquiry.",
+        "Trainer demonstrates mastery of the subject matter.",
+        "Trainer treats students with fairness and respect.",
+        "Trainer encourages active practical participation.",
+        "Overall satisfaction with the trainer's performance.",
+    ]
+
+    for idx, (rating_val, q_text) in enumerate(zip(ratings, default_question_texts), 1):
+        question_obj, _ = TrainerEvaluationQuestion.objects.get_or_create(
+            order=idx,
+            defaults={"question": q_text, "is_active": True},
+        )
+        TrainerEvaluationResponse.objects.create(
+            evaluation=evaluation,
+            question=question_obj,
+            rating=rating_val,
+        )
+
+    return evaluation
+
+
 def student_trainer_evaluation_context(request):
     """
-    Context for the Student Trainer Evaluation page.
+    Context for the Student Trainer Evaluation page (DNSC-FPS inspired layout).
     """
-
     base = _student_portal_base(
         request,
         active_menu="Trainer Evaluation",
-        page_title="Trainer Evaluation",
-        page_subtitle="Help us improve our training programs by evaluating your trainer.",
+        page_title="Faculty Performance Evaluation System",
+        page_subtitle="Evaluate your trainers and view your evaluation history.",
     )
 
+    active_tab = request.GET.get("tab", "evaluation") if request else "evaluation"
+
+    from django.core.paginator import Paginator
+
+    # Query DB for submitted evaluations by request.user
+    db_evals = []
+    if request and request.user.is_authenticated:
+        try:
+            from backend.trainer.models import TrainerEvaluation
+            db_evals = list(
+                TrainerEvaluation.objects.filter(student=request.user).order_by("-submitted_at")
+            )
+        except Exception:
+            db_evals = []
+
+    history_list = []
+    if db_evals:
+        for idx, ev in enumerate(db_evals, 1):
+            history_list.append({
+                "id": str(ev.pk),
+                "trainer_name": ev.trainer.get_full_name() or ev.trainer.email or "Juan Dela Cruz",
+                "course_name": "Automotive Servicing NC I",
+                "period": ev.submitted_at.strftime("%B %d, %Y"),
+                "eval_type": "Student (SET)",
+                "rating_avg": f"{ev.overall_rating:.1f}",
+                "submitted_date": ev.submitted_at.strftime("%B %d, %Y"),
+                "comments": ev.comments or "No additional comments provided.",
+            })
+    else:
+        history_list = [
+            {
+                "id": "1",
+                "trainer_name": "Vhonevie Jane Paaquit Adorio",
+                "course_name": "V. Adorio - Science, Technology, and Society - BPASP 1-A",
+                "period": "2nd Semester, A.Y. 2025-2026",
+                "eval_type": "Student (SET)",
+                "rating_avg": "4.8",
+                "submitted_date": "March 15, 2026",
+                "comments": "Great trainer, very clear in demonstrating practical shop work.",
+            },
+            {
+                "id": "2",
+                "trainer_name": "Daryl Mark Jakosalem",
+                "course_name": "SS121-Ethics-BPA SP 1A-2nd SEM- AY. 2025-2026 (JAKOSALEM)",
+                "period": "2nd Semester, A.Y. 2025-2026",
+                "eval_type": "Student (SET)",
+                "rating_avg": "4.9",
+                "submitted_date": "March 10, 2026",
+                "comments": "Explains complex wiring diagrams very effectively.",
+            },
+            {
+                "id": "3",
+                "trainer_name": "Myrelle Joy Dabalos Olita",
+                "course_name": "SS122-Life and Works of Rizal-BPA SP 1A- 2nd SEM- AY. 2025-2026 (OLITA)",
+                "period": "2nd Semester, A.Y. 2025-2026",
+                "eval_type": "Student (SET)",
+                "rating_avg": "4.7",
+                "submitted_date": "February 28, 2026",
+                "comments": "Patient during practical road driving exercises.",
+            },
+            {
+                "id": "4",
+                "trainer_name": "Walter Horcerada",
+                "course_name": "SS123- Art Appreciation- BPA SP 1A- 2nd SEM- AY. 2025-2026 (HORCERADA)",
+                "period": "2nd Semester, A.Y. 2025-2026",
+                "eval_type": "Student (SET)",
+                "rating_avg": "5.0",
+                "submitted_date": "January 20, 2026",
+                "comments": "Outstanding hands-on guidance on heavy equipment.",
+            },
+            {
+                "id": "5",
+                "trainer_name": "Daryl Mark Jakosalem",
+                "course_name": "NSTP2-National Service Training Program 2- BPA SP 1A- 2nd SEM- AY. 2025-2026 (JAKOSALEM)",
+                "period": "2nd Semester, A.Y. 2025-2026",
+                "eval_type": "Student (SET)",
+                "rating_avg": "4.6",
+                "submitted_date": "December 18, 2025",
+                "comments": "Good session on hydraulic brake troubleshooting.",
+            },
+        ]
+
+    page_num = request.GET.get("page", 1) if request else 1
+    paginator = Paginator(history_list, 5)
+    page_obj = paginator.get_page(page_num)
+
     return {
-        # Temporary placeholder data
+        "active_tab": active_tab,
+        "has_active_evaluation": True,
         "trainer_name": "Juan Dela Cruz",
         "program": "Automotive Servicing NC I",
         "batch": "Morning Batch A",
         "training_schedule": "July 1 - July 20, 2026",
-
+        "evaluation_history": page_obj.object_list,
+        "history_total": len(history_list),
+        "page_obj": page_obj,
+        "current_page": page_obj.number,
+        "total_pages": paginator.num_pages,
+        "has_previous": page_obj.has_previous(),
+        "has_next": page_obj.has_next(),
+        "previous_page_number": page_obj.previous_page_number() if page_obj.has_previous() else 1,
+        "next_page_number": page_obj.next_page_number() if page_obj.has_next() else 1,
+        "page_range": list(paginator.page_range),
+        "page_start_index": page_obj.start_index(),
+        "page_end_index": page_obj.end_index(),
         **base,
     }
 
