@@ -154,6 +154,19 @@ def get_enrollment_profile(user):
         return None
 
 
+def is_assessment_only_user(user):
+    """Return True if user is an Assessment-Only candidate."""
+    if not user or not getattr(user, "is_authenticated", False) or not user.is_authenticated:
+        return False
+    reg = getattr(user, "registration_application", None)
+    if reg and reg.program_type == "assessment_only":
+        return True
+    profile = get_enrollment_profile(user)
+    if profile and profile.program_type == "assessment_only":
+        return True
+    return False
+
+
 def _student_sidebar_menu(user=None):
     from django.urls import reverse
 
@@ -165,10 +178,16 @@ def _student_sidebar_menu(user=None):
         and registration_is_enrolled(user)
     )
     show_my_profile = can_access_my_profile(user)
+    is_assessment = is_assessment_only_user(user)
 
     menu = []
     for item in STUDENT_SIDEBAR:
         route_name = item["route_name"]
+        if is_assessment:
+            if route_name == "student_trainer_evaluation":
+                continue
+            if route_name == "student_dashboard":
+                route_name = "candidate_dashboard"
         if enrolled and route_name == "student_enrollment":
             continue
         if not show_my_profile and route_name == "student_my_profile":
@@ -892,6 +911,107 @@ def student_dashboard_context(request=None):
         "enrollment_steps": enrollment_steps,
         "announcements": announcements,
         **schedule_ctx,
+        **base,
+    }
+
+
+def candidate_dashboard_context(request):
+    user = request.user if request and request.user.is_authenticated else None
+    reg = getattr(user, "registration_application", None) if user else None
+    profile = get_enrollment_profile(user) if user else None
+
+    # Fetch assessment batch schedule & examiner info if assigned in registrar batching
+    batch = None
+    if reg and reg.selected_program:
+        try:
+            from backend.registrar.models import RegistrarScheduleTemplate
+            batch = RegistrarScheduleTemplate.objects.filter(
+                course_name__icontains=reg.selected_program,
+                batch_kind="national_assessment"
+            ).order_by("-created_at").first()
+        except Exception:
+            batch = None
+
+    examiner_name = (
+        batch.examiner_name if (batch and batch.examiner_name) else "To be assigned by Registrar"
+    )
+    assessment_venue = "VTIAC Assessment Center - Room 302"
+    assessment_date_str = (
+        batch.assessment_at.strftime("%B %d, %Y at %I:%M %p")
+        if (batch and getattr(batch, "assessment_at", None))
+        else "Schedule will be posted by Registrar upon document clearance"
+    )
+
+    requirements = [
+        {"label": "1x1 Photo with Name Tag", "done": bool(profile and profile.photo)},
+        {"label": "Valid Government ID", "done": bool(profile and profile.requirements_submitted)},
+        {"label": "Official Assessment Admission Slip", "done": bool(reg and reg.status == "approved")},
+        {"label": "Assessment Attire / Safety PPE", "done": False, "optional": True},
+    ]
+
+    candidate_steps = [
+        {"title": "Application Submitted", "desc": "Registration details received", "status": "done"},
+        {
+            "title": "Document Verification",
+            "desc": "Registrar review & EGACE clearance",
+            "status": "done" if (reg and reg.status == "approved") else "current",
+        },
+        {
+            "title": "Assessment Batch Assignment",
+            "desc": "Schedule & Examiner allocation",
+            "status": "current" if (reg and reg.status == "approved" and not (batch and batch.assessment_at)) else ("done" if (batch and batch.assessment_at) else "pending"),
+        },
+        {
+            "title": "Competency Assessment",
+            "desc": "Written & Practical Examination",
+            "status": "pending",
+        },
+        {
+            "title": "NC Certificate Issuance",
+            "desc": "Result: Competent",
+            "status": "pending",
+        },
+    ]
+
+    announcements = [
+        {
+            "title": "National Assessment Guidelines",
+            "body": "Candidates must present a valid ID and arrive 30 minutes before their scheduled assessment time.",
+            "date": "April 5, 2026",
+        },
+        {
+            "title": "Assessment Admission Slips",
+            "body": "Your admission slip will be released upon document clearance by the Registrar.",
+            "date": "April 2, 2026",
+        },
+    ]
+
+    base = _student_portal_base(
+        request,
+        active_menu="Dashboard",
+        page_title="Assessment Candidate Portal",
+        page_subtitle="View your National Assessment schedule, venue, and examiner assignment.",
+    )
+
+    progress_percent = 75 if (reg and reg.status == "approved") else 35
+    ring_circ = round(2 * math.pi * 54, 2)
+    ring_offset = round(ring_circ * (1 - progress_percent / 100), 2)
+
+    return {
+        "candidate_name": f"{reg.first_name} {reg.last_name}" if reg else (user.get_full_name() if user else "Candidate"),
+        "reference_id": reg.reference_id if reg else "N/A",
+        "program_name": reg.selected_program if reg else "Competency Assessment",
+        "application_status": "Enrolled" if (reg and reg.status == "approved") else ("Pending" if reg else "In Progress"),
+        "examiner_name": examiner_name,
+        "assessment_venue": assessment_venue,
+        "assessment_date": assessment_date_str,
+        "requirements": requirements,
+        "candidate_steps": candidate_steps,
+        "announcements": announcements,
+        "progress_ring_circumference": ring_circ,
+        "progress_ring_offset": ring_offset,
+        "progress_percent": progress_percent,
+        "is_assessment_only": True,
         **base,
     }
 

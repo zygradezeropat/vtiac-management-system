@@ -74,7 +74,14 @@ def dashboard_url_name(role):
     return DASHBOARD_URL_NAMES.get((role or "").lower())
 
 
-def redirect_to_dashboard(role):
+def redirect_to_dashboard(role, user=None):
+    if (role or "").lower() == STUDENT_ROLE and user and getattr(user, "is_authenticated", False):
+        reg = getattr(user, "registration_application", None)
+        if reg and reg.program_type == "assessment_only":
+            return redirect("candidate_dashboard")
+        profile = getattr(user, "enrollment_profile", None)
+        if profile and profile.program_type == "assessment_only":
+            return redirect("candidate_dashboard")
     url_name = dashboard_url_name(role)
     if url_name:
         return redirect(url_name)
@@ -90,7 +97,7 @@ def require_portal_access(request, role):
     session_role = request.session.get("portal_role")
     if session_role != role:
         if session_role in PORTAL_ROLES:
-            return redirect_to_dashboard(session_role)
+            return redirect_to_dashboard(session_role, user=request.user)
         return redirect("login", role=role)
 
     if role == STUDENT_ROLE:
@@ -187,7 +194,7 @@ def handle_portal_login_post(request, role):
 
     login(request, user)
     request.session["portal_role"] = role
-    return redirect_to_dashboard(role)
+    return redirect_to_dashboard(role, user=user)
 
 
 def handle_portal_logout(request):

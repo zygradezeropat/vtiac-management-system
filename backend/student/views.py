@@ -37,6 +37,8 @@ from backend.student.services import (
     save_enrollment_profile,
     should_redirect_to_enrollment_pending,
     student_dashboard_context,
+    candidate_dashboard_context,
+    is_assessment_only_user,
     student_enrollment_context,
     validate_enrollment_data,
     validate_registration_data,
@@ -111,6 +113,9 @@ def dashboard(request):
     if denied:
         return denied
 
+    if is_assessment_only_user(request.user):
+        return redirect("candidate_dashboard")
+
     if request.method == "POST" and request.POST.get("action") == "select_schedule":
         profile = get_enrollment_profile(request.user)
         option_id = request.POST.get("schedule_option_id", "")
@@ -132,6 +137,18 @@ def dashboard(request):
         return redirect("student_dashboard")
 
     return render(request, "student/dashboard.html", student_dashboard_context(request))
+
+
+@login_required(login_url="/")
+def candidate_dashboard(request):
+    denied = require_portal_access(request, STUDENT_ROLE)
+    if denied:
+        return denied
+
+    if not is_assessment_only_user(request.user):
+        return redirect("student_dashboard")
+
+    return render(request, "candidate/dashboard.html", candidate_dashboard_context(request))
 
 
 @login_required(login_url="/")
