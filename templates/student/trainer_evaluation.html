@@ -11,6 +11,18 @@
   </div>
 </header>
 
+{% if messages %}
+<div class="mb-4">
+  {% for message in messages %}
+  <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'success' }}{% endif %} alert-dismissible fade show rounded-3 shadow-sm border-0 d-flex align-items-center" role="alert">
+    <i class="bi {% if message.tags == 'error' %}bi-exclamation-triangle-fill text-danger{% else %}bi-check-circle-fill text-success{% endif %} fs-5 me-2"></i>
+    <div class="fs-7 fw-medium">{{ message }}</div>
+    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <!-- DNSC-FPS Style Tab Navigation -->
 <div class="card shadow-sm border-0 rounded-4 mb-4 p-2 bg-white">
   <ul class="nav nav-pills evaluation-nav-tabs" id="evaluationTabs" role="tablist">
@@ -53,9 +65,80 @@
     role="tabpanel"
     aria-labelledby="my-evaluation-tab"
   >
-    {% if has_active_evaluation %}
-    <form method="POST" action="{% url 'student_trainer_evaluation' %}">
+    {% if already_evaluated %}
+    <!-- Evaluation Already Completed (One-Time Submission Enforced) -->
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+      <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="mb-0 fw-bold text-dark fs-6">
+          <i class="bi bi-check2-circle text-success me-2 fs-5"></i>Trainer Evaluation Status
+        </h5>
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1.5 rounded-pill fs-8 fw-semibold">
+          <i class="bi bi-check-circle-fill me-1"></i>Evaluation Completed
+        </span>
+      </div>
+
+      <div class="card-body p-4 p-md-5 text-center">
+        <div class="bg-success-subtle text-success rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 76px; height: 76px;">
+          <i class="bi bi-check-lg" style="font-size: 2.5rem;"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-2">Evaluation Already Submitted</h4>
+        <p class="text-secondary fs-7 mx-auto mb-4" style="max-width: 580px;">
+          You have already completed your evaluation for <strong class="text-dark">{{ trainer_name }}</strong> in <strong class="text-dark">{{ program }}</strong>. In accordance with system policy, student evaluations can only be submitted <strong>once per training session</strong>.
+        </p>
+
+        {% if existing_eval %}
+        <div class="card border rounded-4 text-start mx-auto p-4 mb-4 bg-light shadow-2xs" style="max-width: 540px;">
+          <h6 class="fw-bold text-dark mb-3 fs-7 border-bottom pb-2">
+            <i class="bi bi-journal-text me-1 text-primary"></i>Your Submitted Evaluation Summary
+          </h6>
+          <div class="row g-2 mb-2">
+            <div class="col-sm-6">
+              <span class="fs-9 text-uppercase text-muted fw-bold d-block">Trainer Evaluated</span>
+              <span class="fs-7 fw-bold text-dark">{{ trainer_name }}</span>
+            </div>
+            <div class="col-sm-6">
+              <span class="fs-9 text-uppercase text-muted fw-bold d-block">Date Accomplished</span>
+              <span class="fs-7 text-secondary">{{ existing_eval.submitted_at|date:"F d, Y · h:i A" }}</span>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-sm-6">
+              <span class="fs-9 text-uppercase text-muted fw-bold d-block">Course & Batch</span>
+              <span class="fs-7 text-secondary">{{ program }}{% if batch %} - {{ batch }}{% endif %}</span>
+            </div>
+            <div class="col-sm-6">
+              <span class="fs-9 text-uppercase text-muted fw-bold d-block">Overall Rating</span>
+              <span class="badge bg-success fs-7 px-2.5 py-1 mt-1">★ {{ existing_eval.overall_rating }} / 5.0</span>
+            </div>
+          </div>
+          {% if existing_eval.comments %}
+          <div class="pt-2 border-top">
+            <span class="fs-9 text-uppercase text-muted fw-bold d-block mb-1">Feedback Comments</span>
+            <p class="fs-8 text-secondary fst-italic mb-0 bg-white p-2.5 rounded-3 border">
+              "{{ existing_eval.comments }}"
+            </p>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <button
+            type="button"
+            class="btn btn-primary px-4 py-2 rounded-3 fw-semibold fs-7"
+            onclick="document.getElementById('evaluation-history-tab').click();"
+          >
+            <i class="bi bi-clock-history me-1"></i>View in Evaluation History
+          </button>
+        </div>
+      </div>
+    </div>
+    {% elif has_active_evaluation %}
+    <form method="POST" action="{% url 'student_trainer_evaluation' %}" id="studentEvaluationForm">
       {% csrf_token %}
+      <input type="hidden" name="trainer_id" value="{{ trainer_id }}">
+      <input type="hidden" name="course_name" value="{{ program }}">
+      <input type="hidden" name="batch_label" value="{{ batch }}">
       
       <!-- Training Information Card -->
       <div class="card shadow-sm border-0 rounded-4 mb-4">
@@ -95,10 +178,11 @@
 
       <!-- Evaluation Questionnaire Card -->
       <div class="card shadow-sm border-0 rounded-4 mb-4">
-        <div class="card-header bg-white py-3 border-bottom">
+        <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
           <h5 class="mb-0 fw-bold text-dark fs-6">
             <i class="bi bi-clipboard-check me-2 text-success"></i>Trainer Evaluation Questionnaire
           </h5>
+          <span class="badge bg-light text-secondary border fs-8">3 Core Evaluation Criteria</span>
         </div>
 
         <div class="card-body p-4">
@@ -131,7 +215,12 @@
               </thead>
               <tbody>
                 <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">1. Trainer arrives on time and starts sessions promptly.</td>
+                  <td class="ps-3 py-3">
+                    <div class="fw-bold text-dark fs-7">1. Instructional Delivery</div>
+                    <div class="text-secondary fs-8 mt-1 lh-sm">
+                      Mastery of trade skills, application of CBT methodology (acting as a facilitator rather than just a lecturer), use of appropriate training methods, and ability to address diverse learner needs.
+                    </div>
+                  </td>
                   <td class="text-center"><input type="radio" name="q1" value="1" required class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q1" value="2" class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q1" value="3" class="form-check-input"></td>
@@ -139,7 +228,12 @@
                   <td class="text-center"><input type="radio" name="q1" value="5" class="form-check-input" checked></td>
                 </tr>
                 <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">2. Trainer is well prepared for every training session.</td>
+                  <td class="ps-3 py-3">
+                    <div class="fw-bold text-dark fs-7">2. Classroom and Facility Management</div>
+                    <div class="text-secondary fs-8 mt-1 lh-sm">
+                      Monitoring of work activities, maintenance and safety of training facilities, tools, and equipment, and handling of support staff.
+                    </div>
+                  </td>
                   <td class="text-center"><input type="radio" name="q2" value="1" required class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q2" value="2" class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q2" value="3" class="form-check-input"></td>
@@ -147,52 +241,17 @@
                   <td class="text-center"><input type="radio" name="q2" value="5" class="form-check-input" checked></td>
                 </tr>
                 <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">3. Trainer explains concepts clearly and effectively.</td>
+                  <td class="ps-3 py-3">
+                    <div class="fw-bold text-dark fs-7">3. Communication and Professionalism</div>
+                    <div class="text-secondary fs-8 mt-1 lh-sm">
+                      Clarity of explanations, fairness in giving feedback, patience, and rapport with trainees.
+                    </div>
+                  </td>
                   <td class="text-center"><input type="radio" name="q3" value="1" required class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q3" value="2" class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q3" value="3" class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q3" value="4" class="form-check-input"></td>
                   <td class="text-center"><input type="radio" name="q3" value="5" class="form-check-input" checked></td>
-                </tr>
-                <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">4. Trainer answers questions clearly and encourages inquiry.</td>
-                  <td class="text-center"><input type="radio" name="q4" value="1" required class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q4" value="2" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q4" value="3" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q4" value="4" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q4" value="5" class="form-check-input" checked></td>
-                </tr>
-                <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">5. Trainer demonstrates mastery of the subject matter.</td>
-                  <td class="text-center"><input type="radio" name="q5" value="1" required class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q5" value="2" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q5" value="3" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q5" value="4" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q5" value="5" class="form-check-input" checked></td>
-                </tr>
-                <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">6. Trainer treats students with fairness and respect.</td>
-                  <td class="text-center"><input type="radio" name="q6" value="1" required class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q6" value="2" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q6" value="3" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q6" value="4" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q6" value="5" class="form-check-input" checked></td>
-                </tr>
-                <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">7. Trainer encourages active practical participation.</td>
-                  <td class="text-center"><input type="radio" name="q7" value="1" required class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q7" value="2" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q7" value="3" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q7" value="4" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q7" value="5" class="form-check-input" checked></td>
-                </tr>
-                <tr>
-                  <td class="ps-3 fs-7 text-dark fw-medium">8. Overall satisfaction with the trainer's performance.</td>
-                  <td class="text-center"><input type="radio" name="q8" value="1" required class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q8" value="2" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q8" value="3" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q8" value="4" class="form-check-input"></td>
-                  <td class="text-center"><input type="radio" name="q8" value="5" class="form-check-input" checked></td>
                 </tr>
               </tbody>
             </table>
@@ -205,6 +264,7 @@
             </label>
             <textarea
               name="comments"
+              id="evaluationComments"
               class="form-control rounded-3"
               rows="4"
               placeholder="Write any additional comments or suggestions for your trainer here..."
@@ -213,7 +273,7 @@
         </div>
 
         <div class="card-footer bg-white border-top py-3 text-end">
-          <button type="submit" class="btn btn-success px-4 rounded-3 py-2 fw-semibold fs-7">
+          <button type="submit" id="submitEvaluationBtn" class="btn btn-success px-4 rounded-3 py-2 fw-semibold fs-7">
             <i class="bi bi-send me-1"></i>Submit Evaluation
           </button>
         </div>
@@ -306,10 +366,25 @@
                         <p class="text-dark fs-7 mb-0">{{ item.period }}</p>
                       </div>
                       <div class="col-6">
-                        <span class="fs-8 text-uppercase text-muted fw-bold d-block">Rating Score</span>
+                        <span class="fs-8 text-uppercase text-muted fw-bold d-block">Overall Score</span>
                         <span class="badge bg-success fs-7 px-3 py-1 mt-1">{{ item.rating_avg }} / 5.0</span>
                       </div>
                     </div>
+
+                    {% if item.breakdown %}
+                    <div class="mb-3">
+                      <span class="fs-8 text-uppercase text-muted fw-bold d-block mb-1">Evaluation Scores</span>
+                      <div class="border rounded-3 p-2 bg-light">
+                        {% for b in item.breakdown %}
+                        <div class="d-flex justify-content-between align-items-center py-1.5 {% if not forloop.last %}border-bottom{% endif %}">
+                          <span class="fs-8 text-dark fw-medium">{{ b.category }}</span>
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8 px-2 py-0.5">★ {{ b.rating }} / 5</span>
+                        </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% endif %}
+
                     <div>
                       <span class="fs-8 text-uppercase text-muted fw-bold d-block">Submitted Comments</span>
                       <p class="p-3 bg-light rounded-3 text-secondary fs-7 mb-0 mt-1">{{ item.comments }}</p>
@@ -359,5 +434,6 @@
   </div>
 </div>
 
+<script src="{% static 'js/student-trainer-evaluation.js' %}"></script>
 {% include "components/student/layout_end.html" %}
 {% endblock %}

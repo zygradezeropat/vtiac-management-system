@@ -344,104 +344,22 @@ def module_page_context(module, request=None):
     if module == "evaluations":
         user = getattr(request, "user", None) if request else None
         from django.core.paginator import Paginator
+        from .evaluation import get_trainer_evaluation_summary
 
-        evals_query = []
-        if user and getattr(user, "is_authenticated", False):
-            try:
-                from .models import TrainerEvaluation
-                evals_query = list(
-                    TrainerEvaluation.objects.filter(trainer=user).order_by("-submitted_at")
-                )
-            except Exception:
-                evals_query = []
-
-        feedback_list = []
-        if evals_query:
-            for idx, ev in enumerate(evals_query, 1):
-                alias_id = str(ev.student.pk)[:4].upper() if hasattr(ev.student, "pk") else f"{idx:03d}"
-                feedback_list.append({
-                    "id": str(ev.pk),
-                    "student_alias": f"Anonymous Student #{alias_id}",
-                    "badge_label": "Verified Student Enrollee",
-                    "rating": f"{ev.overall_rating:.1f}",
-                    "submitted_date": ev.submitted_at.strftime("%B %d, %Y"),
-                    "program": "Vocational Training Program",
-                    "comment": ev.comments or "No written feedback comments provided.",
-                })
-        else:
-            feedback_list = [
-                {
-                    "id": "1",
-                    "student_alias": "Anonymous Student #8F2A",
-                    "badge_label": "Verified Enrollee",
-                    "rating": "5.0",
-                    "submitted_date": "March 15, 2026",
-                    "program": "Automotive Servicing NC I - Morning Batch A",
-                    "comment": "The trainer explains every lesson clearly and answers our questions patiently.",
-                },
-                {
-                    "id": "2",
-                    "student_alias": "Anonymous Student #3C91",
-                    "badge_label": "Verified Enrollee",
-                    "rating": "4.8",
-                    "submitted_date": "March 10, 2026",
-                    "program": "Automotive Servicing NC I - Morning Batch A",
-                    "comment": "Very approachable and knowledgeable during shop demonstration.",
-                },
-                {
-                    "id": "3",
-                    "student_alias": "Anonymous Student #1E04",
-                    "badge_label": "Verified Enrollee",
-                    "rating": "4.5",
-                    "submitted_date": "February 28, 2026",
-                    "program": "Driving NC II - Weekend Batch",
-                    "comment": "Would appreciate more hands-on activities, but overall excellent instruction.",
-                },
-                {
-                    "id": "4",
-                    "student_alias": "Anonymous Student #7B88",
-                    "badge_label": "Verified Enrollee",
-                    "rating": "5.0",
-                    "submitted_date": "February 20, 2026",
-                    "program": "Rice Machinery Operations NC II - Batch 1",
-                    "comment": "Punctual and very thorough when going over safety protocols.",
-                },
-                {
-                    "id": "5",
-                    "student_alias": "Anonymous Student #4D52",
-                    "badge_label": "Verified Enrollee",
-                    "rating": "4.7",
-                    "submitted_date": "February 12, 2026",
-                    "program": "Automotive Servicing NC I - Morning Batch A",
-                    "comment": "Great teacher! Makes hard topics easy to understand.",
-                },
-                {
-                    "id": "6",
-                    "student_alias": "Anonymous Student #9A14",
-                    "badge_label": "Verified Enrollee",
-                    "rating": "4.9",
-                    "submitted_date": "January 28, 2026",
-                    "program": "Driving NC II - Morning Batch A",
-                    "comment": "Gives clear feedback during practical driving drills.",
-                },
-            ]
+        summary_data = get_trainer_evaluation_summary(user)
+        feedback_list = summary_data["feedback_list"]
 
         page_num = request.GET.get("page", 1) if request else 1
         paginator = Paginator(feedback_list, 4)
         page_obj = paginator.get_page(page_num)
 
         ctx.update({
-            "overall_rating": "4.8",
-            "total_evaluations": len(feedback_list),
-            "summary_scores": [
-                {"category": "Professionalism", "score": "4.9"},
-                {"category": "Teaching Skills", "score": "4.8"},
-                {"category": "Communication", "score": "4.7"},
-                {"category": "Knowledge", "score": "4.9"},
-                {"category": "Time Management", "score": "4.8"},
-            ],
+            "overall_rating": summary_data["overall_rating"],
+            "star_string": summary_data["star_string"],
+            "total_evaluations": summary_data["total_evaluations"],
+            "summary_scores": summary_data["summary_scores"],
             "feedback_list": page_obj.object_list,
-            "history_total": len(feedback_list),
+            "history_total": summary_data["history_total"],
             "page_obj": page_obj,
             "current_page": page_obj.number,
             "total_pages": paginator.num_pages,
@@ -450,8 +368,8 @@ def module_page_context(module, request=None):
             "previous_page_number": page_obj.previous_page_number() if page_obj.has_previous() else 1,
             "next_page_number": page_obj.next_page_number() if page_obj.has_next() else 1,
             "page_range": list(paginator.page_range),
-            "page_start_index": page_obj.start_index(),
-            "page_end_index": page_obj.end_index(),
+            "page_start_index": page_obj.start_index() if feedback_list else 0,
+            "page_end_index": page_obj.end_index() if feedback_list else 0,
         })
     if module == "settings":
         user = getattr(request, "user", None) if request else None

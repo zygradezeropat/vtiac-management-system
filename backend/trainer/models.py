@@ -103,6 +103,9 @@ class TrainerEvaluation(models.Model):
         related_name="submitted_trainer_evaluations",
     )
 
+    course_name = models.CharField(max_length=200, blank=True)
+    batch_label = models.CharField(max_length=64, blank=True)
+
     overall_rating = models.DecimalField(
         max_digits=3,
         decimal_places=2,
@@ -115,23 +118,28 @@ class TrainerEvaluation(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "trainer"],
+                name="uniq_student_trainer_evaluation",
+            )
+        ]
 
     def __str__(self):
-        return f"{self.student} → {self.trainer}"
+        return f"{self.student} -> {self.trainer}"
 
 class TrainerEvaluationQuestion(models.Model):
 
-    question = models.CharField(max_length=255)
-
+    category = models.CharField(max_length=120, blank=True)
+    question = models.CharField(max_length=500)
     order = models.PositiveIntegerField(default=1)
-
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["order"]
 
     def __str__(self):
-        return self.question
+        return f"{self.category}: {self.question}" if self.category else self.question
 
 class TrainerEvaluationResponse(models.Model):
 

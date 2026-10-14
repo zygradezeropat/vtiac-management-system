@@ -222,6 +222,34 @@ def submit_document_request(request):
         status=StudentDocumentRequest.Status.PENDING,
     )
 
+    # Notify both ends:
+    from backend.core.notification_service import create_notification, notify_users, registrar_users
+    from backend.core.models import PortalNotification
+
+    student_name = request.user.get_full_name() or request.user.email
+    course_name = (profile.selected_program if profile else "") or getattr(request.user, "registration_application", None) and request.user.registration_application.selected_program or "Training Program"
+    purpose_desc = f" Purpose: {purpose}." if purpose else ""
+
+    # 1. Notify Registrar end
+    notify_users(
+        registrar_users(),
+        category=PortalNotification.Category.ENROLLMENT_REQUIREMENTS,
+        title=f"New Document Request: {doc_name}",
+        message=f"{student_name} ({course_name}) requested '{doc_name}'.{purpose_desc}",
+        link_url="/dashboard/registrar/document-requests/",
+        related_profile_id=profile.pk if profile else None,
+    )
+
+    # 2. Notify Student end (confirmation)
+    create_notification(
+        request.user,
+        category=PortalNotification.Category.GENERAL,
+        title="Document Request Submitted",
+        message=f"Your request for '{doc_name}' has been received by the Registrar's Office and is currently pending review.",
+        link_url="/dashboard/student/documents/",
+        related_profile_id=profile.pk if profile else None,
+    )
+
     return JsonResponse({
         "ok": True,
         "message": f"Request for {doc_name} submitted successfully.",

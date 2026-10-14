@@ -139,11 +139,4 @@ def grading_records_api(request):
 
 @login_required
 def evaluations(request):
-    return render(
-        request,
-        "trainer/evaluations.html",
-        {
-            "page_title": "Trainer Evaluations",
-            "page_subtitle": "View student evaluation results.",
-        },
-    )
+    return redirect("trainer_module", module="evaluations")

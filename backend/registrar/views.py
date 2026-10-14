@@ -65,7 +65,7 @@ def update_document_request_status(request):
         return JsonResponse({"ok": False, "error": "Request ID and Status are required."}, status=400)
 
     from backend.student.models import StudentDocumentRequest
-    from backend.core.notification_service import create_notification
+    from backend.core.notification_service import create_notification, notify_users, registrar_users
     from backend.core.models import PortalNotification
     from datetime import datetime
 
@@ -83,15 +83,16 @@ def update_document_request_status(request):
 
             doc_req.save()
 
-            # Create notification for student
+            # 1. Create notification for student end
             if doc_req.user:
+                note_str = f" Note: {doc_req.remarks}" if doc_req.remarks else ""
                 if new_status in ("ready", "completed"):
                     date_str = doc_req.release_date.strftime("%B %d, %Y") if doc_req.release_date else "soon"
                     create_notification(
                         doc_req.user,
                         category=PortalNotification.Category.DOCUMENTS_RELEASED,
                         title="Document Ready for Pick-Up",
-                        message=f"Your requested document '{doc_req.document_name}' is ready! Pick-up / Claim Date: {date_str}.",
+                        message=f"Your requested document '{doc_req.document_name}' is ready! Pick-up / Claim Date: {date_str}.{note_str}",
                         link_url="/dashboard/student/documents/",
                         related_profile_id=doc_req.profile_id,
                     )
@@ -99,8 +100,8 @@ def update_document_request_status(request):
                     create_notification(
                         doc_req.user,
                         category=PortalNotification.Category.DOCUMENT_APPROVED,
-                        title="Document Request Processing",
-                        message=f"Your request for '{doc_req.document_name}' is now being processed by the Registrar.",
+                        title="Document Request Approved & Processing",
+                        message=f"Your request for '{doc_req.document_name}' has been approved and is now being processed by the Registrar.{note_str}",
                         link_url="/dashboard/student/documents/",
                         related_profile_id=doc_req.profile_id,
                     )
@@ -111,11 +112,38 @@ def update_document_request_status(request):
                     create_notification(
                         doc_req.user,
                         category=PortalNotification.Category.DOCUMENT_REJECTED,
-                        title="Document Request Update",
+                        title="Document Request Rejected",
                         message=msg,
                         link_url="/dashboard/student/documents/",
                         related_profile_id=doc_req.profile_id,
                     )
+                elif new_status == "pending":
+                    create_notification(
+                        doc_req.user,
+                        category=PortalNotification.Category.GENERAL,
+                        title="Document Request Status: Pending",
+                        message=f"Your request for '{doc_req.document_name}' is pending review by the Registrar.",
+                        link_url="/dashboard/student/documents/",
+                        related_profile_id=doc_req.profile_id,
+                    )
+
+            # 2. Create notification for Registrar end (acting user + registrar staff)
+            student_name = (
+                doc_req.user.get_full_name() if doc_req.user else ""
+            ) or (doc_req.profile and f"{doc_req.profile.first_name} {doc_req.profile.last_name}") or "Student"
+            status_display = doc_req.get_status_display()
+            date_info = f" (Claim Date: {doc_req.release_date.strftime('%b %d, %Y')})" if doc_req.release_date else ""
+            reg_recipients = set(registrar_users())
+            if request.user and request.user.is_authenticated:
+                reg_recipients.add(request.user)
+            notify_users(
+                reg_recipients,
+                category=PortalNotification.Category.GENERAL,
+                title=f"Document Request Updated ({status_display})",
+                message=f"Request for '{doc_req.document_name}' ({student_name}) updated to {status_display}.{date_info}",
+                link_url="/dashboard/registrar/document-requests/",
+                related_profile_id=doc_req.profile_id,
+            )
 
             return JsonResponse({
                 "ok": True,

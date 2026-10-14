@@ -390,3 +390,11 @@ class StudentDocumentRequest(models.Model):
         user_name = self.user.get_full_name() or self.user.email
         return f"{self.document_name} — {user_name} ({self.get_status_display()})"
 
+
+# Re-export evaluation models for student-side integration
+from backend.trainer.models import (
+    TrainerEvaluation,
+    TrainerEvaluationQuestion,
+    TrainerEvaluationResponse,
+)
+

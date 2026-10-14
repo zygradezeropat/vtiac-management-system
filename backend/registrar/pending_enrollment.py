@@ -388,6 +388,9 @@ def _approve_enrollment_item(profile, reg) -> tuple[bool, str | None]:
 
     reg.status = StudentRegistration.Status.APPROVED
     reg.save(update_fields=["status"])
+    from backend.student.enrollment_notifications import notify_enrollment_approved
+
+    notify_enrollment_approved(profile, reg)
     return True, None
 
 
@@ -509,6 +512,9 @@ def enrollment_reject(request):
 
     reg.status = StudentRegistration.Status.REJECTED
     reg.save(update_fields=["status"])
+    from backend.student.enrollment_notifications import notify_enrollment_rejected
+
+    notify_enrollment_rejected(profile, reg)
 
     return JsonResponse(
         {

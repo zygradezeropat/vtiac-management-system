@@ -24,6 +24,8 @@ function categoryIcon(category) {
       return "bi-x-circle-fill text-danger";
     case "enrollment_requirements":
       return "bi-folder2-open text-primary";
+    case "payment_received":
+      return "bi-cash-coin text-success";
     default:
       return "bi-bell text-secondary";
   }
