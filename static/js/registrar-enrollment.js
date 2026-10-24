@@ -65,6 +65,22 @@ function scholarshipBadge(item) {
   return `<span class="badge ${cls}">${escapeHtml(item.scholarship)}</span>`;
 }
 
+function digitalDocBadge(item) {
+  const status = item.digitalStatus || (item.isDigitalUploaded ? "uploaded" : "pending");
+  const cls = item.digitalBadgeClass || (status === "uploaded" ? "registrar-doc-badge--uploaded" : (status === "partial" ? "registrar-doc-badge--partial" : "registrar-doc-badge--pending"));
+  const label = item.digitalLabel || (status === "uploaded" ? "Digital: Uploaded" : "Digital: Pending");
+  const icon = status === "uploaded" ? "bi-cloud-check-fill" : (status === "partial" ? "bi-cloud-minus-fill" : "bi-cloud-arrow-up");
+  return `<span class="badge registrar-doc-badge ${cls}" title="Online requirements upload status"><i class="bi ${icon} me-1" aria-hidden="true"></i>${escapeHtml(label)}</span>`;
+}
+
+function hardCopyBadge(item) {
+  const submitted = Boolean(item.hardCopiesSubmitted || item.hardCopyStatus === "submitted");
+  const cls = item.hardCopyBadgeClass || (submitted ? "registrar-doc-badge--hard-submitted" : "registrar-doc-badge--hard-pending");
+  const label = item.hardCopyLabel || (submitted ? "Hard Copies: Submitted" : "Hard Copies: Pending");
+  const icon = submitted ? "bi-file-earmark-check-fill" : "bi-file-earmark-x";
+  return `<span class="badge registrar-doc-badge ${cls}" title="Physical hard copies submitted to organization"><i class="bi ${icon} me-1" aria-hidden="true"></i>${escapeHtml(label)}</span>`;
+}
+
 function paymentExtraLines(item) {
   if (item.paymentStatus === "unpaid" || item.neededKey === "payment_unpaid") return "";
   if (item.paymentStatus !== "partial") return "";
@@ -130,6 +146,21 @@ document.addEventListener("DOMContentLoaded", () => {
         viewContextItem.neededBadgeClass = "registrar-enrollment-status--unpaid";
       }
       updateEnrollmentDocReviewFooter(detail);
+      render();
+    },
+    onUpdated(detail) {
+      if (viewContextItem && detail?.docIndicators) {
+        viewContextItem.digitalStatus = detail.docIndicators.digital?.status;
+        viewContextItem.digitalLabel = detail.docIndicators.digital?.label;
+        viewContextItem.digitalBadgeClass = detail.docIndicators.digital?.badgeClass;
+        viewContextItem.isDigitalUploaded = detail.docIndicators.digital?.isUploaded;
+        viewContextItem.hardCopyStatus = detail.docIndicators.hardCopy?.status;
+        viewContextItem.hardCopyLabel = detail.docIndicators.hardCopy?.label;
+        viewContextItem.hardCopyBadgeClass = detail.docIndicators.hardCopy?.badgeClass;
+        viewContextItem.hardCopiesSubmitted = detail.docIndicators.hardCopy?.isSubmitted;
+        viewContextItem.hardCopySubmittedAt = detail.docIndicators.hardCopy?.submittedAt;
+        viewContextItem.docIndicators = detail.docIndicators;
+      }
       render();
     },
   });
@@ -268,7 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const approveTitle = approveDisabled
       ? "Available when learner profile, requirements, and payment proof are complete."
       : "";
-    const badges = `${scholarshipBadge(item)}${neededBadge(item)}`;
+    const badges = `${scholarshipBadge(item)}${neededBadge(item)}${digitalDocBadge(item)}${hardCopyBadge(item)}`;
 
     return `
       <article class="registrar-enrollment-card" data-key="${escapeHtml(key)}">

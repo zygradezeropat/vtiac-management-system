@@ -39,7 +39,9 @@ class RegistrarScheduleTemplate(models.Model):
         related_name="schedule_templates",
     )
     trainer_name = models.CharField(max_length=150, blank=True)
-    batch_label = models.CharField(max_length=64, default="Batch 1")
+    batch_label = models.CharField(max_length=64, default="AY 2026–2027 · Batch 1")
+    academic_year = models.CharField(max_length=32, default="AY 2026–2027", db_index=True)
+    term = models.CharField(max_length=32, blank=True, default="1st Semester")
     batch_kind = models.CharField(
         max_length=32,
         choices=BatchKind.choices,
@@ -135,6 +137,7 @@ class ScholarGrantRecord(models.Model):
     slot_id = models.CharField(max_length=64, blank=True, null=True)
     amount = models.CharField(max_length=64, blank=True, null=True)
     scholarship_type = models.CharField(max_length=32, default="tesda", blank=True, null=True)
+    academic_year = models.CharField(max_length=32, default="AY 2026–2027", blank=True, null=True)
     granted_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 

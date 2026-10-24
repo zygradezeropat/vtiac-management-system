@@ -32,7 +32,13 @@
         </div>
         <div class="d-flex flex-nowrap align-items-center gap-2 registrar-student-filters flex-shrink-0">
           <input type="text" id="student-search" placeholder="Search student..." class="form-control form-control-sm registrar-student-search" />
-          <select id="program-filter" class="form-select form-select-sm registrar-student-program-filter" style="min-width:18rem"></select>
+          <select id="program-filter" class="form-select form-select-sm registrar-student-program-filter" style="min-width:16rem"></select>
+          <select id="doc-status-filter" class="form-select form-select-sm registrar-student-doc-filter" style="min-width:13rem">
+            <option value="all">All Submission Records</option>
+            <option value="hard_submitted">Hard Copies: Received</option>
+            <option value="hard_pending">Hard Copies: Pending</option>
+            <option value="digital_uploaded">Digital: Uploaded</option>
+          </select>
         </div>
       </div>
       <div id="student-table-container"></div>

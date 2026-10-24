@@ -1,7 +1,6 @@
 {% extends "registrar/base.html" %}
 {% load static %}
 
-
 {% block extra_head %}
 {{ block.super }}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -10,47 +9,115 @@
 
 {% block body %}
 {% include "components/registrar/layout_start.html" %}
-<script id="scholarship-registry-seed" type="application/json">{{ scholarship_registry_json|default:"[]"|safe }}</script>
-<script id="scholarship-scholars-seed" type="application/json">{{ scholarship_scholars_json|default:"[]"|safe }}</script>
-<script id="scholarship-masterlist-seed" type="application/json">{{ scholarship_masterlist_json|default:"[]"|safe }}</script>
+<script id="scholarship-registry-seed"
+  type="application/json">{{ scholarship_registry_json|default:"[]"|safe }}</script>
+<script id="scholarship-scholars-seed"
+  type="application/json">{{ scholarship_scholars_json|default:"[]"|safe }}</script>
+<script id="scholarship-masterlist-seed"
+  type="application/json">{{ scholarship_masterlist_json|default:"[]"|safe }}</script>
 
-<header class="registrar-page-header">
+<header class="registrar-page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
   <div>
     <h1 class="registrar-page-title">{{ page_title }}</h1>
-    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+    <p class="registrar-page-subtitle">Register scholars directly, manage sponsor grants, and maintain scholar records
+    </p>
   </div>
-  <span class="registrar-pill registrar-pill--primary flex-shrink-0">
-    <span id="scholarship-pending-count">0</span> pending review
-  </span>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <button type="button" id="header-add-scholar-btn" class="btn btn-success btn-sm fw-semibold px-3 shadow-sm">
+      <i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i>+ Register Scholar Manually
+    </button>
+    <span class="registrar-pill registrar-pill--primary flex-shrink-0">
+      <span id="scholarship-total-count">0</span> Total Scholars
+    </span>
+  </div>
 </header>
 
+<!-- Main Navigation Tabs: Masterlist is Primary -->
 <ul class="nav nav-tabs registrar-nav-tabs mb-4" id="scholarship-tabs" role="tablist">
   <li class="nav-item" role="presentation">
-    <button class="nav-link active fw-semibold" id="tab-import-btn" data-bs-toggle="tab" data-bs-target="#tab-import-content" type="button" role="tab" aria-controls="tab-import-content" aria-selected="true">
-      <i class="bi bi-file-earmark-arrow-up me-2" aria-hidden="true"></i>Import Scholar Record
+    <button class="nav-link active fw-semibold" id="tab-masterlist-btn" data-bs-toggle="tab"
+      data-bs-target="#tab-masterlist-content" type="button" role="tab" aria-controls="tab-masterlist-content"
+      aria-selected="true">
+      <i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Scholar Masterlist &amp; Direct Entry
     </button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link fw-semibold" id="tab-masterlist-btn" data-bs-toggle="tab" data-bs-target="#tab-masterlist-content" type="button" role="tab" aria-controls="tab-masterlist-content" aria-selected="false">
-      <i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Scholar Masterlist
+    <button class="nav-link fw-semibold" id="tab-import-btn" data-bs-toggle="tab" data-bs-target="#tab-import-content"
+      type="button" role="tab" aria-controls="tab-import-content" aria-selected="false">
+      <i class="bi bi-file-earmark-arrow-up me-2" aria-hidden="true"></i>Bulk File Import (Optional)
     </button>
   </li>
 </ul>
 
 <div class="tab-content" id="scholarship-tabs-content">
-  <!-- Tab 1: Import Scholar Record -->
-  <div class="tab-pane fade show active" id="tab-import-content" role="tabpanel" aria-labelledby="tab-import-btn">
+  <!-- Tab 1 (Default): Scholar Masterlist & Direct Entry -->
+  <div class="tab-pane fade show active" id="tab-masterlist-content" role="tabpanel"
+    aria-labelledby="tab-masterlist-btn">
+    <!-- Stat Summary Row -->
+    <div id="masterlist-stats" class="row g-3 mb-4"></div>
+
+    <article class="registrar-panel">
+      <div class="registrar-panel__body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h6 fw-semibold mb-1">
+              <i class="bi bi-mortarboard-fill me-2 text-success" aria-hidden="true"></i>Active Scholar Masterlist
+            </h2>
+            <p class="text-muted small mb-0">Directly registered and active scholars across all academic terms.</p>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+
+            <select id="masterlist-ay-filter" class="form-select form-select-sm" style="min-width:10rem">
+              <option value="">All Academic Years</option>
+              <option value="AY 2026–2027" selected>AY 2026–2027</option>
+              <option value="AY 2025–2026">AY 2025–2026</option>
+              <option value="AY 2027–2028">AY 2027–2028</option>
+            </select>
+            <select id="masterlist-type-filter" class="form-select form-select-sm" style="min-width:10rem">
+              <option value="">All Scholarship Types</option>
+              <option value="twsp">TESDA TWSP</option>
+              <option value="step">TESDA STEP</option>
+              <option value="pesa">PESFA</option>
+              <option value="uaqtea">UAQTEA</option>
+              <option value="lgu">LGU Scholarship</option>
+              <option value="industry">Industry Grant</option>
+              <option value="tesda">TESDA Regular</option>
+              <option value="others">Other Sponsors</option>
+            </select>
+            <input type="search" id="masterlist-search" class="form-control form-control-sm"
+              placeholder="Search by name, ID, sponsor..." style="max-width:14rem" />
+          </div>
+        </div>
+
+        <div id="masterlist-table-container" class="table-responsive"></div>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-3 border-top"
+          id="masterlist-pagination-container">
+          <span class="text-muted small" id="masterlist-page-info">Showing 0 to 0 of 0 entries</span>
+          <nav aria-label="Masterlist pagination">
+            <ul class="pagination pagination-sm mb-0" id="masterlist-pagination"></ul>
+          </nav>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <!-- Tab 2: Bulk File Import (Optional) -->
+  <div class="tab-pane fade" id="tab-import-content" role="tabpanel" aria-labelledby="tab-import-btn">
     <div id="scholarship-stats" class="row g-3 mb-4"></div>
 
     <div class="row g-3">
       <div class="col-lg-5">
         <article class="registrar-panel h-100">
           <div class="registrar-panel__body">
-            <h2 class="h6 fw-semibold mb-3"><i class="bi bi-cloud-upload me-2 text-success" aria-hidden="true"></i>Document ingestion</h2>
-            <p class="text-muted small mb-3">Upload sponsor lists from Excel (.xls, .xlsx) or PDF (.pdf). The system reads and parses rows automatically.</p>
+            <h2 class="h6 fw-semibold mb-3"><i class="bi bi-cloud-upload me-2 text-success" aria-hidden="true"></i>Bulk
+              Document Ingestion</h2>
+            <p class="text-muted small mb-3">Optional: Upload sponsor lists from Excel (.xls, .xlsx) or PDF (.pdf) if
+              bulk parsing from external donor sheets is required.</p>
 
             <label class="registrar-scholarship-dropzone" id="scholarship-dropzone" for="scholarship-file-input">
-              <input type="file" id="scholarship-file-input" class="visually-hidden" accept=".xls,.xlsx,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+              <input type="file" id="scholarship-file-input" class="visually-hidden"
+                accept=".xls,.xlsx,.pdf,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
               <i class="bi bi-file-earmark-arrow-up display-6 text-success mb-2" aria-hidden="true"></i>
               <p class="fw-semibold mb-1">Drop file here or click to browse</p>
               <p class="text-muted small mb-0">.xls · .xlsx · .pdf — max 10 MB (demo)</p>
@@ -71,19 +138,25 @@
       <div class="col-lg-7">
         <article class="registrar-panel h-100">
           <div class="registrar-panel__body">
-            <h2 class="h6 fw-semibold mb-3"><i class="bi bi-diagram-3 me-2 text-primary" aria-hidden="true"></i>Processing pipeline</h2>
+            <h2 class="h6 fw-semibold mb-3"><i class="bi bi-diagram-3 me-2 text-primary"
+                aria-hidden="true"></i>Processing pipeline</h2>
             <ol class="registrar-scholarship-pipeline list-unstyled mb-4" id="scholarship-pipeline">
-              <li class="registrar-scholarship-pipeline__step is-active" data-step="upload"><span>1</span> Upload document</li>
+              <li class="registrar-scholarship-pipeline__step is-active" data-step="upload"><span>1</span> Upload
+                document</li>
               <li class="registrar-scholarship-pipeline__step" data-step="parse"><span>2</span> Parse &amp; extract</li>
-              <li class="registrar-scholarship-pipeline__step" data-step="validate"><span>3</span> Validate names &amp; slots</li>
-              <li class="registrar-scholarship-pipeline__step" data-step="integrate"><span>4</span> Save scholar records</li>
+              <li class="registrar-scholarship-pipeline__step" data-step="validate"><span>3</span> Validate names &amp;
+                slots</li>
+              <li class="registrar-scholarship-pipeline__step" data-step="integrate"><span>4</span> Save scholar records
+              </li>
             </ol>
 
             <div id="scholarship-parse-status" class="registrar-scholarship-status d-none mb-3"></div>
 
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
               <h3 class="h6 fw-semibold mb-0">Extracted scholars</h3>
-              <input type="search" id="scholarship-row-search" class="form-control form-control-sm registrar-verification-search" placeholder="Filter rows..." disabled style="max-width:14rem" />
+              <input type="search" id="scholarship-row-search"
+                class="form-control form-control-sm registrar-verification-search" placeholder="Filter rows..." disabled
+                style="max-width:14rem" />
             </div>
 
             <div id="scholarship-results-empty" class="text-center text-muted py-4 border rounded-3 bg-light">
@@ -105,31 +178,186 @@
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Tab 2: Scholar Masterlist -->
-  <div class="tab-pane fade" id="tab-masterlist-content" role="tabpanel" aria-labelledby="tab-masterlist-btn">
-    <article class="registrar-panel">
-      <div class="registrar-panel__body">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+<!-- Modal: Manual Scholar Registration / Edit -->
+<div class="modal fade" id="manual-scholar-modal" tabindex="-1" aria-labelledby="manual-scholar-modal-title"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <form id="manual-scholar-form" novalidate>
+        {% csrf_token %}
+        <div class="modal-header border-0 pb-0">
           <div>
-            <h2 class="h6 fw-semibold mb-1"><i class="bi bi-card-checklist me-2 text-primary" aria-hidden="true"></i>Scholar Masterlist</h2>
-            <p class="text-muted small mb-0">All saved and imported scholar records across all batches.</p>
+            <h3 class="modal-title h5 fw-bold mb-1" id="manual-scholar-modal-title">
+              <i class="bi bi-person-plus-fill text-success me-2"></i>Register Scholar Manually
+            </h3>
+            <p class="text-muted small mb-0">Directly enter scholar records without uploading or parsing files.</p>
           </div>
-          <div class="d-flex flex-wrap gap-2">
-            <input type="search" id="masterlist-search" class="form-control form-control-sm" placeholder="Search masterlist..." style="max-width:15rem" />
-          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+        <div class="modal-body pt-3">
+          <input type="hidden" id="scholar-form-record-id" value="">
+          <input type="hidden" id="scholar-form-registration-id" value="">
+          <input type="hidden" id="scholar-form-profile-id" value="">
 
-        <div id="masterlist-table-container" class="table-responsive"></div>
+          <!-- Search & Select from Enrolled Students (Only shows on search, max 5 records to prevent lag) -->
+          <div class="p-3 mb-3 rounded-3 bg-light border position-relative">
+            <label class="form-label fw-semibold small text-uppercase text-muted mb-1" for="scholar-student-search">
+              <i class="bi bi-search me-1"></i>Search Enrolled Student (Auto-fills details)
+            </label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-white border-end-0 text-muted">
+                <i class="bi bi-search" aria-hidden="true"></i>
+              </span>
+              <input type="search" id="scholar-student-search" class="form-control form-control-sm border-start-0"
+                placeholder="Type name, ID, or email to search students..." autocomplete="off" />
+              <button type="button" id="scholar-student-search-clear" class="btn btn-outline-secondary btn-sm d-none"
+                title="Clear search">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
+            </div>
 
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-3 border-top" id="masterlist-pagination-container">
-          <span class="text-muted small" id="masterlist-page-info">Showing 0 to 0 of 0 entries</span>
-          <nav aria-label="Masterlist pagination">
-            <ul class="pagination pagination-sm mb-0" id="masterlist-pagination"></ul>
-          </nav>
+            <!-- Live Dropdown (Displays only when searched, max 5 records to prevent lag) -->
+            <div id="scholar-student-search-results"
+              class="list-group position-absolute start-0 end-0 mt-1 shadow border rounded-3 d-none"
+              style="z-index: 1060; margin-left: 1rem; margin-right: 1rem; max-height: 250px; overflow-y: auto;"></div>
+
+            <!-- Selected Student Banner -->
+            <div id="scholar-student-selected-banner" class="d-none mt-2">
+              <div
+                class="alert alert-success d-flex align-items-center justify-content-between py-2 px-3 mb-0 small rounded-3">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-check-circle-fill text-success fs-6" aria-hidden="true"></i>
+                  <span>Selected: <strong id="scholar-student-selected-name">—</strong> <span
+                      id="scholar-student-selected-prog" class="text-muted ms-1">—</span></span>
+                </div>
+                <button type="button" class="btn btn-sm btn-link text-success p-0 text-decoration-none fw-semibold"
+                  id="scholar-student-change-btn">Change</button>
+              </div>
+            </div>
+
+            <small class="text-muted d-block mt-1">
+              Start typing to search enrolled students. Only displays top 5 matches to prevent lag, or enter details
+              manually below.
+            </small>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-first-name">First Name <span
+                  class="text-danger">*</span></label>
+              <input type="text" id="scholar-form-first-name" class="form-control" required placeholder="e.g. Juan">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-last-name">Last Name <span
+                  class="text-danger">*</span></label>
+              <input type="text" id="scholar-form-last-name" class="form-control" required placeholder="e.g. Dela Cruz">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-email">Email Address</label>
+              <input type="email" id="scholar-form-email" class="form-control" placeholder="e.g. juan@gmail.com">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-program">Course / Program <span
+                  class="text-danger">*</span></label>
+              <select id="scholar-form-program" class="form-select" required>
+                <option value="">-- Select Program --</option>
+                <option value="Driving NC II">Driving NC II</option>
+                <option value="Driving NC III (Passenger Bus / Straight Truck)">Driving NC III (Passenger Bus / Straight
+                  Truck)</option>
+                <option value="Automotive Servicing NC I">Automotive Servicing NC I</option>
+                <option value="Automotive Servicing NC II">Automotive Servicing NC II</option>
+                <option value="Automotive Servicing (Engine Repair) NC II">Automotive Servicing (Engine Repair) NC II
+                </option>
+                <option value="Rice Machinery Operations NC II">Rice Machinery Operations NC II</option>
+                <option value="Assessment">Assessment</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-ay">Academic Year <span
+                  class="text-danger">*</span></label>
+              <select id="scholar-form-ay" class="form-select" required>
+                <option value="AY 2026–2027" selected>AY 2026–2027 (Current)</option>
+                <option value="AY 2025–2026">AY 2025–2026</option>
+                <option value="AY 2027–2028">AY 2027–2028</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-type">Scholarship Type <span
+                  class="text-danger">*</span></label>
+              <select id="scholar-form-type" class="form-select" required>
+                <option value="twsp">TESDA TWSP (Training for Work Scholarship)</option>
+                <option value="step">TESDA STEP (Special Training for Employment)</option>
+                <option value="pesa">PESFA (Private Education Student Financial Assistance)</option>
+                <option value="uaqtea">UAQTEA (Universal Access to Tertiary Education)</option>
+                <option value="lgu">LGU / Provincial Scholarship</option>
+                <option value="industry">Industry Partner Grant</option>
+                <option value="tesda">TESDA Regular Scholarship</option>
+                <option value="others">Other Sponsor</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-sponsor">Sponsor / Funding Agency</label>
+              <input type="text" id="scholar-form-sponsor" class="form-control"
+                placeholder="e.g. TESDA Bohol Provincial Office">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-slot-id">Slot ID / Award No.</label>
+              <input type="text" id="scholar-form-slot-id" class="form-control" placeholder="e.g. TWSP-2026-0042">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-2">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-amount">Grant Coverage / Amount</label>
+              <input type="text" id="scholar-form-amount" class="form-control"
+                placeholder="e.g. 100% Tuition &amp; Allowance">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small" for="scholar-form-bday">Birth Date</label>
+              <input type="date" id="scholar-form-bday" class="form-control">
+            </div>
+          </div>
+
+          <div id="scholar-form-alert" class="alert d-none mt-3 mb-0" role="alert"></div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="scholar-form-submit-btn" class="btn btn-success fw-semibold px-4">
+            <i class="bi bi-check2-circle me-1"></i>Save Scholar Record
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirm Delete Scholar -->
+<div class="modal fade" id="delete-scholar-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-body text-center p-4">
+        <i class="bi bi-exclamation-triangle-fill text-danger display-5 mb-3 d-block"></i>
+        <h4 class="h6 fw-bold mb-2">Remove Scholar Record?</h4>
+        <p class="text-muted small mb-4" id="delete-scholar-msg">Are you sure you want to remove this scholar record?
+        </p>
+        <div class="d-flex justify-content-center gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="confirm-delete-scholar-btn"
+            class="btn btn-danger btn-sm px-3 fw-semibold">Remove</button>
         </div>
       </div>
-    </article>
+    </div>
   </div>
 </div>
 

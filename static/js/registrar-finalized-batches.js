@@ -250,6 +250,10 @@ document.addEventListener(
 
     let courseFilter = "";
 
+    let ayFilter = "";
+
+    let termFilter = "";
+
     /*
      * IMPORTANT:
      * The backend now returns:
@@ -308,6 +312,30 @@ document.addEventListener(
             b.courseName !== courseFilter
           ) {
             return false;
+          }
+
+
+          /*
+           * Filter by Academic Year.
+           */
+          if (ayFilter) {
+            const batchAy = (b.academicYear || "AY 2026–2027").toLowerCase().replace("–", "-");
+            const filterAy = ayFilter.toLowerCase().replace("–", "-");
+            if (!batchAy.includes(filterAy)) {
+              return false;
+            }
+          }
+
+
+          /*
+           * Filter by Term / Semester.
+           */
+          if (termFilter) {
+            const batchTerm = (b.term || "1st Semester").toLowerCase();
+            const filterTerm = termFilter.toLowerCase();
+            if (!batchTerm.includes(filterTerm)) {
+              return false;
+            }
           }
 
 
@@ -755,6 +783,14 @@ document.addEventListener(
 
           ${badge}
 
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-medium">
+              <i class="bi bi-calendar-event me-1"></i>${escapeHtml(batch.academicYear || "AY 2026–2027")}
+            </span>
+            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-medium">
+              ${escapeHtml(batch.term || "1st Semester")}
+            </span>
+          </div>
 
           <h3 class="registrar-finalized-card__course">
 
@@ -966,31 +1002,45 @@ document.addEventListener(
                 </td>
 
                 <td>
-                  ${escapeHtml(
+                  <strong>${escapeHtml(
                     s.lastName ||
                     ""
-                  )}
+                  )}</strong>
                 </td>
 
                 <td>
-                  ${escapeHtml(
+                  <strong>${escapeHtml(
                     s.firstName ||
                     ""
-                  )}
+                  )}</strong>
                 </td>
 
                 <td>
-                  ${escapeHtml(
+                  <span class="badge text-bg-light border">${escapeHtml(
                     s.program ||
                     ""
-                  )}
+                  )}</span>
                 </td>
 
                 <td>
-                  ${escapeHtml(
-                    s.competencyStatus ||
-                    "Not Yet Competent"
-                  )}
+                  ${
+                    s.override
+                      ? '<span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="bi bi-shield-lock me-1"></i>Manual Override</span>'
+                      : '<span class="badge text-bg-light text-muted border">Standard</span>'
+                  }
+                </td>
+
+                <td class="text-end">
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm p-1 px-2 override-remove-btn"
+                    data-template-id="${escapeHtml(batch.id)}"
+                    data-first="${escapeHtml(s.firstName || "")}"
+                    data-last="${escapeHtml(s.lastName || "")}"
+                    title="Remove from batch (Override)"
+                  >
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
                 </td>
 
               </tr>
@@ -1071,7 +1121,27 @@ document.addEventListener(
               >
 
                 <label>
-                  Batch
+                  Academic Year
+                </label>
+
+                <p>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    ${escapeHtml(batch.academicYear || "AY 2026–2027")}
+                  </span>
+                  <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1">
+                    ${escapeHtml(batch.term || "1st Semester")}
+                  </span>
+                </p>
+
+              </div>
+
+
+              <div
+                class="registrar-student-detail__field"
+              >
+
+                <label>
+                  Batch Identifier
                 </label>
 
                 <p>
@@ -1256,6 +1326,10 @@ document.addEventListener(
                       Status
                     </th>
 
+                    <th class="text-end">
+                      Action
+                    </th>
+
                   </tr>
 
                 </thead>
@@ -1296,12 +1370,21 @@ document.addEventListener(
        * Modal footer.
        */
       if (modalFooterEl) {
-
-        modalFooterEl.innerHTML =
-
-          isActive
-
-            ? `
+        modalFooterEl.innerHTML = `
+          <div class="d-flex w-100 justify-content-between align-items-center">
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm"
+              id="finalized-override-open-btn"
+              data-template-id="${escapeHtml(batch.id)}"
+              data-batch-name="${escapeHtml(batch.batchLabel || batch.batchName || "")}"
+              data-course-id="${escapeHtml(batch.courseId || "")}"
+              data-course-name="${escapeHtml(batch.courseName || "")}"
+            >
+              <i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i>
+              Insert Student (Override)
+            </button>
+            <div class="d-flex gap-2">
               <button
                 type="button"
                 class="btn btn-outline-secondary px-4"
@@ -1309,36 +1392,28 @@ document.addEventListener(
               >
                 Close
               </button>
-            `
-
-            : `
-
-              <button
-                type="button"
-                class="btn btn-outline-secondary px-4"
-                data-bs-dismiss="modal"
-              >
-                Close
-              </button>
-
-
-              <a
-                href="${editUrl(batch)}"
-                class="btn btn-outline-dark px-4"
-              >
-                Edit schedule
-              </a>
-
-
-              <button
-                type="button"
-                class="btn btn-success px-4 finalized-finalize-btn"
-                data-id="${escapeHtml(batch.id)}"
-              >
-                Activate batch
-              </button>
-
-            `;
+              ${
+                isActive
+                  ? ""
+                  : `
+                    <a
+                      href="${editUrl(batch)}"
+                      class="btn btn-outline-dark px-4"
+                    >
+                      Edit schedule
+                    </a>
+                    <button
+                      type="button"
+                      class="btn btn-success px-4 finalized-finalize-btn"
+                      data-id="${escapeHtml(batch.id)}"
+                    >
+                      Activate batch
+                    </button>
+                  `
+              }
+            </div>
+          </div>
+        `;
       }
 
 
@@ -1832,6 +1907,224 @@ document.addEventListener(
       }
     );
 
+
+    const ayFilterEl =
+      document.getElementById(
+        "finalized-ay-filter"
+      );
+
+    const termFilterEl =
+      document.getElementById(
+        "finalized-term-filter"
+      );
+
+    ayFilterEl?.addEventListener(
+      "change",
+      (e) => {
+        ayFilter = e.target.value;
+        render();
+      }
+    );
+
+    termFilterEl?.addEventListener(
+      "change",
+      (e) => {
+        termFilter = e.target.value;
+        render();
+      }
+    );
+
+    // -------------------------------------------------------------
+    // FINALIZED BATCH OVERRIDE MODAL & ACTIONS
+    // -------------------------------------------------------------
+    let currentModalBatch = null;
+
+    const finalizedOverrideModalEl =
+      document.getElementById(
+        "finalized-override-modal"
+      );
+
+    const finalizedOverrideModal =
+      finalizedOverrideModalEl && window.bootstrap
+        ? bootstrap.Modal.getOrCreateInstance(
+            finalizedOverrideModalEl
+          )
+        : null;
+
+    const finalizedOverrideSearchEl =
+      document.getElementById(
+        "finalized-override-search"
+      );
+
+    const finalizedOverrideListEl =
+      document.getElementById(
+        "finalized-override-students-list"
+      );
+
+    async function loadFinalizedOverrideCandidates(q = "") {
+      if (!finalizedOverrideListEl) return;
+      finalizedOverrideListEl.innerHTML =
+        '<tr><td colspan="5" class="text-center text-muted py-3"><i class="bi bi-hourglass-split me-1"></i>Searching students...</td></tr>';
+      try {
+        const res = await fetch(
+          `/registrar/api/batching/override-candidates/?q=${encodeURIComponent(
+            q
+          )}`
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load candidates.");
+        const students = data.students || [];
+
+        if (!students.length) {
+          finalizedOverrideListEl.innerHTML =
+            '<tr><td colspan="5" class="text-center text-muted py-3">No matching students found.</td></tr>';
+          return;
+        }
+
+        finalizedOverrideListEl.innerHTML = students
+          .map(
+            (s) => `
+          <tr>
+            <td class="fw-bold">${escapeHtml(s.fullName)}</td>
+            <td><code class="text-muted">${escapeHtml(s.studentId || "—")}</code></td>
+            <td><span class="badge text-bg-light border">${escapeHtml(s.program || "—")}</span></td>
+            <td>
+              ${
+                s.currentBatch
+                  ? `<span class="badge text-bg-info text-dark">${escapeHtml(
+                      s.currentBatch
+                    )}</span>`
+                  : '<span class="badge text-bg-secondary">Unassigned</span>'
+              }
+            </td>
+            <td class="text-end">
+              <button type="button" class="btn btn-primary btn-sm px-2 finalized-override-insert-btn"
+                data-regid="${escapeHtml(s.registrationId || "")}"
+                data-profid="${escapeHtml(s.profileId || "")}"
+                data-first="${escapeHtml(s.firstName)}"
+                data-last="${escapeHtml(s.lastName)}"
+                data-prog="${escapeHtml(s.program)}"
+                data-progtype="${escapeHtml(s.programType || "training")}">
+                <i class="bi bi-plus-circle me-1"></i>Insert into Batch
+              </button>
+            </td>
+          </tr>`
+          )
+          .join("");
+      } catch (err) {
+        finalizedOverrideListEl.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">${escapeHtml(
+          err.message
+        )}</td></tr>`;
+      }
+    }
+
+    document.addEventListener("click", (e) => {
+      const openBtn = e.target.closest("#finalized-override-open-btn");
+      if (openBtn) {
+        currentModalBatch = openBtn.dataset.templateId;
+        if (finalizedOverrideSearchEl) finalizedOverrideSearchEl.value = "";
+        loadFinalizedOverrideCandidates("");
+        finalizedOverrideModal?.show();
+        return;
+      }
+
+      const removeBtn = e.target.closest(".override-remove-btn");
+      if (removeBtn) {
+        const templateId = removeBtn.dataset.templateId;
+        const firstName = removeBtn.dataset.first;
+        const lastName = removeBtn.dataset.last;
+        if (
+          !confirm(
+            `Are you sure you want to remove ${firstName} ${lastName} from this batch?`
+          )
+        ) {
+          return;
+        }
+
+        removeBtn.disabled = true;
+        fetch("/registrar/api/batching/override-remove/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCsrfToken(),
+          },
+          body: JSON.stringify({
+            templateId,
+            firstName,
+            lastName,
+          }),
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data.ok) throw new Error(data.error || "Failed to remove student.");
+            // Update local batch
+            const idx = allBatches.findIndex((b) => String(b.id) === String(templateId));
+            if (idx !== -1 && data.batch) {
+              allBatches[idx] = data.batch;
+              openBatchModal(data.batch);
+            }
+            render();
+          })
+          .catch((err) => {
+            alert(err.message || "Failed to remove student.");
+            removeBtn.disabled = false;
+          });
+      }
+    });
+
+    finalizedOverrideSearchEl?.addEventListener("input", (e) => {
+      loadFinalizedOverrideCandidates(e.target.value);
+    });
+
+    finalizedOverrideListEl?.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".finalized-override-insert-btn");
+      if (!btn) return;
+      btn.disabled = true;
+
+      const student = {
+        firstName: btn.dataset.first,
+        lastName: btn.dataset.last,
+        registrationId: btn.dataset.regid,
+        profileId: btn.dataset.profid,
+        program: btn.dataset.prog,
+        programType: btn.dataset.progtype,
+      };
+
+      if (!currentModalBatch) {
+        alert("Batch not found.");
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch("/registrar/api/batching/override-insert/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCsrfToken(),
+          },
+          body: JSON.stringify({
+            templateId: currentModalBatch,
+            student,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to insert student.");
+
+        finalizedOverrideModal?.hide();
+        // Update batch locally and in modal
+        const idx = allBatches.findIndex((b) => String(b.id) === String(currentModalBatch));
+        if (idx !== -1 && data.batch) {
+          allBatches[idx] = data.batch;
+          openBatchModal(data.batch);
+        }
+        render();
+        alert(data.message || "Student inserted into batch successfully.");
+      } catch (err) {
+        alert(err.message || "Failed to insert student.");
+        btn.disabled = false;
+      }
+    });
 
     /*
     |--------------------------------------------------------------------------

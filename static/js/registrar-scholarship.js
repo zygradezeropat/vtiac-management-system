@@ -31,6 +31,8 @@ function loadMasterlistRecords() {
 
 let MASTERLIST_RECORDS = loadMasterlistRecords();
 let masterlistFilter = "";
+let masterlistAyFilter = "AY 2026–2027";
+let masterlistTypeFilter = "";
 let masterlistPage = 1;
 const MASTERLIST_PAGE_SIZE = 10;
 
@@ -442,17 +444,86 @@ function saveIntegrations(list) {
 
 function filteredMasterlist() {
   const q = masterlistFilter.trim().toLowerCase();
-  if (!q) return MASTERLIST_RECORDS;
-  return MASTERLIST_RECORDS.filter(
-    (r) =>
-      (r.scholarName && r.scholarName.toLowerCase().includes(q)) ||
-      (r.lastName && r.lastName.toLowerCase().includes(q)) ||
-      (r.firstName && r.firstName.toLowerCase().includes(q)) ||
-      (r.email && r.email.toLowerCase().includes(q)) ||
-      (r.program && r.program.toLowerCase().includes(q)) ||
-      (r.sponsor && r.sponsor.toLowerCase().includes(q)) ||
-      (r.slotId && r.slotId.toLowerCase().includes(q))
-  );
+  const ay = masterlistAyFilter.trim().toLowerCase();
+  const stype = masterlistTypeFilter.trim().toLowerCase();
+
+  return MASTERLIST_RECORDS.filter((r) => {
+    if (ay) {
+      const recordAy = (r.academicYear || "ay 2026–2027").toLowerCase();
+      // Handle en-dash vs hyphen
+      const cleanAy = ay.replace("–", "-");
+      const cleanRecordAy = recordAy.replace("–", "-");
+      if (!cleanRecordAy.includes(cleanAy)) return false;
+    }
+
+    if (stype) {
+      const recordType = (r.scholarshipType || "").toLowerCase();
+      if (!recordType.includes(stype) && !stype.includes(recordType)) return false;
+    }
+
+    if (q) {
+      const match =
+        (r.scholarName && r.scholarName.toLowerCase().includes(q)) ||
+        (r.lastName && r.lastName.toLowerCase().includes(q)) ||
+        (r.firstName && r.firstName.toLowerCase().includes(q)) ||
+        (r.email && r.email.toLowerCase().includes(q)) ||
+        (r.program && r.program.toLowerCase().includes(q)) ||
+        (r.sponsor && r.sponsor.toLowerCase().includes(q)) ||
+        (r.slotId && r.slotId.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+
+    return true;
+  });
+}
+
+function renderMasterlistStats() {
+  const statsContainer = document.getElementById("masterlist-stats");
+  const headerTotal = document.getElementById("scholarship-total-count");
+
+  const total = MASTERLIST_RECORDS.length;
+  const linked = MASTERLIST_RECORDS.filter((r) => r.isLinked).length;
+  const ayCurrent = MASTERLIST_RECORDS.filter((r) => {
+    const ay = (r.academicYear || "").replace("–", "-");
+    return ay.includes("2026-2027") || !r.academicYear;
+  }).length;
+  const tesdaGrants = MASTERLIST_RECORDS.filter((r) => {
+    const t = (r.scholarshipType || "").toLowerCase();
+    const s = (r.sponsor || "").toLowerCase();
+    return t.includes("tesda") || t.includes("twsp") || t.includes("step") || t.includes("pesa") || t.includes("uaqtea") || s.includes("tesda");
+  }).length;
+
+  if (headerTotal) {
+    headerTotal.textContent = String(total);
+  }
+
+  if (!statsContainer) return;
+
+  statsContainer.innerHTML = `
+    <div class="col-6 col-md-3">
+      <div class="registrar-finalized-stat">
+        <span class="registrar-finalized-stat__value text-success">${total}</span>
+        <span class="registrar-finalized-stat__label">Total Scholars</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="registrar-finalized-stat">
+        <span class="registrar-finalized-stat__value text-primary">${linked}</span>
+        <span class="registrar-finalized-stat__label">Linked Students</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="registrar-finalized-stat">
+        <span class="registrar-finalized-stat__value text-info">${ayCurrent}</span>
+        <span class="registrar-finalized-stat__label">AY 2026–2027</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="registrar-finalized-stat">
+        <span class="registrar-finalized-stat__value text-warning-emphasis">${tesdaGrants}</span>
+        <span class="registrar-finalized-stat__label">TESDA &amp; Partner Grants</span>
+      </div>
+    </div>`;
 }
 
 function renderMasterlist() {
@@ -460,6 +531,8 @@ function renderMasterlist() {
   const infoEl = document.getElementById("masterlist-page-info");
   const paginationEl = document.getElementById("masterlist-pagination");
   if (!container) return;
+
+  renderMasterlistStats();
 
   const records = filteredMasterlist();
   const total = records.length;
@@ -472,9 +545,13 @@ function renderMasterlist() {
 
   if (records.length === 0) {
     container.innerHTML = `
-      <div class="text-center text-muted py-4 border rounded-3 bg-light">
-        <i class="bi bi-inbox opacity-50 fs-2" aria-hidden="true"></i>
-        <p class="small mb-0 mt-2">No scholar records saved yet. Import a sponsor file to see masterlist records.</p>
+      <div class="text-center text-muted py-5 border rounded-3 bg-light">
+        <i class="bi bi-mortarboard opacity-50 display-6 text-success" aria-hidden="true"></i>
+        <h4 class="h6 fw-bold mt-3 mb-1">No scholar records found</h4>
+        <p class="small text-muted mb-3">No scholars match the current filters. You can register a scholar manually without parsing files.</p>
+        <button type="button" class="btn btn-success btn-sm fw-semibold px-3" onclick="document.getElementById('header-add-scholar-btn')?.click()">
+          <i class="bi bi-person-plus-fill me-1"></i>+ Register Scholar Manually
+        </button>
       </div>`;
     if (infoEl) infoEl.textContent = "Showing 0 to 0 of 0 records";
     if (paginationEl) paginationEl.innerHTML = "";
@@ -483,34 +560,68 @@ function renderMasterlist() {
 
   const rowsHtml = pageRecords
     .map(
-      (r) => `
+      (r, idx) => `
     <tr>
-      <td class="fw-semibold text-muted">${escapeHtml(r.no || "—")}</td>
-      <td class="fw-medium">${escapeHtml(r.lastName || "—")}</td>
-      <td class="fw-medium">${escapeHtml(r.firstName || "—")}</td>
-      <td>${escapeHtml(r.middleName || "—")}</td>
-      <td><small class="text-muted">${escapeHtml(r.birthDate || "—")}</small></td>
-      <td><small class="text-muted">${escapeHtml(r.address || "—")}</small></td>
-      <td><small>${escapeHtml(r.email || "—")}</small></td>
-      <td><span class="badge text-bg-light text-dark border">${escapeHtml(r.sponsor || "—")}</span></td>
-      <td>${r.isLinked ? '<span class="badge text-bg-success"><i class="bi bi-person-check-fill me-1"></i>Enrolled Student</span>' : '<span class="badge text-bg-secondary"><i class="bi bi-person-plus me-1"></i>Scholar Record</span>'}</td>
+      <td class="fw-semibold text-muted text-center" style="width:3rem">${startIdx + idx + 1}</td>
+      <td>
+        <div class="fw-bold text-dark">${escapeHtml(r.scholarName || `${r.firstName || ""} ${r.lastName || ""}`.trim() || "Scholar")}</div>
+        ${r.email && r.email !== "—" ? `<div class="text-muted small">${escapeHtml(r.email)}</div>` : ""}
+      </td>
+      <td>
+        <span class="badge text-bg-light border text-wrap text-start">${escapeHtml(r.program || "—")}</span>
+      </td>
+      <td>
+        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle fw-semibold">
+          <i class="bi bi-award-fill me-1"></i>${escapeHtml(r.scholarshipLabel || r.scholarshipType?.toUpperCase() || "Scholar")}
+        </span>
+      </td>
+      <td>
+        <span class="small fw-medium">${escapeHtml(r.sponsor || "Scholarship Grant")}</span>
+      </td>
+      <td>
+        <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">
+          ${escapeHtml(r.academicYear || "AY 2026–2027")}
+        </span>
+      </td>
+      <td>
+        <code class="small text-muted">${escapeHtml(r.slotId || "—")}</code>
+      </td>
+      <td>
+        <span class="small text-muted">${escapeHtml(r.amount || "Full Coverage")}</span>
+      </td>
+      <td>
+        ${
+          r.isLinked
+            ? '<span class="badge text-bg-success"><i class="bi bi-person-check-fill me-1"></i>Enrolled</span>'
+            : '<span class="badge text-bg-secondary"><i class="bi bi-person-fill me-1"></i>Scholar</span>'
+        }
+      </td>
+      <td class="text-end text-nowrap">
+        <button type="button" class="btn btn-outline-primary btn-sm p-1 px-2 edit-scholar-btn" data-record-id="${r.id}" title="Edit scholar record">
+          <i class="bi bi-pencil-square" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm p-1 px-2 delete-scholar-btn" data-record-id="${r.id}" data-scholar-name="${escapeHtml(r.scholarName || "")}" title="Remove scholar">
+          <i class="bi bi-trash" aria-hidden="true"></i>
+        </button>
+      </td>
     </tr>`
     )
     .join("");
 
   container.innerHTML = `
-    <table class="table registrar-table registrar-scholarship-table mb-0" style="font-size:0.875rem">
-      <thead>
+    <table class="table table-hover registrar-table registrar-scholarship-table align-middle mb-0" style="font-size:0.875rem">
+      <thead class="table-light">
         <tr>
-          <th>No.</th>
-          <th>Last Name</th>
-          <th>First Name</th>
-          <th>Middle Name</th>
-          <th>Birthdate</th>
-          <th>Address</th>
-          <th>Email</th>
+          <th class="text-center" style="width:3rem">#</th>
+          <th>Scholar Name</th>
+          <th>Course / Program</th>
+          <th>Grant Type</th>
           <th>Sponsor</th>
+          <th>Academic Year</th>
+          <th>Slot ID</th>
+          <th>Coverage</th>
           <th>Status</th>
+          <th class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -955,6 +1066,370 @@ document.addEventListener("DOMContentLoaded", () => {
     masterlistFilter = e.target.value;
     masterlistPage = 1;
     renderMasterlist();
+  });
+
+  const masterlistAyFilterEl = document.getElementById("masterlist-ay-filter");
+  masterlistAyFilterEl?.addEventListener("change", (e) => {
+    masterlistAyFilter = e.target.value;
+    masterlistPage = 1;
+    renderMasterlist();
+  });
+
+  const masterlistTypeFilterEl = document.getElementById("masterlist-type-filter");
+  masterlistTypeFilterEl?.addEventListener("change", (e) => {
+    masterlistTypeFilter = e.target.value;
+    masterlistPage = 1;
+    renderMasterlist();
+  });
+
+  // -------------------------------------------------------------
+  // MANUAL SCHOLAR REGISTRATION & EDIT MODAL
+  // -------------------------------------------------------------
+  const scholarModalEl = document.getElementById("manual-scholar-modal");
+  const scholarModal = scholarModalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(scholarModalEl) : null;
+  const scholarForm = document.getElementById("manual-scholar-form");
+  const scholarAlert = document.getElementById("scholar-form-alert");
+  const studentSearchInput = document.getElementById("scholar-student-search");
+  const studentSearchResults = document.getElementById("scholar-student-search-results");
+  const studentSearchClearBtn = document.getElementById("scholar-student-search-clear");
+  const studentSelectedBanner = document.getElementById("scholar-student-selected-banner");
+  const studentSelectedName = document.getElementById("scholar-student-selected-name");
+  const studentSelectedProg = document.getElementById("scholar-student-selected-prog");
+  const studentChangeBtn = document.getElementById("scholar-student-change-btn");
+
+  function clearSelectedStudent() {
+    if (studentSearchInput) studentSearchInput.value = "";
+    if (studentSearchClearBtn) studentSearchClearBtn.classList.add("d-none");
+    if (studentSearchResults) {
+      studentSearchResults.innerHTML = "";
+      studentSearchResults.classList.add("d-none");
+      delete studentSearchResults._currentMatches;
+    }
+    if (studentSelectedBanner) studentSelectedBanner.classList.add("d-none");
+    const regInput = document.getElementById("scholar-form-registration-id");
+    const profInput = document.getElementById("scholar-form-profile-id");
+    if (regInput) regInput.value = "";
+    if (profInput) profInput.value = "";
+  }
+
+  function handleStudentSearch(query) {
+    if (!studentSearchResults) return;
+    const q = (query || "").trim().toLowerCase();
+
+    // Only display once searched
+    if (!q) {
+      studentSearchResults.innerHTML = "";
+      studentSearchResults.classList.add("d-none");
+      if (studentSearchClearBtn) studentSearchClearBtn.classList.add("d-none");
+      return;
+    }
+
+    if (studentSearchClearBtn) studentSearchClearBtn.classList.remove("d-none");
+
+    const registry = Array.isArray(STUDENT_REGISTRY) ? STUDENT_REGISTRY : [];
+    const matches = [];
+
+    for (let i = 0; i < registry.length; i++) {
+      const s = registry[i];
+      const name = (s.name || `${s.firstName || ""} ${s.lastName || ""}`).toLowerCase();
+      const id = (s.studentId || "").toLowerCase();
+      const email = (s.email || "").toLowerCase();
+      const prog = (s.program || "").toLowerCase();
+
+      if (name.includes(q) || id.includes(q) || email.includes(q) || prog.includes(q)) {
+        matches.push(s);
+        // Display maximum 5 records to prevent lag
+        if (matches.length >= 5) break;
+      }
+    }
+
+    if (!matches.length) {
+      studentSearchResults.innerHTML = `
+        <div class="list-group-item text-muted small py-2 px-3">
+          <i class="bi bi-info-circle me-1"></i>No matching enrolled students found for "<strong>${escapeHtml(q)}</strong>". You can enter details manually below.
+        </div>
+      `;
+      studentSearchResults.classList.remove("d-none");
+      studentSearchResults._currentMatches = [];
+      return;
+    }
+
+    studentSearchResults.innerHTML = matches
+      .map(
+        (s, idx) => `
+        <button type="button" class="list-group-item list-group-item-action py-2 px-3 d-flex align-items-center justify-content-between text-start student-search-result-item" data-index="${idx}">
+          <div>
+            <div class="fw-bold text-dark mb-0">${escapeHtml(s.name)}</div>
+            <small class="text-muted d-block">
+              <span class="badge text-bg-light border me-1">${escapeHtml(s.program || "Student")}</span>
+              <code>${escapeHtml(s.studentId || s.email || "")}</code>
+            </small>
+          </div>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+            <i class="bi bi-arrow-down-left me-1"></i>Select
+          </span>
+        </button>
+      `
+      )
+      .join("");
+
+    studentSearchResults._currentMatches = matches;
+    studentSearchResults.classList.remove("d-none");
+  }
+
+  function resetScholarForm() {
+    if (scholarForm) scholarForm.reset();
+    document.getElementById("scholar-form-record-id").value = "";
+    clearSelectedStudent();
+    if (scholarAlert) scholarAlert.classList.add("d-none");
+    const titleEl = document.getElementById("manual-scholar-modal-title");
+    if (titleEl) {
+      titleEl.innerHTML = '<i class="bi bi-person-plus-fill text-success me-2"></i>Register Scholar Manually';
+    }
+  }
+
+  // Live search events
+  studentSearchInput?.addEventListener("input", (e) => {
+    handleStudentSearch(e.target.value);
+  });
+
+  studentSearchInput?.addEventListener("focus", (e) => {
+    if (e.target.value.trim()) {
+      handleStudentSearch(e.target.value);
+    }
+  });
+
+  studentSearchClearBtn?.addEventListener("click", () => {
+    clearSelectedStudent();
+    studentSearchInput?.focus();
+  });
+
+  studentChangeBtn?.addEventListener("click", () => {
+    clearSelectedStudent();
+    studentSearchInput?.focus();
+  });
+
+  // Select student from search results
+  studentSearchResults?.addEventListener("click", (e) => {
+    const item = e.target.closest(".student-search-result-item");
+    if (!item) return;
+    const idx = parseInt(item.dataset.index, 10);
+    const matches = studentSearchResults._currentMatches || [];
+    const s = matches[idx];
+    if (!s) return;
+
+    const firstInput = document.getElementById("scholar-form-first-name");
+    const lastInput = document.getElementById("scholar-form-last-name");
+    const emailInput = document.getElementById("scholar-form-email");
+    const progInput = document.getElementById("scholar-form-program");
+    const bdayInput = document.getElementById("scholar-form-bday");
+    const regInput = document.getElementById("scholar-form-registration-id");
+    const profInput = document.getElementById("scholar-form-profile-id");
+
+    if (firstInput) firstInput.value = s.firstName || (s.name ? s.name.split(" ")[0] : "");
+    if (lastInput) lastInput.value = s.lastName || (s.name ? s.name.split(" ").slice(-1)[0] : "");
+    if (emailInput) emailInput.value = s.email || "";
+    if (progInput && s.program) progInput.value = s.program;
+    if (bdayInput && s.birthDate) bdayInput.value = normalizeDateStr(s.birthDate) || s.birthDate;
+    if (regInput) regInput.value = s.registrationId || "";
+    if (profInput) profInput.value = s.profileId || "";
+
+    if (studentSelectedName) studentSelectedName.textContent = s.name;
+    if (studentSelectedProg) studentSelectedProg.textContent = s.program ? `(${s.program})` : "";
+    if (studentSelectedBanner) studentSelectedBanner.classList.remove("d-none");
+
+    if (studentSearchInput) studentSearchInput.value = s.name;
+    if (studentSearchResults) {
+      studentSearchResults.innerHTML = "";
+      studentSearchResults.classList.add("d-none");
+    }
+  });
+
+  // Close search results on outside click
+  document.addEventListener("click", (e) => {
+    if (
+      studentSearchResults &&
+      !studentSearchResults.contains(e.target) &&
+      e.target !== studentSearchInput &&
+      !studentSearchInput?.contains(e.target)
+    ) {
+      studentSearchResults.classList.add("d-none");
+    }
+  });
+
+  const openAddScholar = () => {
+    resetScholarForm();
+    scholarModal?.show();
+  };
+
+  document.getElementById("header-add-scholar-btn")?.addEventListener("click", openAddScholar);
+  document.getElementById("panel-add-scholar-btn")?.addEventListener("click", openAddScholar);
+
+  // Handle form submission
+  scholarForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById("scholar-form-submit-btn");
+    if (scholarAlert) scholarAlert.classList.add("d-none");
+    if (submitBtn) submitBtn.disabled = true;
+
+    const recordId = document.getElementById("scholar-form-record-id")?.value.trim() || "";
+    const registrationId = document.getElementById("scholar-form-registration-id")?.value.trim() || "";
+    const profileId = document.getElementById("scholar-form-profile-id")?.value.trim() || "";
+    const firstName = document.getElementById("scholar-form-first-name")?.value.trim() || "";
+    const lastName = document.getElementById("scholar-form-last-name")?.value.trim() || "";
+    const email = document.getElementById("scholar-form-email")?.value.trim() || "";
+    const program = document.getElementById("scholar-form-program")?.value.trim() || "";
+    const academicYear = document.getElementById("scholar-form-ay")?.value.trim() || "AY 2026–2027";
+    const scholarshipType = document.getElementById("scholar-form-type")?.value.trim() || "twsp";
+    const sponsorName = document.getElementById("scholar-form-sponsor")?.value.trim() || "";
+    const slotId = document.getElementById("scholar-form-slot-id")?.value.trim() || "";
+    const amount = document.getElementById("scholar-form-amount")?.value.trim() || "";
+    const birthDate = document.getElementById("scholar-form-bday")?.value.trim() || "";
+
+    if (!firstName || !lastName || !program) {
+      if (scholarAlert) {
+        scholarAlert.className = "alert alert-danger mt-3 mb-0";
+        scholarAlert.textContent = "Please fill in all required fields (First Name, Last Name, Program).";
+        scholarAlert.classList.remove("d-none");
+      }
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+
+    try {
+      const res = await fetch("/registrar/api/scholarship/manual-entry/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrfToken(),
+        },
+        body: JSON.stringify({
+          recordId,
+          registrationId,
+          profileId,
+          firstName,
+          lastName,
+          email,
+          program,
+          academicYear,
+          scholarshipType,
+          sponsorName,
+          slotId,
+          amount,
+          birthDate,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message || "Failed to save scholar.");
+      }
+
+      if (recordId) {
+        const idx = MASTERLIST_RECORDS.findIndex((r) => String(r.id) === String(recordId));
+        if (idx !== -1) {
+          MASTERLIST_RECORDS[idx] = data.record;
+        } else {
+          MASTERLIST_RECORDS.unshift(data.record);
+        }
+      } else {
+        MASTERLIST_RECORDS.unshift(data.record);
+      }
+
+      scholarModal?.hide();
+      renderMasterlist();
+    } catch (err) {
+      if (scholarAlert) {
+        scholarAlert.className = "alert alert-danger mt-3 mb-0";
+        scholarAlert.textContent = err.message || "An error occurred while saving the scholar.";
+        scholarAlert.classList.remove("d-none");
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
+  // Table row action delegation (Edit & Delete)
+  let targetDeleteRecordId = null;
+  const deleteModalEl = document.getElementById("delete-scholar-modal");
+  const deleteModal = deleteModalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(deleteModalEl) : null;
+
+  document.getElementById("masterlist-table-container")?.addEventListener("click", (e) => {
+    const editBtn = e.target.closest(".edit-scholar-btn");
+    if (editBtn) {
+      const id = editBtn.dataset.recordId;
+      const rec = MASTERLIST_RECORDS.find((r) => String(r.id) === String(id));
+      if (!rec) return;
+
+      resetScholarForm();
+      document.getElementById("scholar-form-record-id").value = rec.id || "";
+      document.getElementById("scholar-form-first-name").value = rec.firstName !== "—" ? rec.firstName : rec.scholarName?.split(" ")?.[0] || "";
+      document.getElementById("scholar-form-last-name").value = rec.lastName !== "—" ? rec.lastName : rec.scholarName?.split(" ")?.slice(-1)?.[0] || "";
+      document.getElementById("scholar-form-email").value = rec.email !== "—" ? rec.email : "";
+      document.getElementById("scholar-form-program").value = rec.program !== "—" ? rec.program : "";
+      document.getElementById("scholar-form-ay").value = rec.academicYear || "AY 2026–2027";
+      document.getElementById("scholar-form-type").value = rec.scholarshipType || "twsp";
+      document.getElementById("scholar-form-sponsor").value = rec.sponsor !== "—" ? rec.sponsor : "";
+      document.getElementById("scholar-form-slot-id").value = rec.slotId !== "—" ? rec.slotId : "";
+      document.getElementById("scholar-form-amount").value = rec.amount !== "—" ? rec.amount : "";
+      if (rec.birthDate && rec.birthDate !== "—") {
+        document.getElementById("scholar-form-bday").value = rec.birthDate;
+      }
+      if (studentSelectedName && rec.scholarName && rec.scholarName !== "—") {
+        studentSelectedName.textContent = rec.scholarName;
+        if (studentSelectedProg) {
+          studentSelectedProg.textContent = rec.program && rec.program !== "—" ? `(${rec.program})` : "";
+        }
+        studentSelectedBanner?.classList.remove("d-none");
+        if (studentSearchInput) studentSearchInput.value = rec.scholarName;
+      }
+
+      const titleEl = document.getElementById("manual-scholar-modal-title");
+      if (titleEl) {
+        titleEl.innerHTML = '<i class="bi bi-pencil-square text-primary me-2"></i>Edit Scholar Record';
+      }
+      scholarModal?.show();
+      return;
+    }
+
+    const delBtn = e.target.closest(".delete-scholar-btn");
+    if (delBtn) {
+      const id = delBtn.dataset.recordId;
+      const name = delBtn.dataset.scholarName;
+      targetDeleteRecordId = id;
+      const msgEl = document.getElementById("delete-scholar-msg");
+      if (msgEl) {
+        msgEl.textContent = `Are you sure you want to remove ${name || "this scholar"} from the scholarship masterlist?`;
+      }
+      deleteModal?.show();
+    }
+  });
+
+  document.getElementById("confirm-delete-scholar-btn")?.addEventListener("click", async () => {
+    if (!targetDeleteRecordId) return;
+    const confirmBtn = document.getElementById("confirm-delete-scholar-btn");
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    try {
+      const res = await fetch("/registrar/api/scholarship/delete/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCsrfToken(),
+        },
+        body: JSON.stringify({ recordId: targetDeleteRecordId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to remove scholar.");
+
+      MASTERLIST_RECORDS = MASTERLIST_RECORDS.filter((r) => String(r.id) !== String(targetDeleteRecordId));
+      deleteModal?.hide();
+      renderMasterlist();
+    } catch (err) {
+      alert(err.message || "Failed to remove scholar record.");
+    } finally {
+      if (confirmBtn) confirmBtn.disabled = false;
+    }
   });
 
   renderResults();

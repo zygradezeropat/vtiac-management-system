@@ -97,6 +97,9 @@ export function templateDisplayTitle(template) {
 export function createEmptyTemplateForm() {
   return {
     id: "",
+    name: "Batch 1",
+    academicYear: "AY 2026–2027",
+    term: "1st Semester",
     scheduleType: "weekdays",
     days: [...WEEKDAY_CODES],
     timeFrom: "08:00",

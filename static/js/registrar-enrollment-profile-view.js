@@ -78,6 +78,99 @@ function renderDocumentRows(docs, released) {
     .join("");
 }
 
+export function renderDocumentSubmissionIndicatorsSection(detail) {
+  const docIndicators = detail?.docIndicators;
+  const digital = docIndicators?.digital;
+  const hardCopy = docIndicators?.hardCopy;
+
+  const isDigitalUploaded = Boolean(digital?.isUploaded);
+  const digitalBadgeClass = digital?.badgeClass || (isDigitalUploaded ? "registrar-doc-badge--uploaded" : "registrar-doc-badge--pending");
+  const digitalLabel = digital?.label || (isDigitalUploaded ? "Uploaded" : "Pending");
+
+  const isHardSubmitted = Boolean(hardCopy?.isSubmitted);
+  const hardBadgeClass = hardCopy?.badgeClass || (isHardSubmitted ? "registrar-doc-badge--hard-submitted" : "registrar-doc-badge--hard-pending");
+  const hardLabel = hardCopy?.label || (isHardSubmitted ? "Hard Copies: Submitted" : "Hard Copies: Pending");
+
+  const hardCopyItems = hardCopy?.items || [];
+  const itemsHtml = hardCopyItems
+    .map((item) => {
+      const checked = item.received ? "checked" : "";
+      return `
+        <div class="col-md-6">
+          <label class="registrar-hard-copies-item form-check d-flex align-items-center justify-content-between p-2 px-3 rounded-2 border mb-0 cursor-pointer">
+            <div class="d-flex align-items-center gap-2 min-w-0">
+              <input class="form-check-input hard-copy-doc-check flex-shrink-0 mt-0" type="checkbox" data-key="${escapeHtml(item.key)}" ${checked}>
+              <div>
+                <div class="fw-medium small text-truncate">${escapeHtml(item.title)} ${item.required ? '<span class="text-danger">*</span>' : '<span class="text-muted text-2xs">(optional)</span>'}</div>
+                ${item.hint ? `<div class="text-muted text-2xs">${escapeHtml(item.hint)}</div>` : ""}
+              </div>
+            </div>
+            <span class="badge ${item.received ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary'} text-2xs ms-2 hard-copy-item-badge">
+              ${item.received ? 'Received' : 'Pending'}
+            </span>
+          </label>
+        </div>`;
+    })
+    .join("");
+
+  const receivedMeta = isHardSubmitted
+    ? `<span class="text-muted small"><i class="bi bi-calendar-check me-1"></i>Received on: <strong>${escapeHtml(hardCopy?.submittedAt || "On file")}</strong>${hardCopy?.receivedBy ? ` by <strong>${escapeHtml(hardCopy.receivedBy)}</strong>` : ""}</span>`
+    : `<span class="text-muted small"><i class="bi bi-clock me-1"></i>Waiting for student to submit physical copies to the registrar office.</span>`;
+
+  return `
+    <section class="tesda-view-section mt-3" data-hard-copies-section>
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h4 class="tesda-view-section__title mb-0">
+          <i class="bi bi-folder-check me-2" aria-hidden="true"></i>Document Submission Indicators
+        </h4>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="badge registrar-doc-badge ${digitalBadgeClass}">
+            <i class="bi ${isDigitalUploaded ? 'bi-cloud-check-fill' : 'bi-cloud-arrow-up'} me-1"></i>${escapeHtml(digitalLabel)}
+          </span>
+          <span class="badge registrar-doc-badge ${hardBadgeClass}">
+            <i class="bi ${isHardSubmitted ? 'bi-file-earmark-check-fill' : 'bi-file-earmark-x'} me-1"></i>${escapeHtml(hardLabel)}
+          </span>
+        </div>
+      </div>
+
+      <div class="registrar-hard-copies-box ${isHardSubmitted ? 'registrar-hard-copies-box--submitted' : 'registrar-hard-copies-box--pending'} mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <div class="fw-bold d-flex align-items-center gap-2">
+              <i class="bi ${isHardSubmitted ? 'bi-check-circle-fill text-success fs-5' : 'bi-exclamation-circle-fill text-warning fs-5'}"></i>
+              <span>${isHardSubmitted ? 'Hard Copies Submitted to Organization' : 'Physical Hard Copies Not Yet Received'}</span>
+            </div>
+            <div class="mt-1">${receivedMeta}</div>
+          </div>
+          <div class="d-flex gap-2">
+            ${isHardSubmitted ? `
+              <button type="button" class="btn btn-outline-danger btn-sm hard-copies-toggle-btn" data-action="unmark">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Mark as Pending Hard Copies
+              </button>
+            ` : `
+              <button type="button" class="btn btn-primary btn-sm hard-copies-toggle-btn" data-action="mark">
+                <i class="bi bi-file-earmark-check-fill me-1"></i>Mark All Hard Copies Received
+              </button>
+            `}
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          ${itemsHtml}
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top">
+          <div class="flex-grow-1" style="max-width: 28rem;">
+            <input type="text" class="form-control form-control-sm hard-copies-notes-input" placeholder="Optional notes (e.g. Received by Registrar, 1 PSA + 2 valid IDs)..." value="${escapeHtml(hardCopy?.notes || "")}">
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary hard-copies-save-checklist-btn">
+            <i class="bi bi-save me-1"></i>Save Checklist & Notes
+          </button>
+        </div>
+      </div>
+    </section>`;
+}
+
 export function renderUploadedDocumentsSection(detail) {
   const docs = detail?.uploadedDocuments || [];
   const paymentDocs = detail?.paymentDocuments || [];
@@ -310,6 +403,7 @@ export function renderIncompleteProfileNotice(detail) {
 
 export function renderLearnerProfileModalBody(detail) {
   if (!detail) return "<p class=\"text-muted mb-0\">No data available.</p>";
+  const submissionIndicatorsBlock = renderDocumentSubmissionIndicatorsSection(detail);
   const documentsBlock = renderUploadedDocumentsSection(detail);
   let body;
   if (detail.formType === "assessment_only") {
@@ -319,5 +413,5 @@ export function renderLearnerProfileModalBody(detail) {
   } else {
     body = renderTrainingLearnerProfile(detail);
   }
-  return `${body}${documentsBlock}`;
+  return `${body}${submissionIndicatorsBlock}${documentsBlock}`;
 }

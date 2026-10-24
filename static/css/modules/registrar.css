@@ -1327,6 +1327,84 @@
   color: #b91c1c;
 }
 
+/* Document submission indicators */
+.registrar-doc-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.28em 0.7em;
+  border-radius: 999px;
+  line-height: 1.25;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.registrar-doc-badge--uploaded {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.registrar-doc-badge--partial {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.registrar-doc-badge--pending {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.registrar-doc-badge--hard-submitted {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+
+.registrar-doc-badge--hard-pending {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+
+/* Modal Physical Hard Copies Verification Box */
+.registrar-hard-copies-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.1rem 1.25rem;
+}
+
+.registrar-hard-copies-box--submitted {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.registrar-hard-copies-box--pending {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.registrar-hard-copies-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  transition: background 0.15s ease;
+}
+
+.registrar-hard-copies-item:hover {
+  background: #f8fafc;
+}
+
+
 /* TESDA learner profile — read-only modal (registrar enrollment view) */
 .tesda-view-form {
   font-size: 0.8125rem;

@@ -300,3 +300,192 @@ def scholarship_integrate_records(request):
         "updatedCount": updated_count,
         "message": f"Successfully processed {updated_count} scholar record(s).",
     })
+
+
+@login_required(login_url="/")
+@require_POST
+def scholarship_manual_entry(request):
+    """Direct manual registration or update of a scholar record without file upload."""
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return JsonResponse({"ok": False, "message": "Access denied."}, status=403)
+
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "message": "Invalid JSON payload."}, status=400)
+
+    record_id = (body.get("recordId") or "").strip()
+    registration_id = (body.get("registrationId") or "").strip()
+    profile_id = body.get("profileId")
+    scholar_name = (body.get("scholarName") or "").strip()
+    first_name = (body.get("firstName") or "").strip()
+    last_name = (body.get("lastName") or "").strip()
+    middle_name = (body.get("middleName") or "").strip()
+    email = (body.get("email") or "").strip()
+    program = (body.get("program") or "").strip()
+    scholarship_type = (body.get("scholarshipType") or "tesda").strip()
+    sponsor_name = (body.get("sponsorName") or "").strip()
+    academic_year = (body.get("academicYear") or "AY 2026–2027").strip()
+    slot_id = (body.get("slotId") or "").strip()
+    amount = (body.get("amount") or "").strip()
+    address = (body.get("address") or "").strip()
+    birthdate = (body.get("birthDate") or "").strip()
+
+    if not scholar_name and not (first_name or last_name):
+        return JsonResponse({"ok": False, "message": "Scholar name is required."}, status=400)
+
+    if not scholar_name:
+        scholar_name = f"{first_name} {last_name}".strip()
+
+    # Resolve StudentRegistration and StudentEnrollmentProfile
+    reg = None
+    if registration_id:
+        reg = StudentRegistration.objects.filter(pk=registration_id).first()
+
+    profile = None
+    if profile_id:
+        profile = StudentEnrollmentProfile.objects.filter(pk=profile_id).first()
+    elif reg:
+        profile = _profile_for_registration(reg)
+
+    if not profile and email:
+        profile = StudentEnrollmentProfile.objects.filter(email__iexact=email).first()
+
+    if not reg and profile and profile.registration_id:
+        reg = profile.registration
+
+    # If first_name / last_name not provided separately, parse from scholar_name
+    if not first_name and not last_name and scholar_name:
+        parts = scholar_name.replace(",", " ").split()
+        if len(parts) >= 2:
+            first_name = parts[0]
+            last_name = parts[-1]
+            if len(parts) > 2:
+                middle_name = " ".join(parts[1:-1])
+
+    grant = None
+    if record_id:
+        grant = ScholarGrantRecord.objects.filter(pk=record_id).first()
+
+    if not grant and profile:
+        grant = ScholarGrantRecord.objects.filter(profile=profile, is_active=True).first()
+
+    if not grant:
+        grant = ScholarGrantRecord(
+            scholar_name=scholar_name,
+            first_name=first_name,
+            last_name=last_name,
+            middle_name=middle_name,
+            email=email or (profile.email if profile else (reg.email if reg else None)),
+            program=program or (profile.selected_program if profile else (reg.selected_program if reg else None)),
+            scholarship_type=scholarship_type,
+            sponsor_name=sponsor_name or "Scholarship Grant",
+            academic_year=academic_year,
+            slot_id=slot_id or None,
+            amount=amount or None,
+            address=address or (profile.street_address if profile else None),
+            birthdate=birthdate or (str(profile.birth_date) if profile and profile.birth_date else None),
+            profile=profile,
+            registration=reg,
+            is_active=True,
+        )
+    else:
+        grant.scholar_name = scholar_name
+        if first_name:
+            grant.first_name = first_name
+        if last_name:
+            grant.last_name = last_name
+        if middle_name:
+            grant.middle_name = middle_name
+        if email:
+            grant.email = email
+        if program:
+            grant.program = program
+        grant.scholarship_type = scholarship_type
+        grant.sponsor_name = sponsor_name or grant.sponsor_name or "Scholarship Grant"
+        grant.academic_year = academic_year
+        grant.slot_id = slot_id or grant.slot_id
+        grant.amount = amount or grant.amount
+        if address:
+            grant.address = address
+        if birthdate:
+            grant.birthdate = birthdate
+        if profile:
+            grant.profile = profile
+        if reg:
+            grant.registration = reg
+        grant.is_active = True
+
+    grant.save()
+
+    # Update profile scholarship_type if linked
+    if profile:
+        profile.scholarship_type = scholarship_type
+        profile.save(update_fields=["scholarship_type"])
+
+    from .scholarship_registry import _SCHOLARSHIP_LABELS
+    stype_label = _SCHOLARSHIP_LABELS.get(grant.scholarship_type, grant.scholarship_type.upper())
+
+    return JsonResponse({
+        "ok": True,
+        "message": f"Scholar {grant.scholar_name} saved successfully.",
+        "record": {
+            "id": str(grant.id),
+            "no": grant.no or "—",
+            "scholarName": grant.scholar_name,
+            "lastName": grant.last_name or "—",
+            "firstName": grant.first_name or "—",
+            "middleName": grant.middle_name or "—",
+            "birthDate": grant.birthdate or "—",
+            "address": grant.address or "—",
+            "email": grant.email or "—",
+            "program": grant.program or "—",
+            "sponsor": grant.sponsor_name or "Scholarship Grant",
+            "slotId": grant.slot_id or "—",
+            "amount": grant.amount or "—",
+            "scholarshipType": grant.scholarship_type,
+            "scholarshipLabel": stype_label,
+            "academicYear": grant.academic_year or "AY 2026–2027",
+            "isLinked": bool(grant.profile_id or grant.registration_id),
+            "statusLabel": "Linked (Enrolled Student)" if (grant.profile_id or grant.registration_id) else "Saved Scholar Record",
+            "grantedAt": grant.granted_at.strftime("%Y-%m-%d %I:%M %p") if grant.granted_at else "Just now",
+        }
+    })
+
+
+@login_required(login_url="/")
+@require_POST
+def scholarship_delete_record(request):
+    """Delete a scholar record and reset student scholarship type if appropriate."""
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return JsonResponse({"ok": False, "message": "Access denied."}, status=403)
+
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"ok": False, "message": "Invalid JSON payload."}, status=400)
+
+    record_id = (body.get("recordId") or "").strip()
+    if not record_id:
+        return JsonResponse({"ok": False, "message": "Record ID is required."}, status=400)
+
+    grant = ScholarGrantRecord.objects.filter(pk=record_id).first()
+    if not grant:
+        return JsonResponse({"ok": False, "message": "Scholar record not found."}, status=404)
+
+    profile = grant.profile
+    grant.delete()
+
+    if profile:
+        other_grants = ScholarGrantRecord.objects.filter(profile=profile, is_active=True).exists()
+        if not other_grants:
+            profile.scholarship_type = ""
+            profile.save(update_fields=["scholarship_type"])
+
+    return JsonResponse({
+        "ok": True,
+        "message": "Scholar record removed successfully.",
+    })
+

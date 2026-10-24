@@ -80,6 +80,20 @@
           placeholder="Search course, batch, trainer..."
           autocomplete="off"
         />
+
+        <select id="finalized-ay-filter" class="form-select form-select-sm" style="min-width:10rem">
+          <option value="">All Academic Years</option>
+          <option value="AY 2026–2027">AY 2026–2027</option>
+          <option value="AY 2025–2026">AY 2025–2026</option>
+          <option value="AY 2027–2028">AY 2027–2028</option>
+        </select>
+
+        <select id="finalized-term-filter" class="form-select form-select-sm" style="min-width:10rem">
+          <option value="">All Semesters</option>
+          <option value="1st Semester">1st Semester</option>
+          <option value="2nd Semester">2nd Semester</option>
+          <option value="Summer / Midyear">Summer / Midyear</option>
+        </select>
         
         <select id="finalized-course-filter" class="form-select form-select-sm" style="min-width:12rem">
           <option value="">All courses</option>
@@ -111,8 +125,60 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div id="finalized-detail-body" class="modal-body pt-2 pb-3"></div>
-      <div id="finalized-detail-footer" class="modal-footer border-0 pt-0 flex-wrap gap-2">
+      <div id="finalized-detail-footer" class="modal-footer border-0 pt-0 flex-wrap gap-2 justify-content-between">
+        <div>
+          <button type="button" class="btn btn-outline-primary btn-sm fw-semibold" id="finalized-override-open-btn">
+            <i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i>+ Insert Student (Override)
+          </button>
+        </div>
         <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Manual Student Override for Finalized/Active Batches -->
+<div class="modal fade" id="finalized-override-modal" tabindex="-1" aria-labelledby="finalized-override-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h3 class="modal-title h5 fw-bold mb-1" id="finalized-override-modal-title">
+            <i class="bi bi-person-plus-fill text-primary me-2"></i>Manual Batch Override: Insert Student
+          </h3>
+          <p class="text-muted small mb-0">Manually insert a student into this batch. Their schedule will be synchronized automatically.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small" for="finalized-override-search">Search Students</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" id="finalized-override-search" class="form-control" placeholder="Search by student name, ID, or course...">
+          </div>
+        </div>
+
+        <div class="table-responsive border rounded-3" style="max-height: 320px; overflow-y: auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.875rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Student Name</th>
+                <th>Student ID</th>
+                <th>Enrolled Course</th>
+                <th>Current Batch Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody id="finalized-override-students-list">
+              <tr><td colspan="5" class="text-center text-muted py-3">Loading students...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="finalized-override-alert" class="alert d-none mt-3 mb-0" role="alert"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>

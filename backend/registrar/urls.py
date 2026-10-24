@@ -3,22 +3,44 @@ from django.urls import path
 from . import views
 from .batching_api import (
     batching_batches_list,
+    batching_override_candidates,
+    batching_override_insert_student,
+    batching_override_remove_student,
     batching_template_delete,
     batching_template_activate,
     batching_template_upsert,
 )
-from .document_review_api import document_approve, document_reject, document_release
+from .document_review_api import (
+    document_approve,
+    document_reject,
+    document_release,
+    hard_copies_update,
+)
 from .enrollment_detail import enrollment_detail
 from .egace_api import egace_set_certificate, egace_set_employment
 from .pending_enrollment import enrollment_approve, enrollment_bulk_approve, enrollment_reject
 from .schedule_api import student_schedule_options
-from .scholarship_api import scholarship_integrate_records
+from .scholarship_api import (
+    scholarship_delete_record,
+    scholarship_integrate_records,
+    scholarship_manual_entry,
+)
 
 urlpatterns = [
     path(
         "registrar/api/scholarship/integrate/",
         scholarship_integrate_records,
         name="registrar_scholarship_integrate",
+    ),
+    path(
+        "registrar/api/scholarship/manual-entry/",
+        scholarship_manual_entry,
+        name="registrar_scholarship_manual_entry",
+    ),
+    path(
+        "registrar/api/scholarship/delete/",
+        scholarship_delete_record,
+        name="registrar_scholarship_delete",
     ),
     path(
         "dashboard/registrar/",
@@ -67,6 +89,11 @@ urlpatterns = [
         name="registrar_enrollment_document_release",
     ),
     path(
+        "registrar/api/enrollment/hard-copies/update/",
+        hard_copies_update,
+        name="registrar_enrollment_hard_copies_update",
+    ),
+    path(
         "registrar/api/egace/employment/",
         egace_set_employment,
         name="registrar_egace_set_employment",
@@ -95,6 +122,21 @@ urlpatterns = [
         "registrar/api/batching/template/delete/<str:template_id>/",
         batching_template_delete,
         name="registrar_batching_template_delete",
+    ),
+    path(
+        "registrar/api/batching/override-candidates/",
+        batching_override_candidates,
+        name="registrar_batching_override_candidates",
+    ),
+    path(
+        "registrar/api/batching/override-insert/",
+        batching_override_insert_student,
+        name="registrar_batching_override_insert",
+    ),
+    path(
+        "registrar/api/batching/override-remove/",
+        batching_override_remove_student,
+        name="registrar_batching_override_remove",
     ),
     path(
         "registrar/trainer-evaluations/",

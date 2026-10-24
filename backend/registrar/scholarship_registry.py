@@ -99,6 +99,7 @@ def scholarship_masterlist_records() -> list[dict]:
                 "amount": r.amount or "—",
                 "scholarshipType": stype,
                 "scholarshipLabel": stype_label,
+                "academicYear": r.academic_year or "AY 2026–2027",
                 "isLinked": is_linked,
                 "statusLabel": status_label,
                 "grantedAt": r.granted_at.strftime("%Y-%m-%d %I:%M %p") if r.granted_at else "—",

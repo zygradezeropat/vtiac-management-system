@@ -24,9 +24,22 @@
     <div class="student-req-card__info">
       <span class="student-req-card__icon"><i class="bi {{ row.icon_bi }}" aria-hidden="true"></i></span>
       <div>
-        <p class="student-req-card__title mb-0">
-          {{ row.title }}{% if row.required %} <span class="student-enroll-required">*</span>{% endif %}
-        </p>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <p class="student-req-card__title mb-0">
+            {{ row.title }}{% if row.required %} <span class="student-enroll-required">*</span>{% endif %}
+          </p>
+            {% if row.requires_hard_copy %}
+              {% if row.hard_copy_received %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.68rem; font-weight:600;" title="Physical copy received by Registrar">
+                <i class="bi bi-file-earmark-check-fill me-1"></i>Hard Copy Received
+              </span>
+              {% else %}
+              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:0.68rem; font-weight:600;" title="Physical copy pending submission to Registrar">
+                <i class="bi bi-file-earmark-x me-1"></i>Hard Copy Pending
+              </span>
+              {% endif %}
+            {% endif %}
+          </div>
         <p class="student-req-card__hint mb-0">{{ row.hint }}</p>
       </div>
     </div>
@@ -94,7 +107,12 @@
     <span class="student-req-card__filename">{{ row.filename }}</span>
     {% if row.registrar_status %}
     <span class="badge {% if row.is_rejected %}text-bg-danger{% elif row.registrar_status == 'approved' %}text-bg-success{% else %}text-bg-secondary{% endif %} ms-2">
-      {{ row.registrar_status|title }}
+      Online: {{ row.registrar_status|title }}
+    </span>
+    {% endif %}
+    {% if row.requires_hard_copy %}
+    <span class="badge {% if row.hard_copy_received %}bg-success-subtle text-success border border-success-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} ms-1">
+      <i class="bi {% if row.hard_copy_received %}bi-file-earmark-check-fill{% else %}bi-file-earmark-x{% endif %} me-1"></i>{% if row.hard_copy_received %}Hard Copy: Received{% else %}Hard Copy: Pending{% endif %}
     </span>
     {% endif %}
     {% if row.file_url %}

@@ -125,6 +125,12 @@ class StudentRegistration(models.Model):
         default=False,
         help_text="Deprecated — certificate is derived from trainer grades (graduate + assessment).",
     )
+    hard_copies_submitted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether required physical/hard copies have been submitted to the registrar.",
+    )
+    hard_copies_submitted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -236,6 +242,25 @@ class StudentEnrollmentProfile(models.Model):
         help_text="Registrar approved all documents; student may proceed to payment.",
     )
     documents_review_released_at = models.DateTimeField(null=True, blank=True)
+    hard_copies_submitted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether student submitted physical hard copies of requirements.",
+    )
+    hard_copies_submitted_at = models.DateTimeField(null=True, blank=True)
+    hard_copies_received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="received_hard_copies",
+    )
+    hard_copies_notes = models.CharField(max_length=500, blank=True)
+    hard_copy_documents = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Map of document keys to boolean received status.",
+    )
     preferred_schedule = models.ForeignKey(
         "StudentScheduleOption",
         on_delete=models.SET_NULL,
@@ -283,6 +308,8 @@ class StudentEnrollmentDocument(models.Model):
     )
     rejection_reason = models.CharField(max_length=500, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    hard_copy_received = models.BooleanField(default=False)
+    hard_copy_received_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "student_enrollmentdocument"

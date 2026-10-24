@@ -147,12 +147,22 @@
 
       </div>
 
-      <button
-        type="button"
-        id="batching-detail-close"
-        class="btn btn-outline-secondary btn-sm">
-        Close
-      </button>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button
+          type="button"
+          id="batching-override-student-btn"
+          class="btn btn-outline-primary btn-sm fw-semibold">
+          <i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i>
+          + Manual Override / Insert Student
+        </button>
+
+        <button
+          type="button"
+          id="batching-detail-close"
+          class="btn btn-outline-secondary btn-sm">
+          Close
+        </button>
+      </div>
 
     </div>
 
@@ -274,6 +284,117 @@
         where you can review, edit, and finalize.
 
       </p>
+
+
+      <!-- Academic Year & Term Batching Identifier -->
+      <div class="row g-3 mb-4">
+
+        <div class="col-sm-6">
+
+          <label
+            class="form-label fw-semibold"
+            for="template-academic-year">
+
+            Academic Year Identifier
+
+            <span class="text-danger">
+              *
+            </span>
+
+          </label>
+
+          <select
+            id="template-academic-year"
+            class="form-select form-select-vtiac"
+            required>
+
+            <option value="AY 2026–2027" selected>
+              AY 2026–2027 (Current)
+            </option>
+
+            <option value="AY 2025–2026">
+              AY 2025–2026
+            </option>
+
+            <option value="AY 2027–2028">
+              AY 2027–2028
+            </option>
+
+          </select>
+
+          <small class="text-muted d-block mt-1">
+            Batching identifier based on academic year for LMS alignment.
+          </small>
+
+        </div>
+
+
+        <div class="col-sm-6">
+
+          <label
+            class="form-label fw-semibold"
+            for="template-term">
+
+            Term / Semester
+
+            <span class="text-danger">
+              *
+            </span>
+
+          </label>
+
+          <select
+            id="template-term"
+            class="form-select form-select-vtiac"
+            required>
+
+            <option value="1st Semester" selected>
+              1st Semester
+            </option>
+
+            <option value="2nd Semester">
+              2nd Semester
+            </option>
+
+            <option value="Summer / Midyear">
+              Summer / Midyear
+            </option>
+
+          </select>
+
+          <small class="text-muted d-block mt-1">
+            Separates students by semester similar to LMS.
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <!-- Batch Label / Name -->
+      <div class="mb-4">
+
+        <label
+          class="form-label fw-semibold"
+          for="template-name">
+
+          Batch Number or Label
+
+        </label>
+
+        <input
+          type="text"
+          id="template-name"
+          class="form-control form-control-vtiac"
+          placeholder="e.g. Batch 1"
+          value="Batch 1"
+        />
+
+        <small class="text-muted d-block mt-1">
+          Full batch identifier will format as: <code id="template-identifier-preview">AY 2026–2027 · 1st Semester · Batch 1</code>
+        </small>
+
+      </div>
 
 
       <!-- Schedule type -->
@@ -545,6 +666,53 @@
 
 {% include "components/registrar/schedule_saved_confirm_modal.html" %}
 {% include "components/registrar/finalize_batch_confirm_modal.html" %}
+
+<!-- Modal: Manual Student Batch Override -->
+<div class="modal fade" id="batching-override-modal" tabindex="-1" aria-labelledby="batching-override-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h3 class="modal-title h5 fw-bold mb-1" id="batching-override-modal-title">
+            <i class="bi bi-person-plus-fill text-primary me-2"></i>Manual Student Batch Override
+          </h3>
+          <p class="text-muted small mb-0">Manually insert any registered or enrolled student into this specific batch, overriding normal batching restrictions.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small" for="batching-override-search">Search Students</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" id="batching-override-search" class="form-control" placeholder="Search by student name, ID, or course...">
+          </div>
+        </div>
+
+        <div class="table-responsive border rounded-3" style="max-height: 320px; overflow-y: auto;">
+          <table class="table table-hover align-middle mb-0" style="font-size: 0.875rem;">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>Student Name</th>
+                <th>Student ID</th>
+                <th>Enrolled Course</th>
+                <th>Current Batch Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody id="batching-override-students-list">
+              <tr><td colspan="5" class="text-center text-muted py-3">Loading students...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="batching-override-alert" class="alert d-none mt-3 mb-0" role="alert"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% include "components/registrar/layout_end.html" %}
 

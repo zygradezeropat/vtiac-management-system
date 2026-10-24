@@ -539,7 +539,7 @@ def _students_for_template(
     Active batches use their saved student snapshot.
 
     Draft batches dynamically load currently
-    available students.
+    available students merged with any manually overridden students.
     """
 
     if (
@@ -552,10 +552,33 @@ def _students_for_template(
     ):
         return t.students_snapshot
 
-    return _students_for_course(
+    dynamic = _students_for_course(
         t.course_name,
         batch_kind=t.batch_kind,
     )
+
+    snapshot = list(t.students_snapshot or [])
+    if not snapshot:
+        return dynamic
+
+    seen = {
+        (
+            (s.get("lastName") or s.get("last_name") or "").strip().lower(),
+            (s.get("firstName") or s.get("first_name") or "").strip().lower(),
+        )
+        for s in dynamic
+    }
+    merged = list(dynamic)
+    for s in snapshot:
+        key = (
+            (s.get("lastName") or s.get("last_name") or "").strip().lower(),
+            (s.get("firstName") or s.get("first_name") or "").strip().lower(),
+        )
+        if key not in seen:
+            seen.add(key)
+            merged.append(s)
+
+    return merged
 
 
 # ================================================================
@@ -725,7 +748,17 @@ def _serialize_template(
 
         "batchLabel": (
             t.batch_label
-            or "Batch 1"
+            or f"{t.academic_year or 'AY 2026–2027'} · {t.term or '1st Semester'}"
+        ),
+
+        "academicYear": (
+            t.academic_year
+            or "AY 2026–2027"
+        ),
+
+        "term": (
+            t.term
+            or "1st Semester"
         ),
 
         "batchKind": (
@@ -816,6 +849,10 @@ def _serialize_batch_card(
         "courseName": data["courseName"],
 
         "batchLabel": data["batchLabel"],
+
+        "academicYear": data.get("academicYear", "AY 2026–2027"),
+
+        "term": data.get("term", "1st Semester"),
 
         "batchId": "b1",
 
@@ -978,10 +1015,7 @@ def batching_template_activate(
     # GET STUDENTS
     # ---------------------------------------------------------
 
-    students = _students_for_course(
-        obj.course_name,
-        batch_kind=obj.batch_kind,
-    )
+    students = _students_for_template(obj)
 
     # ---------------------------------------------------------
     # MINIMUM STUDENTS
@@ -1278,12 +1312,43 @@ def batching_template_upsert(request):
 
     obj.batch_kind = batch_kind
 
-    obj.name = (
+    academic_year = (
+        data.get("academic_year")
+        or data.get("academicYear")
+        or "AY 2026–2027"
+    ).strip()
+
+    term = (
+        data.get("term")
+        or "1st Semester"
+    ).strip()
+
+    name = (
         data.get(
             "name",
             "",
         ).strip()
     )
+
+    batch_label = (
+        data.get("batch_label")
+        or data.get("batchLabel")
+        or ""
+    ).strip()
+
+    if not batch_label:
+        if name:
+            batch_label = f"{academic_year} · {term} · {name}"
+        else:
+            batch_label = f"{academic_year} · {term}"
+
+    obj.academic_year = academic_year
+
+    obj.term = term
+
+    obj.batch_label = batch_label
+
+    obj.name = name
 
     # ---------------------------------------------------------
     # SCHEDULE
@@ -1494,5 +1559,264 @@ def batching_template_delete(
             "template_id": str(
                 db_template_id
             ),
+        }
+    )
+
+
+# ================================================================
+# MANUAL OVERRIDE FUNCTIONS
+# ================================================================
+
+
+@login_required(login_url="/")
+@require_http_methods(["GET"])
+def batching_override_candidates(request):
+    """List approved and enrolled students who can be manually inserted into a batch via override."""
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return denied
+
+    q = (request.GET.get("q") or "").strip().lower()
+    course_name = (request.GET.get("course") or "").strip()
+
+    from backend.student.models import StudentRegistration, StudentEnrollmentProfile
+    from .pending_enrollment import _profile_for_registration
+
+    regs = StudentRegistration.objects.filter(
+        status=StudentRegistration.Status.APPROVED
+    ).order_by("last_name", "first_name")
+
+    results = []
+    seen = set()
+    for reg in regs:
+        last = (reg.last_name or "").strip()
+        first = (reg.first_name or "").strip()
+        full_name = f"{first} {last}".strip()
+        ref_id = reg.reference_id or ""
+        email = reg.email or ""
+        prog = reg.selected_program or ""
+
+        if q:
+            if (
+                q not in full_name.lower()
+                and q not in ref_id.lower()
+                and q not in email.lower()
+                and q not in prog.lower()
+            ):
+                continue
+
+        profile = _profile_for_registration(reg)
+        key = (last.lower(), first.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+
+        current_batch = ""
+        if profile and profile.preferred_schedule:
+            current_batch = (
+                profile.preferred_schedule.batch_label
+                or profile.preferred_schedule.label
+                or "Assigned"
+            )
+
+        results.append(
+            {
+                "registrationId": str(reg.pk),
+                "profileId": profile.pk if profile else None,
+                "studentId": ref_id,
+                "firstName": first,
+                "lastName": last,
+                "fullName": full_name,
+                "email": email,
+                "program": prog,
+                "programType": reg.program_type or "training",
+                "currentBatch": current_batch,
+            }
+        )
+
+    return JsonResponse({"ok": True, "students": results[:100]})
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def batching_override_insert_student(request):
+    """Manually insert any student into a batch (override functionality)."""
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return denied
+
+    import json
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        body = request.POST
+
+    template_id = body.get("templateId") or body.get("template_id")
+    student_data = body.get("student") or {}
+    if not isinstance(student_data, dict):
+        student_data = {}
+
+    db_template_id = _parse_template_db_id(template_id)
+    if db_template_id is None:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    try:
+        template = RegistrarScheduleTemplate.objects.get(pk=db_template_id)
+    except RegistrarScheduleTemplate.DoesNotExist:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    first_name = (
+        student_data.get("firstName")
+        or student_data.get("first_name")
+        or ""
+    ).strip()
+    last_name = (
+        student_data.get("lastName")
+        or student_data.get("last_name")
+        or ""
+    ).strip()
+    registration_id = student_data.get("registrationId") or student_data.get("registration_id")
+    profile_id = student_data.get("profileId") or student_data.get("profile_id")
+    program = (student_data.get("program") or template.course_name).strip()
+    program_type = (
+        student_data.get("programType")
+        or student_data.get("program_type")
+        or "training"
+    ).strip()
+
+    if not first_name or not last_name:
+        return JsonResponse({"error": "Student first name and last name are required."}, status=400)
+
+    snapshot = list(template.students_snapshot or [])
+    # Check if student already in snapshot
+    already_in = False
+    for s in snapshot:
+        s_last = (s.get("lastName") or s.get("last_name") or "").strip().lower()
+        s_first = (s.get("firstName") or s.get("first_name") or "").strip().lower()
+        if s_last == last_name.lower() and s_first == first_name.lower():
+            already_in = True
+            break
+
+    if already_in:
+        return JsonResponse({"error": f"{first_name} {last_name} is already in this batch."}, status=400)
+
+    new_entry = {
+        "lastName": last_name,
+        "firstName": first_name,
+        "program": program,
+        "programType": program_type,
+        "registrationId": str(registration_id) if registration_id else None,
+        "profileId": profile_id,
+        "override": True,
+        "insertedAt": timezone.now().isoformat(),
+    }
+    snapshot.append(new_entry)
+    template.students_snapshot = snapshot
+    template.save(update_fields=["students_snapshot", "updated_at"])
+
+    # If active or completed, sync schedule to profile
+    if template.status in (
+        RegistrarScheduleTemplate.Status.ACTIVE,
+        RegistrarScheduleTemplate.Status.COMPLETED,
+    ):
+        from .batch_schedule_sync import _apply_template_to_profile, template_to_option_data
+        from backend.student.models import StudentEnrollmentProfile, StudentRegistration
+        from .pending_enrollment import _profile_for_registration
+
+        profile = None
+        if profile_id:
+            profile = StudentEnrollmentProfile.objects.filter(pk=profile_id).first()
+        if not profile and registration_id:
+            reg = StudentRegistration.objects.filter(pk=registration_id).first()
+            if reg:
+                profile = _profile_for_registration(reg)
+        if not profile:
+            profile = StudentEnrollmentProfile.objects.filter(
+                last_name__iexact=last_name,
+                first_name__iexact=first_name,
+            ).first()
+
+        if profile:
+            option_data = template_to_option_data(template)
+            _apply_template_to_profile(
+                profile,
+                template,
+                option_data,
+                assigned_by=request.user.get_full_name() or request.user.email or "Registrar (Override)",
+            )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "message": f"{first_name} {last_name} successfully inserted into batch via override.",
+            "batch": _serialize_batch_card(template),
+        }
+    )
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def batching_override_remove_student(request):
+    """Manually remove a student from a batch (override functionality)."""
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return denied
+
+    import json
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        body = request.POST
+
+    template_id = body.get("templateId") or body.get("template_id")
+    first_name = (body.get("firstName") or body.get("first_name") or "").strip().lower()
+    last_name = (body.get("lastName") or body.get("last_name") or "").strip().lower()
+
+    db_template_id = _parse_template_db_id(template_id)
+    if db_template_id is None:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    try:
+        template = RegistrarScheduleTemplate.objects.get(pk=db_template_id)
+    except RegistrarScheduleTemplate.DoesNotExist:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    snapshot = list(template.students_snapshot or [])
+    new_snapshot = [
+        s
+        for s in snapshot
+        if not (
+            (s.get("lastName") or s.get("last_name") or "").strip().lower() == last_name
+            and (s.get("firstName") or s.get("first_name") or "").strip().lower() == first_name
+        )
+    ]
+
+    removed = len(snapshot) - len(new_snapshot)
+    if removed == 0:
+        return JsonResponse({"error": "Student was not found in this batch."}, status=404)
+
+    template.students_snapshot = new_snapshot
+    template.save(update_fields=["students_snapshot", "updated_at"])
+
+    # If active, remove batch schedule option from student profile
+    if template.status in (
+        RegistrarScheduleTemplate.Status.ACTIVE,
+        RegistrarScheduleTemplate.Status.COMPLETED,
+    ):
+        from .batch_schedule_sync import clear_program_schedule_for_profile
+        from backend.student.models import StudentEnrollmentProfile
+
+        profile = StudentEnrollmentProfile.objects.filter(
+            last_name__iexact=last_name,
+            first_name__iexact=first_name,
+        ).first()
+        if profile:
+            clear_program_schedule_for_profile(profile, template.course_name)
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "message": "Student successfully removed from batch.",
+            "batch": _serialize_batch_card(template),
         }
     )

@@ -1,4 +1,4 @@
-"""Registrar API — approve / reject enrollment documents before payment."""
+import json
 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -115,6 +115,64 @@ def document_release(request):
         release_document_review(profile)
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
+
+    detail = build_learner_profile_detail(profile, reg)
+    return JsonResponse(detail)
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def hard_copies_update(request):
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return denied
+
+    profile_id = request.POST.get("profile_id")
+    registration_id = request.POST.get("registration_id")
+    profile = None
+    reg = None
+
+    if profile_id:
+        try:
+            profile = StudentEnrollmentProfile.objects.prefetch_related("documents").get(
+                pk=int(profile_id)
+            )
+        except (StudentEnrollmentProfile.DoesNotExist, ValueError):
+            return JsonResponse({"error": "Profile not found."}, status=404)
+        reg = _registration_for_profile(profile)
+    elif registration_id:
+        from backend.student.models import StudentRegistration
+
+        try:
+            reg = StudentRegistration.objects.get(pk=registration_id)
+        except (StudentRegistration.DoesNotExist, ValueError):
+            return JsonResponse({"error": "Registration not found."}, status=404)
+        profile = _profile_for_registration(reg)
+    else:
+        return JsonResponse({"error": "profile_id or registration_id is required."}, status=400)
+
+    submitted_val = request.POST.get("hard_copies_submitted", "").strip().lower()
+    submitted = submitted_val in ("1", "true", "yes", "on")
+    notes = (request.POST.get("notes") or "").strip()
+
+    docs_json = request.POST.get("documents")
+    docs_map = None
+    if docs_json:
+        try:
+            docs_map = json.loads(docs_json)
+        except (json.JSONDecodeError, TypeError):
+            docs_map = None
+
+    from backend.student.document_submission import update_hard_copies_submission
+
+    update_hard_copies_submission(
+        profile,
+        reg,
+        submitted,
+        notes=notes,
+        documents_map=docs_map,
+        received_by=request.user,
+    )
 
     detail = build_learner_profile_detail(profile, reg)
     return JsonResponse(detail)

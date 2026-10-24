@@ -70,8 +70,45 @@
   <p class="student-pending-card__text">
     Please wait for the registrar to review and approve your uploaded documents. You will be able to proceed to payment once all documents are approved.
   </p>
-  <div class="student-pending-card__actions">
   {% endif %}
+
+  <!-- Document Submission Indicators -->
+  <div class="row g-2 text-start my-3 px-md-3">
+    <div class="col-sm-6">
+      <div class="p-3 rounded-3 border bg-light h-100">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="small fw-bold text-secondary">Online Records</span>
+          {% if digital_records_uploaded %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle text-2xs"><i class="bi bi-cloud-check-fill me-1"></i>Uploaded</span>
+          {% else %}
+          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-2xs"><i class="bi bi-cloud-arrow-up me-1"></i>{{ digital_records_label|default:"Incomplete" }}</span>
+          {% endif %}
+        </div>
+        <p class="small text-muted mb-0">Documents uploaded to system: <strong>{{ digital_records_label|default:"Pending" }}</strong></p>
+      </div>
+    </div>
+    <div class="col-sm-6">
+      <div class="p-3 rounded-3 border {% if hard_copies_submitted %}bg-success-subtle border-success-subtle{% else %}bg-warning-subtle border-warning-subtle{% endif %} h-100">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="small fw-bold {% if hard_copies_submitted %}text-success{% else %}text-warning-emphasis{% endif %}">Physical Hard Copies</span>
+          {% if hard_copies_submitted %}
+          <span class="badge bg-success text-white text-2xs"><i class="bi bi-file-earmark-check-fill me-1"></i>Submitted</span>
+          {% else %}
+          <span class="badge bg-warning text-dark text-2xs"><i class="bi bi-file-earmark-x me-1"></i>Pending</span>
+          {% endif %}
+        </div>
+        <p class="small text-muted mb-0">
+          {% if hard_copies_submitted %}
+          Physical requirements received by Registrar{% if hard_copies_submitted_at %} on {{ hard_copies_submitted_at }}{% endif %}.
+          {% else %}
+          Please bring physical copies of requirements to the Registrar Office.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="student-pending-card__actions">
     {% if can_edit_enrollment %}
     <a href="{% url 'student_enrollment' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
       <i class="bi bi-pencil-square" aria-hidden="true"></i>

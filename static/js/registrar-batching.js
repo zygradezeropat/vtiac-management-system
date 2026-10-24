@@ -540,6 +540,38 @@ document.addEventListener(
         "schedule-template-cancel"
       );
 
+    const academicYearEl =
+      document.getElementById(
+        "template-academic-year"
+      );
+
+    const termEl =
+      document.getElementById(
+        "template-term"
+      );
+
+    const batchNameEl =
+      document.getElementById(
+        "template-name"
+      );
+
+    const identifierPreviewEl =
+      document.getElementById(
+        "template-identifier-preview"
+      );
+
+    function updateBatchIdentifierPreview() {
+      if (!identifierPreviewEl) return;
+      const ay = academicYearEl?.value || "AY 2026–2027";
+      const tm = termEl?.value || "1st Semester";
+      const nm = batchNameEl?.value?.trim() || "Batch 1";
+      identifierPreviewEl.textContent = `${ay} · ${tm} · ${nm}`;
+    }
+
+    academicYearEl?.addEventListener("change", updateBatchIdentifierPreview);
+    termEl?.addEventListener("change", updateBatchIdentifierPreview);
+    batchNameEl?.addEventListener("input", updateBatchIdentifierPreview);
+
     const approvalSectionEl =
       document.getElementById(
         "batching-enrollment-approval"
@@ -1486,8 +1518,29 @@ document.addEventListener(
       );
 
       body.set(
+        "academic_year",
+        template.academicYear ||
+          academicYearEl?.value ||
+          "AY 2026–2027"
+      );
+
+      body.set(
+        "term",
+        template.term ||
+          termEl?.value ||
+          "1st Semester"
+      );
+
+      body.set(
+        "batch_label",
+        `${template.academicYear || academicYearEl?.value || "AY 2026–2027"} · ${
+          template.term || termEl?.value || "1st Semester"
+        } · ${template.name || batchNameEl?.value?.trim() || "Batch 1"}`
+      );
+
+      body.set(
         "name",
-        template.name || ""
+        template.name || batchNameEl?.value?.trim() || ""
       );
 
       body.set(
@@ -2101,6 +2154,26 @@ document.addEventListener(
 
       refreshTrainerScheduleUI();
 
+      if (academicYearEl) {
+        academicYearEl.value =
+          formState.academicYear ||
+          "AY 2026–2027";
+      }
+
+      if (termEl) {
+        termEl.value =
+          formState.term ||
+          "1st Semester";
+      }
+
+      if (batchNameEl) {
+        batchNameEl.value =
+          formState.name ||
+          "Batch 1";
+      }
+
+      updateBatchIdentifierPreview();
+
       daysErrorEl?.classList.add(
         "d-none"
       );
@@ -2146,6 +2219,18 @@ document.addEventListener(
         formState.trainerName =
           "";
       }
+
+      formState.academicYear =
+        academicYearEl?.value ||
+        "AY 2026–2027";
+
+      formState.term =
+        termEl?.value ||
+        "1st Semester";
+
+      formState.name =
+        batchNameEl?.value?.trim() ||
+        "Batch 1";
 
       updateDailyHoursField();
     }
@@ -2287,6 +2372,18 @@ document.addEventListener(
         trainerName:
           template.trainerName ||
           "",
+
+        academicYear:
+          template.academicYear ||
+          "AY 2026–2027",
+
+        term:
+          template.term ||
+          "1st Semester",
+
+        name:
+          template.name ||
+          "Batch 1",
 
         batchKind:
           template.batchKind ||
@@ -3476,5 +3573,142 @@ document.addEventListener(
         }
       }
     }
+
+    // -------------------------------------------------------------
+    // MANUAL STUDENT OVERRIDE MODAL (BATCHING & SCHEDULING)
+    // -------------------------------------------------------------
+    const overrideModalEl = document.getElementById("batching-override-modal");
+    const overrideModal =
+      overrideModalEl && window.bootstrap
+        ? bootstrap.Modal.getOrCreateInstance(overrideModalEl)
+        : null;
+
+    const overrideSearchEl = document.getElementById("batching-override-search");
+    const overrideListEl = document.getElementById("batching-override-students-list");
+    let overrideCandidates = [];
+
+    async function loadOverrideCandidates(q = "") {
+      if (!overrideListEl) return;
+      overrideListEl.innerHTML =
+        '<tr><td colspan="5" class="text-center text-muted py-3"><i class="bi bi-hourglass-split me-1"></i>Searching students...</td></tr>';
+      try {
+        const course = selectedCourse();
+        const res = await fetch(
+          `/registrar/api/batching/override-candidates/?q=${encodeURIComponent(
+            q
+          )}&course=${encodeURIComponent(course?.name || "")}`
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load candidates.");
+        overrideCandidates = data.students || [];
+        renderOverrideCandidates();
+      } catch (err) {
+        overrideListEl.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">${escapeHtml(
+          err.message
+        )}</td></tr>`;
+      }
+    }
+
+    function renderOverrideCandidates() {
+      if (!overrideListEl) return;
+      if (!overrideCandidates.length) {
+        overrideListEl.innerHTML =
+          '<tr><td colspan="5" class="text-center text-muted py-3">No matching students found.</td></tr>';
+        return;
+      }
+
+      overrideListEl.innerHTML = overrideCandidates
+        .map(
+          (s) => `
+        <tr>
+          <td class="fw-bold">${escapeHtml(s.fullName)}</td>
+          <td><code class="text-muted">${escapeHtml(s.studentId || "—")}</code></td>
+          <td><span class="badge text-bg-light border">${escapeHtml(s.program || "—")}</span></td>
+          <td>
+            ${
+              s.currentBatch
+                ? `<span class="badge text-bg-info text-dark">${escapeHtml(
+                    s.currentBatch
+                  )}</span>`
+                : '<span class="badge text-bg-secondary">Unassigned</span>'
+            }
+          </td>
+          <td class="text-end">
+            <button type="button" class="btn btn-primary btn-sm px-2 override-insert-btn"
+              data-regid="${escapeHtml(s.registrationId || "")}"
+              data-profid="${escapeHtml(s.profileId || "")}"
+              data-first="${escapeHtml(s.firstName)}"
+              data-last="${escapeHtml(s.lastName)}"
+              data-prog="${escapeHtml(s.program)}"
+              data-progtype="${escapeHtml(s.programType || "training")}">
+              <i class="bi bi-plus-circle me-1"></i>Insert into Batch
+            </button>
+          </td>
+        </tr>`
+        )
+        .join("");
+    }
+
+    document
+      .getElementById("batching-override-student-btn")
+      ?.addEventListener("click", () => {
+        if (!selectedCourseId) {
+          alert("Please select a course card first.");
+          return;
+        }
+        if (overrideSearchEl) overrideSearchEl.value = "";
+        loadOverrideCandidates("");
+        overrideModal?.show();
+      });
+
+    overrideSearchEl?.addEventListener("input", (e) => {
+      loadOverrideCandidates(e.target.value);
+    });
+
+    overrideListEl?.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".override-insert-btn");
+      if (!btn) return;
+      btn.disabled = true;
+
+      const student = {
+        firstName: btn.dataset.first,
+        lastName: btn.dataset.last,
+        registrationId: btn.dataset.regid,
+        profileId: btn.dataset.profid,
+        program: btn.dataset.prog,
+        programType: btn.dataset.progtype,
+      };
+
+      const course = selectedCourse();
+      const draft = course ? getDraftForCourse(course.id) : null;
+
+      if (draft && isPersistedTemplateId(draft.id)) {
+        try {
+          const res = await fetch("/registrar/api/batching/override-insert/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCsrfToken(),
+            },
+            body: JSON.stringify({
+              templateId: draft.id,
+              student: student,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Failed to insert student.");
+
+          overrideModal?.hide();
+          alert(data.message || "Student inserted into batch successfully.");
+          window.location.reload();
+        } catch (err) {
+          alert(err.message || "Override insertion failed.");
+          btn.disabled = false;
+        }
+      } else {
+        alert("Please save this schedule template first by clicking 'Save schedule', then you can insert override students.");
+        btn.disabled = false;
+      }
+    });
   }
 );

@@ -115,7 +115,11 @@ def student_my_profile_context(request):
 
 def student_my_profile_requirements_context(request):
     profile = get_enrollment_profile(request.user)
+    reg = getattr(request.user, "registration_application", None)
     program_type = enrollment_program_type_for_user(request.user)
+
+    from backend.student.document_submission import get_document_submission_indicators
+    doc_indicators = get_document_submission_indicators(profile, reg)
 
     return _student_portal_base(
         request,
@@ -132,4 +136,11 @@ def student_my_profile_requirements_context(request):
         can_edit_requirements=True,
         requirements_post_url_name="student_my_profile_requirements",
         is_assessment_only=is_assessment_only_program(program_type),
+        doc_indicators=doc_indicators,
+        hard_copies_submitted=doc_indicators["hardCopy"]["isSubmitted"],
+        hard_copies_submitted_at=doc_indicators["hardCopy"]["submittedAt"],
+        digital_records_uploaded=doc_indicators["digital"]["isUploaded"],
+        digital_records_label=doc_indicators["digital"]["label"],
+        digital_uploaded_count=doc_indicators["digital"]["uploadedCount"],
+        digital_required_count=doc_indicators["digital"]["requiredCount"],
     )

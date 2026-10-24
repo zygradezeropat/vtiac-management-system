@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from backend.student.enrollment_requirements import (
+    REQUIREMENT_SPECS,
     dashboard_requirements_from_profile,
     enrollment_progress_percent,
 )
@@ -96,9 +97,12 @@ EDUCATIONAL_ATTAINMENT_CHOICES = (
 SCHOLARSHIP_TYPE_CHOICES = (
     ("", "Select scholarship type"),
     ("tesda", "TESDA Scholarship"),
-    ("twsp", "TWSP"),
+    ("twsp", "TESDA TWSP"),
+    ("step", "TESDA STEP"),
     ("pesa", "PESFA"),
     ("uaqtea", "UAQTEA"),
+    ("lgu", "LGU Scholarship"),
+    ("industry", "Industry Partner Grant"),
     ("others", "Others"),
 )
 
@@ -850,8 +854,13 @@ def student_dashboard_context(request=None):
         else None
     )
     requirements = dashboard_requirements_from_profile(profile)
-    doc_count = profile.documents.count() if profile else 0
-    doc_total = 5
+    active_keys = [spec["key"] for spec in REQUIREMENT_SPECS]
+    doc_count = (
+        profile.documents.filter(document_type__in=active_keys).count()
+        if profile
+        else 0
+    )
+    doc_total = len(REQUIREMENT_SPECS)
     enrollment_steps = build_enrollment_steps_timeline(profile, registration)
     announcements = [
         {
@@ -913,6 +922,10 @@ def student_dashboard_context(request=None):
 
     show_my_profile_link = can_access_my_profile(user)
 
+    from backend.student.document_submission import get_document_submission_indicators
+
+    doc_indicators = get_document_submission_indicators(profile, registration)
+
     return {
         "is_enrolled": registration_is_enrolled(user) if user else False,
         "progress_ring_circumference": ring_circ,
@@ -928,6 +941,11 @@ def student_dashboard_context(request=None):
         "documents_uploaded": doc_count,
         "documents_total": doc_total,
         "documents_badge": "Complete" if profile and profile.requirements_submitted else "In Progress",
+        "doc_indicators": doc_indicators,
+        "hard_copies_submitted": doc_indicators["hardCopy"]["isSubmitted"],
+        "hard_copies_submitted_at": doc_indicators["hardCopy"]["submittedAt"],
+        "digital_records_uploaded": doc_indicators["digital"]["isUploaded"],
+        "digital_records_label": doc_indicators["digital"]["label"],
         "requirements": requirements,
         "enrollment_steps": enrollment_steps,
         "announcements": announcements,

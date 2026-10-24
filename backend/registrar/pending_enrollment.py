@@ -16,6 +16,7 @@ from backend.student.models import (
     StudentRegistration,
 )
 from backend.student.document_review import documents_cleared_for_payment
+from backend.student.document_submission import get_document_submission_indicators
 from backend.student.payment_records import profile_has_payment
 from backend.cashier.balance import fee_balance_for_profile
 from backend.student.services import SCHOLARSHIP_TYPE_CHOICES
@@ -238,6 +239,8 @@ def _serialize_item(reg: StudentRegistration, profile: StudentEnrollmentProfile 
         else reg.program_type
     )
 
+    doc_indicators = get_document_submission_indicators(profile, reg)
+
     return {
         "id": profile.pk if profile else None,
         "registrationId": str(reg.pk),
@@ -259,6 +262,16 @@ def _serialize_item(reg: StudentRegistration, profile: StudentEnrollmentProfile 
         "paymentReference": ref,
         "referenceId": reg.reference_id,
         "canApprove": can_approve,
+        "digitalStatus": doc_indicators["digital"]["status"],
+        "digitalLabel": doc_indicators["digital"]["label"],
+        "digitalBadgeClass": doc_indicators["digital"]["badgeClass"],
+        "isDigitalUploaded": doc_indicators["digital"]["isUploaded"],
+        "hardCopyStatus": doc_indicators["hardCopy"]["status"],
+        "hardCopyLabel": doc_indicators["hardCopy"]["label"],
+        "hardCopyBadgeClass": doc_indicators["hardCopy"]["badgeClass"],
+        "hardCopiesSubmitted": doc_indicators["hardCopy"]["isSubmitted"],
+        "hardCopySubmittedAt": doc_indicators["hardCopy"]["submittedAt"],
+        "docIndicators": doc_indicators,
         "cashierApproval": {
             "cashierName": "Cashier (payment proof on file)" if has_payment else "",
             "cashierRole": "Cashier",

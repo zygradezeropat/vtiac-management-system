@@ -27,6 +27,7 @@ REQUIREMENT_SPECS = (
         "title": "Birth Certificate",
         "hint": "PSA/NSO issued copy",
         "required": True,
+        "requires_hard_copy": True,
         "icon_bi": "bi-file-earmark-text",
         "has_id_type": False,
     },
@@ -35,6 +36,7 @@ REQUIREMENT_SPECS = (
         "title": "Valid ID",
         "hint": "Government-issued ID",
         "required": True,
+        "requires_hard_copy": True,
         "icon_bi": "bi-person-vcard",
         "has_id_type": True,
     },
@@ -43,6 +45,7 @@ REQUIREMENT_SPECS = (
         "title": "2x2 Photo",
         "hint": "Recent photo, white background",
         "required": True,
+        "requires_hard_copy": True,
         "icon_bi": "bi-image",
         "has_id_type": False,
     },
@@ -51,6 +54,7 @@ REQUIREMENT_SPECS = (
         "title": "Certificate of Good Moral",
         "hint": "From previous school or barangay (optional)",
         "required": False,
+        "requires_hard_copy": False,
         "icon_bi": "bi-award",
         "has_id_type": False,
     },
@@ -59,6 +63,7 @@ REQUIREMENT_SPECS = (
         "title": "Transcript of Records",
         "hint": "Latest TOR or Form 138 (optional)",
         "required": False,
+        "requires_hard_copy": False,
         "icon_bi": "bi-journal-text",
         "has_id_type": False,
     },
@@ -80,7 +85,9 @@ def _validate_upload_file(uploaded_file):
 
 
 def build_requirements_rows(profile):
-    docs = {d.document_type: d for d in profile.documents.all()}
+    docs = {d.document_type: d for d in profile.documents.all()} if profile else {}
+    hard_copy_docs = profile.hard_copy_documents if profile and profile.hard_copy_documents else {}
+    is_hard_submitted = bool(profile and profile.hard_copies_submitted)
     rows = []
     for spec in REQUIREMENT_SPECS:
         doc = docs.get(spec["key"])
@@ -97,9 +104,23 @@ def build_requirements_rows(profile):
             and doc.registrar_status
             == StudentEnrollmentProfile.PhotoRegistrarStatus.APPROVED
         )
+
+        requires_hard_copy = spec.get("requires_hard_copy", spec["required"])
+        if not requires_hard_copy:
+            hard_copy_received = False
+        elif doc and doc.hard_copy_received:
+            hard_copy_received = True
+        elif spec["key"] in hard_copy_docs:
+            hard_copy_received = bool(hard_copy_docs[spec["key"]])
+        elif is_hard_submitted and spec["required"]:
+            hard_copy_received = True
+        else:
+            hard_copy_received = False
+
         rows.append(
             {
                 **spec,
+                "requires_hard_copy": requires_hard_copy,
                 "uploaded": uploaded,
                 "filename": filename,
                 "file_url": file_url,
@@ -112,6 +133,7 @@ def build_requirements_rows(profile):
                     == StudentEnrollmentProfile.PhotoRegistrarStatus.REJECTED
                 ),
                 "is_approved": is_approved,
+                "hard_copy_received": hard_copy_received,
             }
         )
     return rows
@@ -266,7 +288,11 @@ def student_enrollment_requirements_context(request):
         is_assessment_only_program,
     )
 
+    from backend.student.document_submission import get_document_submission_indicators
+
     profile = get_enrollment_profile(request.user)
+    reg = getattr(request.user, "registration_application", None)
+    doc_indicators = get_document_submission_indicators(profile, reg)
     progress = enrollment_progress_percent(profile)
 
     return _student_portal_base(
@@ -287,6 +313,13 @@ def student_enrollment_requirements_context(request):
         is_assessment_only=is_assessment_only_program(
             enrollment_program_type_for_user(request.user)
         ),
+        doc_indicators=doc_indicators,
+        hard_copies_submitted=doc_indicators["hardCopy"]["isSubmitted"],
+        hard_copies_submitted_at=doc_indicators["hardCopy"]["submittedAt"],
+        digital_records_uploaded=doc_indicators["digital"]["isUploaded"],
+        digital_records_label=doc_indicators["digital"]["label"],
+        digital_uploaded_count=doc_indicators["digital"]["uploadedCount"],
+        digital_required_count=doc_indicators["digital"]["requiredCount"],
     )
 
 

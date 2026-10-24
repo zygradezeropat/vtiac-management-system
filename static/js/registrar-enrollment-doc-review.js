@@ -14,7 +14,7 @@ function getCsrfToken() {
   return match ? decodeURIComponent(match[1]) : "";
 }
 
-export function initEnrollmentDocReview({ viewBodyEl, getItem, onReleased }) {
+export function initEnrollmentDocReview({ viewBodyEl, getItem, onReleased, onUpdated }) {
   const rejectModalEl = document.getElementById("doc-reject-reason-modal");
   const rejectTitleEl = document.getElementById("doc-reject-reason-title");
   const rejectInputEl = document.getElementById("doc-reject-reason-input");
@@ -60,7 +60,119 @@ export function initEnrollmentDocReview({ viewBodyEl, getItem, onReleased }) {
     return data;
   }
 
+  async function postHardCopiesAction(extra = {}) {
+    const item = getItem();
+    if (!item) throw new Error("No enrollment record selected.");
+
+    const body = new URLSearchParams();
+    if (item.id != null) body.set("profile_id", String(item.id));
+    if (item.registrationId) body.set("registration_id", item.registrationId);
+    Object.entries(extra).forEach(([k, v]) => body.set(k, v));
+
+    const res = await fetch("/registrar/api/enrollment/hard-copies/update/", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCsrfToken(),
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      credentials: "same-origin",
+      body: body.toString(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Request failed.");
+    return data;
+  }
+
+  viewBodyEl?.addEventListener("change", (e) => {
+    const cb = e.target.closest(".hard-copy-doc-check");
+    if (!cb) return;
+    const label = cb.closest(".registrar-hard-copies-item");
+    const badge = label?.querySelector(".hard-copy-item-badge");
+    if (badge) {
+      if (cb.checked) {
+        badge.className = "badge bg-success-subtle text-success border border-success-subtle text-2xs ms-2 hard-copy-item-badge";
+        badge.textContent = "Received";
+      } else {
+        badge.className = "badge bg-secondary-subtle text-secondary text-2xs ms-2 hard-copy-item-badge";
+        badge.textContent = "Pending";
+      }
+    }
+  });
+
   viewBodyEl?.addEventListener("click", async (e) => {
+    const toggleHardCopiesBtn = e.target.closest(".hard-copies-toggle-btn");
+    const saveChecklistBtn = e.target.closest(".hard-copies-save-checklist-btn");
+
+    if (toggleHardCopiesBtn) {
+      if (actionInFlight) return;
+      const isMark = toggleHardCopiesBtn.dataset.action === "mark";
+      actionInFlight = true;
+      const origHtml = toggleHardCopiesBtn.innerHTML;
+      toggleHardCopiesBtn.disabled = true;
+      toggleHardCopiesBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Updating...`;
+      const scrollTop = viewBodyEl.scrollTop;
+      try {
+        const detail = await postHardCopiesAction({
+          hard_copies_submitted: isMark ? "1" : "0",
+        });
+        applyDetail(detail);
+        viewBodyEl.scrollTop = scrollTop;
+        onUpdated?.(detail);
+      } catch (err) {
+        window.alert(err.message || "Could not update hard copies status.");
+        toggleHardCopiesBtn.disabled = false;
+        toggleHardCopiesBtn.innerHTML = origHtml;
+      } finally {
+        actionInFlight = false;
+      }
+      return;
+    }
+
+    if (saveChecklistBtn) {
+      if (actionInFlight) return;
+      actionInFlight = true;
+      const origHtml = saveChecklistBtn.innerHTML;
+      saveChecklistBtn.disabled = true;
+      saveChecklistBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Saving...`;
+      const scrollTop = viewBodyEl.scrollTop;
+      try {
+        const checks = {};
+        viewBodyEl.querySelectorAll(".hard-copy-doc-check").forEach((cb) => {
+          checks[cb.dataset.key] = cb.checked;
+        });
+        const notes = (viewBodyEl.querySelector(".hard-copies-notes-input")?.value || "").trim();
+        const hasRequiredChecked = ["birth_certificate", "valid_id", "photo_2x2"].every((k) => checks[k]);
+
+        const detail = await postHardCopiesAction({
+          hard_copies_submitted: hasRequiredChecked ? "1" : "0",
+          notes: notes,
+          documents: JSON.stringify(checks),
+        });
+        applyDetail(detail);
+        viewBodyEl.scrollTop = scrollTop;
+        const newSaveBtn = viewBodyEl.querySelector(".hard-copies-save-checklist-btn");
+        if (newSaveBtn) {
+          newSaveBtn.className = "btn btn-sm btn-outline-success hard-copies-save-checklist-btn";
+          newSaveBtn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Saved!`;
+          setTimeout(() => {
+            if (newSaveBtn) {
+              newSaveBtn.className = "btn btn-sm btn-outline-secondary hard-copies-save-checklist-btn";
+              newSaveBtn.innerHTML = origHtml;
+            }
+          }, 2000);
+        }
+        onUpdated?.(detail);
+      } catch (err) {
+        window.alert(err.message || "Could not save checklist.");
+        saveChecklistBtn.disabled = false;
+        saveChecklistBtn.innerHTML = origHtml;
+      } finally {
+        actionInFlight = false;
+      }
+      return;
+    }
+
     const approveBtn = e.target.closest(".doc-review-approve-btn");
     const rejectBtn = e.target.closest(".doc-review-reject-btn");
     if (!approveBtn && !rejectBtn) return;

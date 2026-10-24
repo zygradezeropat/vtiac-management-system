@@ -2,6 +2,7 @@
 
 from django.utils import timezone
 
+from backend.student.document_submission import get_document_submission_indicators
 from backend.student.models import StudentEnrollmentProfile, StudentRegistration
 from backend.student.services import SCHOLARSHIP_TYPE_CHOICES
 from backend.system_admin.program_config import enrollment_program_options
@@ -71,6 +72,8 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
     scholar_label = _scholarship_label(scholarship_type)
     scholar_detail = _SCHOLARSHIP_LABELS.get(scholarship_type, scholarship_type) if scholarship_type else ""
 
+    doc_indicators = get_document_submission_indicators(profile, reg)
+
     return {
         "id": row_id,
         "registrationId": str(reg.pk),
@@ -86,6 +89,16 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
         "email": email,
         "referenceId": reg.reference_id,
         "programType": program_type,
+        "digitalStatus": doc_indicators["digital"]["status"],
+        "digitalLabel": doc_indicators["digital"]["label"],
+        "digitalBadgeClass": doc_indicators["digital"]["badgeClass"],
+        "isDigitalUploaded": doc_indicators["digital"]["isUploaded"],
+        "hardCopyStatus": doc_indicators["hardCopy"]["status"],
+        "hardCopyLabel": doc_indicators["hardCopy"]["label"],
+        "hardCopyBadgeClass": doc_indicators["hardCopy"]["badgeClass"],
+        "hardCopiesSubmitted": doc_indicators["hardCopy"]["isSubmitted"],
+        "hardCopySubmittedAt": doc_indicators["hardCopy"]["submittedAt"],
+        "docIndicators": doc_indicators,
     }
 
 
@@ -93,7 +106,7 @@ def approved_students_queryset():
     return (
         StudentRegistration.objects.filter(status=StudentRegistration.Status.APPROVED)
         .select_related("user")
-        .prefetch_related("tesda_profile")
+        .prefetch_related("tesda_profile__documents")
         .order_by("-created_at")
     )
 

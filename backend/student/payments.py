@@ -135,6 +135,10 @@ def student_enrollment_pending_context(request):
         and not profile_has_payment(profile)
     )
 
+    from backend.student.document_submission import get_document_submission_indicators
+    reg = getattr(request.user, "registration_application", None)
+    doc_indicators = get_document_submission_indicators(profile, reg)
+
     return _student_portal_base(
         request,
         active_menu="Enrollment",
@@ -151,4 +155,9 @@ def student_enrollment_pending_context(request):
             else "View / edit learner profile"
         ),
         edit_requirements_label="View / edit uploaded requirements",
+        doc_indicators=doc_indicators,
+        hard_copies_submitted=doc_indicators["hardCopy"]["isSubmitted"],
+        hard_copies_submitted_at=doc_indicators["hardCopy"]["submittedAt"],
+        digital_records_uploaded=doc_indicators["digital"]["isUploaded"],
+        digital_records_label=doc_indicators["digital"]["label"],
     )

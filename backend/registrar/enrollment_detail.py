@@ -14,6 +14,7 @@ from backend.student.document_review import (
     all_reviewable_documents_approved,
     get_document_review_status,
 )
+from backend.student.document_submission import get_document_submission_indicators
 from backend.student.enrollment_requirements import ID_TYPE_CHOICES, REQUIREMENT_SPECS
 from backend.student.models import (
     StudentEnrollmentDocument,
@@ -291,6 +292,7 @@ def build_learner_profile_detail(profile: StudentEnrollmentProfile | None, reg: 
         "paymentDocuments": _build_payment_documents(profile),
         "allDocumentsApproved": all_reviewable_documents_approved(profile) if profile else False,
         "documentsReviewReleased": bool(profile and profile.documents_review_released),
+        "docIndicators": get_document_submission_indicators(profile, reg),
     }
 
 
