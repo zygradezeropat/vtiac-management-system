@@ -48,161 +48,7 @@ export const COURSE_DURATIONS = {
   "Competency Assessment": 1,
 };
 
-export const COURSES_DATA = [
-  {
-    id: "driving",
-    name: "Driving NC II",
-    durationDays: 19,
-    batches: [
-      {
-        id: "b1",
-        label: "Batch 1",
-        students: [
-          {
-            lastName: "Diaz",
-            firstName: "Carlos",
-            program: "Driving NC II",
-          },
-          {
-            lastName: "Garcia",
-            firstName: "Luis",
-            program: "Driving NC II",
-          },
-          {
-            lastName: "Hernandez",
-            firstName: "Ana",
-            program: "Driving NC II",
-          },
-          {
-            lastName: "Ortiz",
-            firstName: "Mark",
-            program: "Driving NC II",
-          },
-        ],
-      },
-    ],
-  },
-
-  {
-    id: "driving-nc3",
-    name: "Driving NC III (Passenger Bus / Straight Truck)",
-    durationDays: 24,
-    batches: [
-      {
-        id: "b1",
-        label: "Batch 1",
-        students: [
-          {
-            lastName: "Ramirez",
-            firstName: "Joel",
-            program: "Driving NC III (Passenger Bus / Straight Truck)",
-          },
-        ],
-      },
-    ],
-  },
-
-  {
-    id: "rice",
-    name: "Rice Machinery Operations NC II",
-    durationDays: 29,
-    batches: [
-      {
-        id: "b1",
-        label: "Batch 1",
-        students: [
-          {
-            lastName: "Torres",
-            firstName: "Ben",
-            program: "Rice Machinery Operations NC II",
-          },
-        ],
-      },
-    ],
-  },
-
-  {
-    id: "automotive-1",
-    name: "Automotive Servicing NC I",
-    durationDays: 61,
-    batches: [
-      {
-        id: "b1",
-        label: "Batch 1",
-        students: [
-          {
-            lastName: "Santos",
-            firstName: "Maria",
-            program: "Automotive Servicing NC I",
-          },
-          {
-            lastName: "Reyes",
-            firstName: "Paolo",
-            program: "Automotive Servicing NC I",
-          },
-          {
-            lastName: "Lim",
-            firstName: "Grace",
-            program: "Automotive Servicing NC I",
-          },
-          {
-            lastName: "Cruz",
-            firstName: "Noel",
-            program: "Automotive Servicing NC I",
-          },
-          {
-            lastName: "Bautista",
-            firstName: "Rosa",
-            program: "Automotive Servicing NC I",
-          },
-        ],
-      },
-    ],
-  },
-
-  {
-    id: "automotive-2",
-    name: "Automotive Servicing NC II",
-    durationDays: 37,
-    batches: [
-      {
-        id: "b1",
-        label: "Batch 1",
-        students: [
-          {
-            lastName: "Mendoza",
-            firstName: "Rico",
-            program: "Automotive Servicing NC II",
-          },
-          {
-            lastName: "Navarro",
-            firstName: "Liza",
-            program: "Automotive Servicing NC II",
-          },
-        ],
-      },
-    ],
-  },
-
-  {
-    id: "competency",
-    name: "Competency Assessment",
-    durationDays: 1,
-    batches: [
-      {
-        id: "b1",
-        label: "Batch 1",
-        students: [
-          {
-            lastName: "Castillo",
-            firstName: "Troy",
-            program: "Competency Assessment",
-          },
-        ],
-      },
-    ],
-  },
-];
+export const COURSES_DATA = [];
 
 function escapeHtml(text) {
   return String(text)
@@ -777,13 +623,11 @@ document.addEventListener(
     const dbCourses =
       loadBatchingCoursesData();
 
-    if (dbCourses.length) {
-      COURSES_DATA.splice(
-        0,
-        COURSES_DATA.length,
-        ...dbCourses
-      );
-    }
+    COURSES_DATA.splice(
+      0,
+      COURSES_DATA.length,
+      ...dbCourses
+    );
 
     const templatesByCourse =
       loadBatchingTemplatesData();

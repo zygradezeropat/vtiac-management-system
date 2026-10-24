@@ -130,7 +130,8 @@ def _needed_status(
             "label": "Needs: Learner profile",
             "badgeClass": "registrar-enrollment-status--profile",
         }
-    if not profile.requirements_submitted:
+    reqs_cleared = profile.requirements_submitted or documents_cleared_for_payment(profile)
+    if not reqs_cleared:
         return {
             "key": "requirements",
             "label": "Needs: Requirements upload",
@@ -218,10 +219,14 @@ def _serialize_item(reg: StudentRegistration, profile: StudentEnrollmentProfile 
             doc_url = latest_proof.file.url
             doc_name = latest_proof.original_filename or latest_proof.file.name.split("/")[-1]
 
+    reqs_cleared = bool(
+        profile
+        and (profile.requirements_submitted or documents_cleared_for_payment(profile))
+    )
     can_approve = bool(
         profile
         and profile.profile_step_completed
-        and profile.requirements_submitted
+        and reqs_cleared
         and paid > 0
         and balance["totalRemaining"] <= 0
         and reg
@@ -372,8 +377,11 @@ def _approve_enrollment_item(profile, reg) -> tuple[bool, str | None]:
         return False, "Enrollment not found or already processed."
 
     if profile:
-        if not profile.profile_step_completed or not profile.requirements_submitted:
+        reqs_cleared = profile.requirements_submitted or documents_cleared_for_payment(profile)
+        if not profile.profile_step_completed or not reqs_cleared:
             return False, "Student has not completed profile and requirements yet."
+        if not documents_cleared_for_payment(profile):
+            return False, "All enrollment documents must be approved and released first."
         if not profile_has_payment(profile):
             return (
                 False,

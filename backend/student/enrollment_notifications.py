@@ -139,6 +139,58 @@ def notify_student_documents_released(profile: StudentEnrollmentProfile):
     )
 
 
+from django.conf import settings
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+
+
+def send_enrollment_approved_email(profile: StudentEnrollmentProfile | None, reg=None):
+    """Send official enrollment approval email notification via Gmail SMTP."""
+    recipient_email = (reg.email if reg else None) or (profile.email if profile else None)
+    if not recipient_email and profile and profile.user:
+        recipient_email = profile.user.email
+    if not recipient_email and reg and getattr(reg, "user", None):
+        recipient_email = reg.user.email
+
+    if not recipient_email:
+        return
+
+    name = (f"{reg.first_name} {reg.last_name}").strip() if reg else (_student_name(profile) if profile else "Student")
+    program = (reg.selected_program if reg else "") or (profile.selected_program if profile else "") or "Training Program"
+    ref_id = (reg.reference_id if reg else "") or (profile.tsmis if profile else "") or "—"
+
+    subject = f"Enrollment Approved — VTIAC ({ref_id})"
+    context = {
+        "student_name": name,
+        "program": program,
+        "reference_id": ref_id,
+    }
+
+    message = (
+        f"Dear {name},\n\n"
+        f"Congratulations! Your enrollment at VTIAC has been officially Approved by the Registrar Office.\n\n"
+        f"Reference / Student ID: {ref_id}\n"
+        f"Approved Program: {program}\n"
+        f"Status: Officially Enrolled\n\n"
+        f"Please log in to your student portal to review your schedule and announcements.\n\n"
+        f"— Office of the Registrar\n"
+        f"Valiant Technical Institute & Accreditation Center"
+    )
+
+    try:
+        html_message = render_to_string("emails/enrollment_approved.html", context)
+        send_mail(
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[recipient_email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+
+
 def notify_enrollment_approved(profile: StudentEnrollmentProfile | None, reg=None):
     """Notify student and registrar when an enrollment application is officially approved."""
     name = (f"{reg.first_name} {reg.last_name}").strip() if reg else (_student_name(profile) if profile else "Student")
@@ -165,6 +217,9 @@ def notify_enrollment_approved(profile: StudentEnrollmentProfile | None, reg=Non
         link_url=REGISTRAR_ENROLLMENT_URL,
         related_profile_id=profile.pk if profile else None,
     )
+
+    # 3. Send official email notification to student
+    send_enrollment_approved_email(profile, reg)
 
 
 def notify_enrollment_rejected(profile: StudentEnrollmentProfile | None, reg=None):

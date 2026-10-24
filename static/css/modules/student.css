@@ -86,6 +86,28 @@
   font-weight: 600;
 }
 
+.student-nav-link--disabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  color: #94a3b8 !important;
+  background: transparent !important;
+  user-select: none;
+}
+
+.student-nav-link--disabled:hover {
+  background: #f8fafc !important;
+  color: #94a3b8 !important;
+}
+
+.student-nav-lock-badge {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
 .student-nav-icon {
   width: 1.25rem;
   display: inline-flex;
@@ -291,10 +313,18 @@
 
 .student-progress-ring__fill {
   fill: none;
-  stroke: var(--student-primary);
+  stroke: #ef4444;
   stroke-width: 10;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.35s ease;
+  transition: stroke-dashoffset 0.35s ease, stroke 0.3s ease;
+}
+
+.student-progress-ring__fill--incomplete {
+  stroke: #ef4444 !important;
+}
+
+.student-progress-ring__fill--complete {
+  stroke: #00a859 !important;
 }
 
 .student-progress-ring__label {
@@ -745,9 +775,17 @@
 
 .student-enroll-progress__fill {
   height: 100%;
-  background: #0f172a;
+  background: #ef4444;
   border-radius: 999px;
-  transition: width 0.35s ease;
+  transition: width 0.35s ease, background-color 0.3s ease;
+}
+
+.student-enroll-progress__fill--incomplete {
+  background: #ef4444 !important;
+}
+
+.student-enroll-progress__fill--complete {
+  background: #00a859 !important;
 }
 
 .student-enroll-list {
@@ -2233,4 +2271,176 @@
   background: #dcfce7;
   color: #15803d;
 }
+
+/* ==========================================================================
+   Prominent Enrollment Status Banner (Not Yet Enrolled Notification)
+   ========================================================================== */
+
+.student-enrollment-banner {
+  position: relative;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 60%, #fef9c3 100%);
+  border: 1px solid #fde68a;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -2px rgba(217, 119, 6, 0.12), 0 2px 6px -1px rgba(217, 119, 6, 0.06);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.student-enrollment-banner:hover {
+  box-shadow: 0 6px 24px -2px rgba(217, 119, 6, 0.18), 0 3px 8px -1px rgba(217, 119, 6, 0.08);
+}
+
+.student-enrollment-banner__accent-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+}
+
+.student-enrollment-banner__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.15rem 1.5rem 1.15rem 1.75rem;
+  flex-wrap: wrap;
+}
+
+.student-enrollment-banner__icon-wrap {
+  position: relative;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.85rem;
+  background: #fde68a;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.2);
+}
+
+.student-enrollment-banner__icon {
+  font-size: 1.35rem;
+  z-index: 2;
+}
+
+.student-enrollment-banner__icon-pulse {
+  position: absolute;
+  inset: -3px;
+  border-radius: 1rem;
+  border: 2px solid rgba(217, 119, 6, 0.4);
+  animation: bannerIconPulse 2.4s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes bannerIconPulse {
+  0% { transform: scale(0.96); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 0.2; }
+  100% { transform: scale(0.96); opacity: 0.8; }
+}
+
+.student-enrollment-banner__content {
+  flex: 1 1 20rem;
+  min-width: 0;
+}
+
+.student-enrollment-banner__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-bottom: 0.25rem;
+}
+
+.student-enrollment-banner__title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #78350f;
+  letter-spacing: -0.015em;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.student-enrollment-banner__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: #fde68a;
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+.student-enrollment-banner__badge-dot,
+.student-enrollment-badge-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #d97706;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.3);
+  animation: dotPulse 1.8s infinite;
+}
+
+@keyframes dotPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.student-enrollment-banner__desc {
+  font-size: 0.875rem;
+  color: #92400e;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.student-enrollment-banner__action {
+  flex-shrink: 0;
+}
+
+.student-enrollment-banner__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1.15rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #b45309 0%, #92400e 100%);
+  color: #ffffff !important;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none !important;
+  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.28);
+  transition: all 0.15s ease-in-out;
+}
+
+.student-enrollment-banner__btn:hover {
+  background: linear-gradient(135deg, #92400e 0%, #78350f 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(180, 83, 9, 0.35);
+  color: #ffffff !important;
+}
+
+.student-enrollment-banner__btn i {
+  font-size: 1.15rem;
+  transition: transform 0.15s ease;
+}
+
+.student-enrollment-banner__btn:hover i {
+  transform: translateX(2px);
+}
+
+.text-2xs {
+  font-size: 0.65rem;
+  line-height: 1rem;
+}
+
 

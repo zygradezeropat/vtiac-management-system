@@ -223,9 +223,9 @@ def module_page_context(module, request=None):
         if user and getattr(user, "is_authenticated", False):
             students, batch_cards = assigned_students_by_batch(user)
 
-        total_candidates = len(students) if students else 42
-        competent_count = sum(1 for s in students if s.get("status") == "approved") if students else 39
-        competency_mastery_pct = round((competent_count / total_candidates) * 100, 1) if total_candidates > 0 else 94.8
+        total_candidates = len(students)
+        competent_count = sum(1 for s in students if s.get("status") == "approved")
+        competency_mastery_pct = round((competent_count / total_candidates) * 100, 1) if total_candidates > 0 else 0.0
 
         competency_units = {
             "basic": [
@@ -245,7 +245,7 @@ def module_page_context(module, request=None):
                 {"code": "UC-R3", "name": "Service brake and hydraulic suspension system", "mastery_pct": 91, "status": "Mastered"},
                 {"code": "UC-R4", "name": "Inspect & service engine mechanical components", "mastery_pct": 94, "status": "Mastered"},
             ],
-        }
+        } if students else {}
 
         candidate_competency_rows = []
         if students:
@@ -262,75 +262,12 @@ def module_page_context(module, request=None):
                     "status_badge": "bg-success",
                     "result": "Competent (C)",
                 })
-        else:
-            candidate_competency_rows = [
-                {
-                    "name": "Juan Dela Cruz",
-                    "ref_id": "REG-8F2A01",
-                    "program": "Automotive Servicing NC I",
-                    "batch": "Morning Batch A",
-                    "basic_ucs": "4 / 4 Completed",
-                    "common_ucs": "3 / 3 Completed",
-                    "core_ucs": "4 / 4 Completed",
-                    "readiness": "Recommended for Assessment",
-                    "status_badge": "bg-success",
-                    "result": "Competent (C)",
-                },
-                {
-                    "name": "Maria Clara Santos",
-                    "ref_id": "REG-3C9102",
-                    "program": "Automotive Servicing NC I",
-                    "batch": "Morning Batch A",
-                    "basic_ucs": "4 / 4 Completed",
-                    "common_ucs": "3 / 3 Completed",
-                    "core_ucs": "4 / 4 Completed",
-                    "readiness": "Recommended for Assessment",
-                    "status_badge": "bg-success",
-                    "result": "Competent (C)",
-                },
-                {
-                    "name": "Gabriel Mendoza",
-                    "ref_id": "REG-1E0403",
-                    "program": "Driving NC II",
-                    "batch": "Weekend Batch B",
-                    "basic_ucs": "4 / 4 Completed",
-                    "common_ucs": "3 / 3 Completed",
-                    "core_ucs": "3 / 4 Completed",
-                    "readiness": "In Progress (Final Evaluation)",
-                    "status_badge": "bg-warning text-dark",
-                    "result": "Pending Final Core UC",
-                },
-                {
-                    "name": "Alyssa Valdez",
-                    "ref_id": "REG-7B8804",
-                    "program": "Driving NC II",
-                    "batch": "Weekend Batch B",
-                    "basic_ucs": "4 / 4 Completed",
-                    "common_ucs": "3 / 3 Completed",
-                    "core_ucs": "4 / 4 Completed",
-                    "readiness": "Recommended for Assessment",
-                    "status_badge": "bg-success",
-                    "result": "Competent (C)",
-                },
-                {
-                    "name": "Kenneth Erojo",
-                    "ref_id": "REG-4D5205",
-                    "program": "Rice Machinery Operations NC II",
-                    "batch": "Batch 1",
-                    "basic_ucs": "4 / 4 Completed",
-                    "common_ucs": "3 / 3 Completed",
-                    "core_ucs": "4 / 4 Completed",
-                    "readiness": "Recommended for Assessment",
-                    "status_badge": "bg-success",
-                    "result": "Competent (C)",
-                },
-            ]
 
         ctx.update({
             "total_candidates": total_candidates,
             "competent_count": competent_count,
             "competency_mastery_pct": competency_mastery_pct,
-            "national_assessment_ready": int(total_candidates * 0.905),
+            "national_assessment_ready": int(total_candidates * 0.905) if total_candidates else 0,
             "competency_units": competency_units,
             "candidate_competency_rows": candidate_competency_rows,
             "trainer_reports_json": json.dumps(
@@ -385,12 +322,12 @@ def module_template(module):
 
 
 def trainer_dashboard_stats():
-    """Placeholder dashboard metrics until grading data is wired."""
+    """Default dashboard metrics when no classes are assigned."""
     return {
-        "total_students": 8,
-        "competent_count": 1,
-        "nyc_count": 7,
-        "avg_attendance": "88.8%",
+        "total_students": 0,
+        "competent_count": 0,
+        "nyc_count": 0,
+        "avg_attendance": "—",
     }
 
 

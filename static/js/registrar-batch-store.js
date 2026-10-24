@@ -70,31 +70,7 @@ export function getFinalizedBatch(id) {
   return readAll().find((b) => b.id === id) ?? null;
 }
 
-/** Demo samples when repository is empty (first visit). */
+/** No-op: Dummy fallback seeding disabled so repository accurately reflects database batches. */
 export function seedFinalizedDemoIfEmpty() {
-  if (readAll().length > 0) return;
-
-  writeAll([
-    {
-      id: "fin-demo-automotive-1",
-      courseId: "automotive-1",
-      courseName: "Automotive Servicing NC I",
-      durationDays: 61,
-      batchLabel: "Batch 1",
-      batchId: "demo-b1",
-      schedule: { day: "Monday – Friday", timeFrom: "08:00", timeTo: "12:00" },
-      startDate: "2026-02-03",
-      endDate: "2026-05-08",
-      trainer: "Maria Cruz",
-      students: [
-        { lastName: "Santos", firstName: "Elena", program: "Automotive Servicing NC I" },
-        { lastName: "Reyes", firstName: "Paolo", program: "Automotive Servicing NC I" },
-        { lastName: "Lim", firstName: "Grace", program: "Automotive Servicing NC I" },
-        { lastName: "Cruz", firstName: "Noel", program: "Automotive Servicing NC I" },
-        { lastName: "Bautista", firstName: "Rosa", program: "Automotive Servicing NC I" },
-      ],
-      studentCount: 5,
-      finalizedAt: "2026-04-18T09:30:00.000Z",
-    },
-  ]);
+  return;
 }

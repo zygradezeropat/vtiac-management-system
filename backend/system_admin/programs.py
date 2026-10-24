@@ -47,12 +47,16 @@ def _serialize_settings(settings: SystemSettings) -> dict:
 
 
 def system_settings_payload() -> dict:
+    from .schedules import list_schedules
+
     seed_default_programs()
     settings = SystemSettings.load()
     programs = [_serialize_program(row) for row in NcProgram.objects.order_by("sort_order", "name")]
+    schedules = list_schedules()
     return {
         "settings": _serialize_settings(settings),
         "programs": programs,
+        "schedules": schedules,
     }
 
 

@@ -214,3 +214,78 @@ def programs_update(request, program_id):
         return JsonResponse({"error": str(exc)}, status=400)
 
     return JsonResponse({"ok": True, "program": program})
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def schedules_create(request):
+    from .schedules import create_schedule
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    data = _json_body(request)
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON body."}, status=400)
+
+    try:
+        schedule = create_schedule(
+            name=data.get("name"),
+            days=data.get("days", ""),
+            time_slot=data.get("time_slot", ""),
+            code=data.get("code", ""),
+            sort_order=data.get("sort_order"),
+            is_active=data.get("is_active", True),
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({"ok": True, "schedule": schedule}, status=201)
+
+
+@login_required(login_url="/")
+@require_http_methods(["PATCH", "PUT"])
+def schedules_update(request, schedule_id):
+    from .schedules import update_schedule
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    data = _json_body(request)
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON body."}, status=400)
+
+    try:
+        schedule = update_schedule(
+            schedule_id,
+            name=data.get("name"),
+            days=data.get("days"),
+            time_slot=data.get("time_slot"),
+            code=data.get("code"),
+            sort_order=data.get("sort_order"),
+            is_active=data.get("is_active"),
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({"ok": True, "schedule": schedule})
+
+
+@login_required(login_url="/")
+@require_http_methods(["DELETE", "POST"])
+def schedules_delete(request, schedule_id):
+    from .schedules import delete_schedule
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    try:
+        delete_schedule(schedule_id)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({"ok": True})
+

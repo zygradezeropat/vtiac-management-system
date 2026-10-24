@@ -95,10 +95,10 @@ def resolve_student_evaluation_target(student_user):
     from backend.student.services import get_enrollment_profile
 
     trainer_user = None
-    trainer_name = "Juan Dela Cruz"
-    course_name = "Automotive Servicing NC I"
-    batch_label = "Morning Batch A"
-    schedule_display = "July 1 - July 20, 2026"
+    trainer_name = ""
+    course_name = ""
+    batch_label = ""
+    schedule_display = "—"
 
     profile = get_enrollment_profile(student_user) if student_user else None
     if profile:
@@ -139,7 +139,7 @@ def resolve_student_evaluation_target(student_user):
                 break
 
     # 2. If no direct name match, look up trainer from schedule template
-    if not trainer_user and profile:
+    if not trainer_user and profile and course_name:
         from backend.registrar.models import RegistrarScheduleTemplate
         template = RegistrarScheduleTemplate.objects.filter(
             course_name=course_name,
@@ -155,19 +155,15 @@ def resolve_student_evaluation_target(student_user):
                     trainer_user = t_user
                     break
 
-    # 3. Fallback to Juan Dela Cruz or first trainer in DB
+    # 3. Fallback to first trainer in DB
     if not trainer_user:
-        juan = trainer_candidates.filter(email__icontains="juan").first()
-        if juan:
-            trainer_user = juan
-            trainer_name = juan.get_full_name() or "Juan Dela Cruz"
+        first_trainer = trainer_candidates.first()
+        if first_trainer:
+            trainer_user = first_trainer
+            trainer_name = first_trainer.get_full_name() or first_trainer.email
         else:
-            first_trainer = trainer_candidates.first()
-            if first_trainer:
-                trainer_user = first_trainer
-                trainer_name = first_trainer.get_full_name() or first_trainer.email
-            else:
-                trainer_user = User.objects.filter(is_staff=True).first() or student_user
+            trainer_user = None
+            trainer_name = "Unassigned Trainer"
 
     return {
         "trainer_user": trainer_user,
@@ -235,12 +231,12 @@ def save_student_trainer_evaluation(student_user, post_data):
     course_name = (
         post_data.get("course_name")
         or target_info["program"]
-        or "Automotive Servicing NC I"
+        or "Vocational Training Program"
     ).strip()
     batch_label = (
         post_data.get("batch_label")
         or target_info["batch"]
-        or "Morning Batch A"
+        or ""
     ).strip()
 
     questions_map = ensure_evaluation_questions()

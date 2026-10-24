@@ -18,34 +18,7 @@ const TABS = [
   { key: "archived", label: "Archived Reports", icon: "bi-archive-fill" },
 ];
 
-const DEFAULT_ARCHIVED = [
-  {
-    fiscalYear: 2025,
-    closedOn: "December 31, 2025",
-    closedBy: "Admin User",
-    enrollmentCount: 520,
-    certifiedCount: 485,
-    courses: [
-      { name: "Automotive Servicing NC I", count: 142, certified: 135 },
-      { name: "Automotive Servicing (Engine Repair) NC II", count: 128, certified: 120 },
-      { name: "Driving NC II", count: 156, certified: 150 },
-      { name: "Rice Machinery Operations NC II", count: 94, certified: 80 },
-    ],
-  },
-  {
-    fiscalYear: 2024,
-    closedOn: "December 31, 2024",
-    closedBy: "Admin User",
-    enrollmentCount: 428,
-    certifiedCount: 395,
-    courses: [
-      { name: "Automotive Servicing NC I", count: 115, certified: 108 },
-      { name: "Automotive Servicing (Engine Repair) NC II", count: 98, certified: 92 },
-      { name: "Driving NC II", count: 132, certified: 125 },
-      { name: "Rice Machinery Operations NC II", count: 83, certified: 70 },
-    ],
-  },
-];
+const DEFAULT_ARCHIVED = [];
 
 function loadJsonData(scriptId, fallback = []) {
   const el = document.getElementById(scriptId);

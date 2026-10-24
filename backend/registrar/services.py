@@ -304,6 +304,43 @@ def module_page_context(module, request=None):
         ctx["scholarship_registry_json"] = json.dumps(scholarship_student_registry())
         ctx["scholarship_scholars_json"] = json.dumps(scholarship_enrolled_scholars())
         ctx["scholarship_masterlist_json"] = json.dumps(scholarship_masterlist_records())
+    if module == "trainer-evaluations":
+        from django.contrib.auth import get_user_model
+        from django.db.models import Avg
+        from backend.core.models import StaffProfile
+        from backend.trainer.models import TrainerEvaluation
+
+        User = get_user_model()
+        trainers = User.objects.filter(staff_profile__role=StaffProfile.Role.TRAINER)
+        total_trainers = trainers.count()
+        evals = TrainerEvaluation.objects.all()
+        total_evaluations = evals.count()
+        evaluated_trainers = trainers.filter(received_evaluations__isnull=False).distinct().count()
+        avg_res = evals.aggregate(avg=Avg("overall_rating"))["avg"]
+        avg_rating_display = f"{avg_res:.1f} ★" if avg_res is not None else "—"
+
+        trainer_rows = []
+        for t in trainers:
+            t_evals = evals.filter(trainer=t)
+            if t_evals.exists():
+                t_avg = t_evals.aggregate(avg=Avg("overall_rating"))["avg"] or 0
+                first_ev = t_evals.first()
+                trainer_rows.append({
+                    "name": t.get_full_name() or t.email,
+                    "program": first_ev.course_name or "—",
+                    "batch": first_ev.batch_label or "—",
+                    "student_count": t_evals.count(),
+                    "rating": f"★ {t_avg:.1f}",
+                    "rating_badge_class": "bg-success" if t_avg >= 4.0 else "bg-warning text-dark",
+                })
+
+        ctx.update({
+            "eval_total_trainers": total_trainers,
+            "eval_evaluated_trainers": evaluated_trainers,
+            "eval_avg_rating": avg_rating_display,
+            "eval_total_count": total_evaluations,
+            "eval_trainer_rows": trainer_rows,
+        })
     if module == "settings":
         user = getattr(request, "user", None) if request else None
         profile = settings_profile_defaults(user)

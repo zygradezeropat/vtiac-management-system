@@ -30,10 +30,14 @@ const NC_LEVEL_LABELS = {
 
 let programs = [];
 let editingProgramId = null;
+let schedules = [];
+let editingScheduleId = null;
 
 const alertEl = document.getElementById("systemSettingsAlert");
 const programModalEl = document.getElementById("programFormModal");
 const programModal = programModalEl ? new bootstrap.Modal(programModalEl) : null;
+const scheduleModalEl = document.getElementById("scheduleFormModal");
+const scheduleModal = scheduleModalEl ? new bootstrap.Modal(scheduleModalEl) : null;
 
 function showAlert(message, type = "success") {
   if (!alertEl) return;
@@ -45,6 +49,18 @@ function showAlert(message, type = "success") {
 
 function showProgramError(message) {
   const el = document.getElementById("programFormError");
+  if (!el) return;
+  if (message) {
+    el.textContent = message;
+    el.classList.remove("d-none");
+  } else {
+    el.textContent = "";
+    el.classList.add("d-none");
+  }
+}
+
+function showScheduleError(message) {
+  const el = document.getElementById("scheduleFormError");
   if (!el) return;
   if (message) {
     el.textContent = message;
@@ -130,11 +146,128 @@ function openProgramModal(programId = null) {
   programModal?.show();
 }
 
+function renderSchedulesTable() {
+  const tbody = document.getElementById("schedulesTableBody");
+  if (!tbody) return;
+
+  if (!schedules.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted py-4">No schedules configured yet.</td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = schedules
+    .map((sched) => {
+      const status = sched.isActive
+        ? '<span class="admin-user-badge admin-user-badge--active">Active</span>'
+        : '<span class="admin-user-badge admin-user-badge--inactive">Inactive</span>';
+      return `
+        <tr>
+          <td>
+            <strong>${escapeHtml(sched.name)}</strong>
+            ${sched.code ? `<span class="d-block text-xs text-muted">Code: ${escapeHtml(sched.code)}</span>` : ""}
+          </td>
+          <td>${escapeHtml(sched.days || "—")}</td>
+          <td>${escapeHtml(sched.timeSlot || "—")}</td>
+          <td class="text-center">${Number(sched.sortOrder) || 0}</td>
+          <td class="text-center">${status}</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-light me-1" data-edit-schedule="${sched.id}">Edit</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-delete-schedule="${sched.id}">Delete</button>
+          </td>
+        </tr>`;
+    })
+    .join("");
+
+  tbody.querySelectorAll("[data-edit-schedule]").forEach((button) => {
+    button.addEventListener("click", () => openScheduleModal(Number(button.dataset.editSchedule)));
+  });
+
+  tbody.querySelectorAll("[data-delete-schedule]").forEach((button) => {
+    button.addEventListener("click", () => deleteSchedule(Number(button.dataset.deleteSchedule)));
+  });
+}
+
+function openScheduleModal(scheduleId = null) {
+  editingScheduleId = scheduleId;
+  showScheduleError("");
+
+  const title = document.getElementById("scheduleFormModalLabel");
+  const sched = schedules.find((row) => row.id === scheduleId);
+
+  if (title) title.textContent = sched ? "Edit Training Schedule" : "Add Training Schedule";
+
+  document.getElementById("scheduleName").value = sched?.name || "";
+  document.getElementById("scheduleDays").value = sched?.days || "";
+  document.getElementById("scheduleTimeSlot").value = sched?.timeSlot || "";
+  document.getElementById("scheduleCode").value = sched?.code || "";
+  document.getElementById("scheduleSortOrder").value = sched?.sortOrder ?? schedules.length + 1;
+  document.getElementById("scheduleIsActive").checked = sched ? sched.isActive : true;
+
+  scheduleModal?.show();
+}
+
+async function saveSchedule() {
+  const payload = {
+    name: document.getElementById("scheduleName").value.trim(),
+    days: document.getElementById("scheduleDays").value.trim(),
+    time_slot: document.getElementById("scheduleTimeSlot").value.trim(),
+    code: document.getElementById("scheduleCode").value.trim(),
+    sort_order: document.getElementById("scheduleSortOrder").value,
+    is_active: document.getElementById("scheduleIsActive").checked,
+  };
+
+  try {
+    if (editingScheduleId) {
+      const data = await apiRequest(`/admin/api/schedules/${editingScheduleId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      schedules = schedules.map((row) => (row.id === editingScheduleId ? data.schedule : row));
+    } else {
+      const data = await apiRequest("/admin/api/schedules/create/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      schedules.push(data.schedule);
+      schedules.sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
+    }
+
+    scheduleModal?.hide();
+    renderSchedulesTable();
+    showAlert(editingScheduleId ? "Schedule updated." : "Schedule added.");
+  } catch (error) {
+    showScheduleError(error.message);
+  }
+}
+
+async function deleteSchedule(scheduleId) {
+  const sched = schedules.find((s) => s.id === scheduleId);
+  const name = sched ? sched.name : "this schedule";
+  if (!confirm(`Are you sure you want to remove ${name}?`)) {
+    return;
+  }
+  try {
+    await apiRequest(`/admin/api/schedules/${scheduleId}/delete/`, {
+      method: "POST",
+    });
+    schedules = schedules.filter((s) => s.id !== scheduleId);
+    renderSchedulesTable();
+    showAlert("Schedule removed.");
+  } catch (error) {
+    showAlert(error.message, "danger");
+  }
+}
+
 async function loadSettings() {
   const data = await apiRequest("/admin/api/system-settings/");
   programs = data.programs || [];
+  schedules = data.schedules || [];
   fillGeneralSettings(data.settings || {});
   renderProgramsTable();
+  renderSchedulesTable();
 }
 
 async function saveGeneralSettings() {
@@ -192,6 +325,8 @@ function initSystemSettings() {
   document.getElementById("saveGeneralSettingsBtn")?.addEventListener("click", saveGeneralSettings);
   document.getElementById("addProgramButton")?.addEventListener("click", () => openProgramModal());
   document.getElementById("saveProgramButton")?.addEventListener("click", saveProgram);
+  document.getElementById("addScheduleButton")?.addEventListener("click", () => openScheduleModal());
+  document.getElementById("saveScheduleButton")?.addEventListener("click", saveSchedule);
 
   loadSettings().catch((error) => showAlert(error.message, "danger"));
 }

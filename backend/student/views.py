@@ -55,6 +55,7 @@ _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 def register(request):
     """
     """
+   
     show_confirmation = request.session.pop("registration_submitted", False)
     if not show_confirmation and request.session.pop("registration_reference_id", None):
         show_confirmation = True
@@ -80,6 +81,8 @@ def register(request):
         request.session["registration_submitted"] = True
         return redirect("register")
 
+    from backend.system_admin.schedules import enrollment_schedule_options
+
     return render(
         request,
         "registration/register.html",
@@ -89,6 +92,7 @@ def register(request):
             "registration_config": {
                 "enrollmentOpen": enrollment_is_open(),
                 "programs": list(enrollment_program_options()),
+                "schedules": list(enrollment_schedule_options()),
             },
         },
     )
@@ -358,7 +362,9 @@ def enrollment_pending(request):
     if not profile or not profile.profile_step_completed:
         messages.warning(request, "Please complete Step 1: Learner's Profile Form first.")
         return redirect("student_enrollment")
-    if not profile.requirements_submitted:
+    from .document_review import documents_cleared_for_payment
+
+    if not profile.requirements_submitted and not documents_cleared_for_payment(profile):
         return redirect("student_enrollment_requirements")
 
     if registration_is_enrolled(request.user):
@@ -376,6 +382,13 @@ def payments(request):
     denied = require_portal_access(request, STUDENT_ROLE)
     if denied:
         return denied
+
+    if not registration_is_enrolled(request.user):
+        messages.warning(
+            request,
+            "The Payments module is temporarily disabled and will be accessible once your enrollment is confirmed.",
+        )
+        return redirect("student_dashboard")
 
     from .document_review import documents_cleared_for_payment
 
@@ -512,11 +525,18 @@ def settings(request):
 
 @login_required
 def trainer_evaluation(request):
-    from backend.student.services import student_trainer_evaluation_context
+    from backend.student.services import registration_is_enrolled, student_trainer_evaluation_context
     
     denied = require_portal_access(request, STUDENT_ROLE)
     if denied:
         return denied
+
+    if not registration_is_enrolled(request.user):
+        messages.warning(
+            request,
+            "Trainer Evaluation is temporarily disabled and will be accessible once your enrollment is confirmed.",
+        )
+        return redirect("student_dashboard")
 
     if request.method == "POST":
         try:

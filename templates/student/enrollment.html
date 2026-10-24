@@ -13,11 +13,16 @@
 </header>
 
 <div class="student-enroll-progress mb-3" aria-label="Overall enrollment progress {{ progress_percent }} percent">
-  <div class="student-enroll-progress__label">
-    <span>Overall progress: <strong>{{ progress_percent }}%</strong></span>
+  <div class="student-enroll-progress__label d-flex justify-content-between align-items-center">
+    <span>Overall progress: <strong class="{% if progress_percent >= 100 %}text-success{% else %}text-danger{% endif %}">{{ progress_percent }}%</strong></span>
+    {% if progress_percent < 100 %}
+    <span class="badge bg-danger-subtle text-danger border border-danger-subtle text-2xs fw-bold">Incomplete</span>
+    {% else %}
+    <span class="badge bg-success-subtle text-success border border-success-subtle text-2xs fw-bold">100% Completed</span>
+    {% endif %}
   </div>
   <div class="student-enroll-progress__track" role="progressbar" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
-    <div class="student-enroll-progress__fill" style="width: {{ progress_percent }}%"></div>
+    <div class="student-enroll-progress__fill{% if progress_percent >= 100 %} student-enroll-progress__fill--complete{% else %} student-enroll-progress__fill--incomplete{% endif %}" style="width: {{ progress_percent }}%"></div>
   </div>
 </div>
 

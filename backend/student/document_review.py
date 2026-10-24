@@ -107,10 +107,20 @@ def release_document_review(profile: StudentEnrollmentProfile):
 
     if not all_reviewable_documents_approved(profile):
         raise ValueError("Approve every document before continuing.")
+    now = timezone.now()
     profile.documents_review_released = True
-    profile.documents_review_released_at = timezone.now()
+    profile.documents_review_released_at = now
+    if not profile.requirements_submitted:
+        profile.requirements_submitted = True
+        profile.requirements_submitted_at = now
     profile.save(
-        update_fields=["documents_review_released", "documents_review_released_at", "updated_at"]
+        update_fields=[
+            "documents_review_released",
+            "documents_review_released_at",
+            "requirements_submitted",
+            "requirements_submitted_at",
+            "updated_at",
+        ]
     )
     notify_student_documents_released(profile)
 

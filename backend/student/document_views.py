@@ -23,6 +23,15 @@ def _require_document(request, doc_key, *, for_download=False):
     if denied:
         return denied, None, None, None
 
+    from .services import registration_is_enrolled
+
+    if not registration_is_enrolled(request.user):
+        messages.warning(
+            request,
+            "Documents and Statement of Account are only accessible to officially enrolled students.",
+        )
+        return redirect("student_dashboard"), None, None, None
+
     profile = get_enrollment_profile(request.user)
     registration = _registration(request)
     row = document_available(profile, registration, doc_key)
@@ -45,6 +54,16 @@ def documents(request):
     denied = require_portal_access(request, STUDENT_ROLE)
     if denied:
         return denied
+
+    from .services import registration_is_enrolled
+
+    if not registration_is_enrolled(request.user):
+        messages.warning(
+            request,
+            "The Documents and Statement of Account (SOA) section is temporarily disabled and will be accessible once your enrollment is confirmed.",
+        )
+        return redirect("student_dashboard")
+
     return render(request, "student/documents.html", student_documents_context(request))
 
 

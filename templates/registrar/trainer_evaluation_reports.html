@@ -20,7 +20,7 @@
         <div class="card shadow-sm border-0">
             <div class="card-body text-center">
                 <h6 class="text-muted">Total Trainers</h6>
-                <h2 class="fw-bold">12</h2>
+                <h2 class="fw-bold">{{ eval_total_trainers|default:0 }}</h2>
             </div>
         </div>
     </div>
@@ -29,7 +29,7 @@
         <div class="card shadow-sm border-0">
             <div class="card-body text-center">
                 <h6 class="text-muted">Evaluated</h6>
-                <h2 class="fw-bold text-success">10</h2>
+                <h2 class="fw-bold text-success">{{ eval_evaluated_trainers|default:0 }}</h2>
             </div>
         </div>
     </div>
@@ -38,7 +38,7 @@
         <div class="card shadow-sm border-0">
             <div class="card-body text-center">
                 <h6 class="text-muted">Average Rating</h6>
-                <h2 class="fw-bold text-warning">4.8 ★</h2>
+                <h2 class="fw-bold text-warning">{{ eval_avg_rating|default:"—" }}</h2>
             </div>
         </div>
     </div>
@@ -47,7 +47,7 @@
         <div class="card shadow-sm border-0">
             <div class="card-body text-center">
                 <h6 class="text-muted">Total Evaluations</h6>
-                <h2 class="fw-bold">186</h2>
+                <h2 class="fw-bold">{{ eval_total_count|default:0 }}</h2>
             </div>
         </div>
     </div>
@@ -129,15 +129,15 @@
 
                 <tbody>
 
+                    {% for row in eval_trainer_rows %}
                     <tr>
-
-                        <td>Juan Dela Cruz</td>
-                        <td>Automotive Servicing NC I</td>
-                        <td>Morning A</td>
-                        <td class="text-center">30</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.program }}</td>
+                        <td>{{ row.batch }}</td>
+                        <td class="text-center">{{ row.student_count }}</td>
                         <td class="text-center">
-                            <span class="badge bg-success">
-                                ★ 4.9
+                            <span class="badge {{ row.rating_badge_class }}">
+                                {{ row.rating }}
                             </span>
                         </td>
                         <td class="text-center">
@@ -148,52 +148,14 @@
                                 View
                             </button>
                         </td>
-
                     </tr>
-
+                    {% empty %}
                     <tr>
-
-                        <td>Maria Santos</td>
-                        <td>SMAW NC II</td>
-                        <td>Afternoon B</td>
-                        <td class="text-center">25</td>
-                        <td class="text-center">
-                            <span class="badge bg-success">
-                                ★ 4.8
-                            </span>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No trainer evaluations recorded yet.
                         </td>
-                        <td class="text-center">
-                            <button
-                                class="btn btn-outline-primary btn-sm"
-                                data-bs-toggle="modal"
-                                data-bs-target="#evaluationModal">
-                                View
-                            </button>
-                        </td>
-
                     </tr>
-
-                    <tr>
-
-                        <td>Pedro Reyes</td>
-                        <td>Dressmaking NC II</td>
-                        <td>Weekend</td>
-                        <td class="text-center">18</td>
-                        <td class="text-center">
-                            <span class="badge bg-warning text-dark">
-                                ★ 4.5
-                            </span>
-                        </td>
-                        <td class="text-center">
-                            <button
-                                class="btn btn-outline-primary btn-sm"
-                                data-bs-toggle="modal"
-                                data-bs-target="#evaluationModal">
-                                View
-                            </button>
-                        </td>
-
-                    </tr>
+                    {% endfor %}
 
                 </tbody>
 

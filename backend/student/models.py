@@ -110,8 +110,7 @@ class StudentRegistration(models.Model):
     program_type = models.CharField(max_length=40, choices=ProgramType.choices)
     selected_program = models.CharField(max_length=200)
     preferred_schedule = models.CharField(
-        max_length=32,
-        choices=PreferredSchedule.choices,
+        max_length=120,
         blank=True,
     )
 

@@ -53,9 +53,10 @@ def _active_pipeline_key(profile, registration):
     """Which pipeline step the student is currently on."""
     if not profile or not profile.profile_step_completed:
         return "profile"
-    if not profile.requirements_submitted:
+    reqs_cleared = profile.requirements_submitted or documents_cleared_for_payment(profile)
+    if not reqs_cleared:
         return "requirements"
-    if profile.requirements_submitted and not documents_cleared_for_payment(profile):
+    if not documents_cleared_for_payment(profile):
         return "requirements"
     if registration and registration.status == StudentRegistration.Status.APPROVED:
         return "enrolled"

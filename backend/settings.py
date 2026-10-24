@@ -162,3 +162,11 @@ LOGIN_URL = "/login/student/"
 # Allow internal same-origin framing for modal document previews
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
+# Real Gmail SMTP Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'vtiac.iams.syst@gmail.com'       # Your Gmail address
+EMAIL_HOST_PASSWORD = 'vltk suca mobr ugsu'            # 16-character Google App Password
+DEFAULT_FROM_EMAIL = 'VTIAC Admissions <vtiac.iams.syst@gmail.com>'

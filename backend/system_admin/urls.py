@@ -24,5 +24,16 @@ urlpatterns = [
         api.programs_update,
         name="admin_programs_update",
     ),
+    path("admin/api/schedules/create/", api.schedules_create, name="admin_schedules_create"),
+    path(
+        "admin/api/schedules/<int:schedule_id>/",
+        api.schedules_update,
+        name="admin_schedules_update",
+    ),
+    path(
+        "admin/api/schedules/<int:schedule_id>/delete/",
+        api.schedules_delete,
+        name="admin_schedules_delete",
+    ),
     path("admin/<str:module>/", views.module_page, name="admin_module"),
 ]

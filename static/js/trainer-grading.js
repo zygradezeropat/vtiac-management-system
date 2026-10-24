@@ -25,33 +25,11 @@ function loadSavedGrades() {
 }
 
 function seedDemoGrades() {
-  return {
-    "demo-juan-dela-cruz": {
-      scores: {
-        "uc-1": { written: 78, demo: 82, interview: 74 },
-        "uc-2": { written: 88, demo: 85, interview: 90 },
-        "uc-3": { written: 70, demo: 68, interview: 72 },
-      },
-      learning_outcomes: {
-        "lo-1": true,
-        "lo-2": true,
-        "lo-3": false,
-        "lo-4": false,
-      },
-      national_assessment: { result: "", date: "" },
-    },
-  };
+  return {};
 }
 
-function mergeDemoSeed(store, students) {
-  const hasDemo = students.some((s) => s.key.startsWith("demo-"));
-  if (!hasDemo) return store;
-  const seed = seedDemoGrades();
-  const merged = { ...store };
-  Object.entries(seed).forEach(([key, value]) => {
-    if (!merged[key]) merged[key] = value;
-  });
-  return merged;
+function mergeDemoSeed(store) {
+  return store;
 }
 
 function saveAllGrades(store) {

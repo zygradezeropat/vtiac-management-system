@@ -18,9 +18,20 @@
           <div id="staff-initials" class="student-user-avatar">{{ portal_initials|default:"S" }}</div>
           <div class="lh-1 d-none d-sm-block">
             <p id="staff-display-name" class="student-user-name mb-0">{{ portal_display_name|default:"Student" }}</p>
-            <p id="staff-role-label" class="student-user-role mb-0">Student</p>
+            <div id="staff-role-label" class="student-user-role mb-0 d-flex align-items-center gap-1">
+              <span>Student</span>
+              {% if is_student_user %}
+                {% if is_enrolled %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle text-2xs px-1.5 py-0.5 rounded-pill">Enrolled</span>
+                {% else %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-2xs px-1.5 py-0.5 rounded-pill">Not Enrolled</span>
+                {% endif %}
+              {% endif %}
+            </div>
           </div>
         </div>
       </div>
     </header>
     <main class="student-main flex-grow-1 overflow-auto">
+      {% include "components/student/enrollment_status_banner.html" %}
+

@@ -28,3 +28,11 @@ PROGRAM_ALIASES: dict[str, str] = {
     "rice machinery operations nc ii (full qualification)": "Rice Machinery Operations NC II",
     "rice machinery operations nc2": "Rice Machinery Operations NC II",
 }
+
+DEFAULT_SCHEDULES: tuple[tuple[str, str, str, str, int], ...] = (
+    ("Mondays - Fridays (8am - 5pm)", "mon_fri_8_5", "Mondays - Fridays", "8:00 AM - 5:00 PM", 1),
+    ("Saturdays - Sundays (8am - 5pm)", "sat_sun_8_5", "Saturdays - Sundays", "8:00 AM - 5:00 PM", 2),
+    ("Mondays - Fridays (5pm - 9pm)", "mon_fri_5_9", "Mondays - Fridays", "5:00 PM - 9:00 PM", 3),
+    ("Saturdays - Sundays (5pm - 9pm)", "sat_sun_5_9", "Saturdays - Sundays", "5:00 PM - 9:00 PM", 4),
+)
+

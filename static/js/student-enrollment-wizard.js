@@ -51,12 +51,16 @@ export function initEnrollmentWizard(form, helpers) {
     const percent = Math.round((currentStep / totalSteps) * 100);
     if (formProgressFill) {
       formProgressFill.style.width = `${percent}%`;
+      formProgressFill.classList.toggle("student-enroll-progress__fill--complete", percent >= 100);
+      formProgressFill.classList.toggle("student-enroll-progress__fill--incomplete", percent < 100);
     }
     if (formProgressBar) {
       formProgressBar.setAttribute("aria-valuenow", String(percent));
     }
     if (formProgressLabel) {
       formProgressLabel.textContent = `${percent}%`;
+      formProgressLabel.classList.toggle("text-success", percent >= 100);
+      formProgressLabel.classList.toggle("text-danger", percent < 100);
     }
     if (stepCounterEl) {
       stepCounterEl.textContent = `Step ${currentStep} of ${totalSteps}`;

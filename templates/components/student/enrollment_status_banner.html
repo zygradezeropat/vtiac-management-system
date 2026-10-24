@@ -1,0 +1,33 @@
+{% if is_student_user and not is_enrolled and enrollment_notification %}
+<aside class="student-enrollment-banner mb-4" role="status" aria-live="polite">
+  <div class="student-enrollment-banner__accent-strip" aria-hidden="true"></div>
+  <div class="student-enrollment-banner__body">
+    <div class="student-enrollment-banner__icon-wrap" aria-hidden="true">
+      <div class="student-enrollment-banner__icon-pulse"></div>
+      <i class="bi bi-exclamation-triangle-fill student-enrollment-banner__icon"></i>
+    </div>
+    <div class="student-enrollment-banner__content">
+      <div class="student-enrollment-banner__header">
+        <h2 class="student-enrollment-banner__title">
+          {{ enrollment_notification.title }}
+        </h2>
+        <span class="student-enrollment-banner__badge">
+          <span class="student-enrollment-banner__badge-dot"></span>
+          {{ enrollment_notification.badge }}
+        </span>
+      </div>
+      <p class="student-enrollment-banner__desc">
+        {{ enrollment_notification.description }}
+      </p>
+    </div>
+    {% if enrollment_notification.action_url %}
+    <div class="student-enrollment-banner__action">
+      <a href="{{ enrollment_notification.action_url }}" class="student-enrollment-banner__btn">
+        <span>{{ enrollment_notification.action_label }}</span>
+        <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</aside>
+{% endif %}

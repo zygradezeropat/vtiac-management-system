@@ -33,6 +33,12 @@ from backend.student.models import (
     StudentRegistration,
 )
 
+
+
+from django.core.mail import send_mail
+from django.conf import settings
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 User = get_user_model()
 
 PH_MOBILE_RE = re.compile(r"^09\d{9}$")
@@ -167,6 +173,13 @@ def is_assessment_only_user(user):
     return False
 
 
+RESTRICTED_PRE_ENROLLMENT_ROUTES = frozenset({
+    "student_trainer_evaluation",
+    "student_payments",
+    "student_documents",
+})
+
+
 def _student_sidebar_menu(user=None):
     from django.urls import reverse
 
@@ -194,8 +207,15 @@ def _student_sidebar_menu(user=None):
             continue
         if not enrolled and route_name == "student_my_profile":
             continue
-        route = reverse(route_name) if route_name else "#"
-        menu.append({**item, "route": route})
+
+        is_disabled = bool(not enrolled and route_name in RESTRICTED_PRE_ENROLLMENT_ROUTES)
+        route = reverse(route_name) if (route_name and not is_disabled) else "#"
+        menu.append({
+            **item,
+            "route": route,
+            "is_disabled": is_disabled,
+            "disabled_reason": "Restricted until your enrollment is officially confirmed." if is_disabled else "",
+        })
     return menu
 
 
@@ -894,6 +914,7 @@ def student_dashboard_context(request=None):
     show_my_profile_link = can_access_my_profile(user)
 
     return {
+        "is_enrolled": registration_is_enrolled(user) if user else False,
         "progress_ring_circumference": ring_circ,
         "progress_ring_offset": ring_offset,
         "application_status": app_status,
@@ -998,6 +1019,7 @@ def candidate_dashboard_context(request):
     ring_offset = round(ring_circ * (1 - progress_percent / 100), 2)
 
     return {
+        "is_enrolled": bool(reg and reg.status == "approved"),
         "candidate_name": f"{reg.first_name} {reg.last_name}" if reg else (user.get_full_name() if user else "Candidate"),
         "reference_id": reg.reference_id if reg else "N/A",
         "program_name": reg.selected_program if reg else "Competency Assessment",
@@ -1198,7 +1220,9 @@ def validate_registration_data(data):
     ):
         errors.append("Preferred schedule is required.")
 
-    valid_schedules = {c[0] for c in StudentRegistration.PreferredSchedule.choices}
+    from backend.system_admin.schedules import enrollment_schedule_codes
+
+    valid_schedules = set(enrollment_schedule_codes()) | {c[0] for c in StudentRegistration.PreferredSchedule.choices}
     if data.get("preferred_schedule") and data["preferred_schedule"] not in valid_schedules:
         errors.append("Invalid preferred schedule.")
 
@@ -1225,3 +1249,43 @@ def create_student_registration(data):
         )
         StudentProfile.objects.create(user=user)
         return StudentRegistration.objects.create(user=user, **data)
+
+def send_registration_confirmation_email(registration):
+    """
+    Sends an account creation confirmation email to the newly registered student.
+    """
+    subject = f"Registration Received — Reference No. {registration.reference_id}"
+
+    context = {
+        "student_name": f"{registration.first_name} {registration.last_name}",
+        "reference_id": registration.reference_id,
+        "program": registration.selected_program,
+        "email": registration.email,
+    }
+
+    # 1. Clean plain-text fallback (no raw localhost links)
+    message = (
+        f"Hello {context['student_name']},\n\n"
+        f"Thank you for registering at VTIAC (Valiant Technical Institute & Accreditation Center).\n\n"
+        f"Your Official Reference ID is: {context['reference_id']}\n"
+        f"Enrolled Program: {context['program']}\n"
+        f"Registered Login Email: {context['email']}\n\n"
+        f"Next Steps:\n"
+        f"1. Save your Reference ID for inquiries with the Registrar Office.\n"
+        f"2. Your submitted documents will be reviewed by Admissions.\n"
+        f"3. You can access the Student Portal using your registered email and the password you set during registration.\n\n"
+        f"— Office of the Registrar\n"
+        f"Valiant Technical Institute & Accreditation Center"
+    )
+
+    # 2. Rich branded HTML version
+    html_message = render_to_string("emails/registration_success.html", context)
+
+    send_mail(
+        subject=subject,
+        message=message,
+        html_message=html_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[registration.email],
+        fail_silently=True,
+    )

@@ -6,6 +6,23 @@
 
   <nav class="student-nav flex-column flex-grow-1" aria-label="Student navigation">
     {% for item in sidebar_menu %}
+    {% if item.is_disabled %}
+    <div
+      class="student-nav-link student-nav-link--disabled"
+      role="button"
+      tabindex="-1"
+      aria-disabled="true"
+      title="{{ item.disabled_reason|default:'Restricted until official enrollment' }}"
+      data-bs-toggle="tooltip"
+      data-bs-placement="right"
+    >
+      <span class="student-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
+      <span class="student-nav-label flex-grow-1">{{ item.label }}</span>
+      <span class="student-nav-lock-badge" aria-label="Restricted">
+        <i class="bi bi-lock-fill" aria-hidden="true"></i>
+      </span>
+    </div>
+    {% else %}
     <a
       href="{{ item.route }}"
       class="student-nav-link{% if active_menu == item.label %} is-active{% endif %}"
@@ -13,6 +30,7 @@
       <span class="student-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>
       <span class="student-nav-label">{{ item.label }}</span>
     </a>
+    {% endif %}
     {% endfor %}
   </nav>
 

@@ -16,153 +16,12 @@ EGACE_EXCLUDED_FIELDS = frozenset(
     }
 )
 
-# Canonical trainer-module records (includes employment for trainer-only views)
-TRAINER_STUDENT_PROGRESS = [
-    {
-        "id": 1,
-        "initials": "PG",
-        "studentName": "Pedro Garcia",
-        "course": "Driving NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-    {
-        "id": 2,
-        "initials": "AL",
-        "studentName": "Ana Lopez",
-        "course": "Rice Machinery Operations NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-    {
-        "id": 3,
-        "initials": "CM",
-        "studentName": "Carlos Mendoza",
-        "course": "Automotive Servicing NC I",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-    {
-        "id": 4,
-        "initials": "MT",
-        "studentName": "Miguel Torres",
-        "course": "Driving NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Seeking",
-        "employmentDetails": {"employer": None, "position": "Driver trainee", "hiredDate": None},
-    },
-    {
-        "id": 5,
-        "initials": "RV",
-        "studentName": "Rosa Villanueva",
-        "course": "Automotive Servicing (Engine Repair) NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-    {
-        "id": 6,
-        "initials": "JB",
-        "studentName": "Jose Bautista",
-        "course": "Driving NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-    {
-        "id": 7,
-        "initials": "NF",
-        "studentName": "Nina Fernandez",
-        "course": "Rice Machinery Operations NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-    {
-        "id": 8,
-        "initials": "DR",
-        "studentName": "Dennis Reyes",
-        "course": "Automotive Servicing NC I",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Employed",
-        "employmentDetails": {"employer": "AutoWorks Dagupan", "position": "Mechanic helper", "hiredDate": "2026-02-01"},
-    },
-    {
-        "id": 9,
-        "initials": "LC",
-        "studentName": "Liza Castillo",
-        "course": "Driving NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-    {
-        "id": 10,
-        "initials": "HK",
-        "studentName": "Harold Kim",
-        "course": "Driving NC II",
-        "trainerStatus": "Pending",
-        "statementOfAccount": "Full Payment",
-        "graduate": False,
-        "graduateAuto": True,
-        "assessment": False,
-        "certified": False,
-        "employmentStatus": "Not employed",
-        "employmentDetails": {"employer": None, "position": None, "hiredDate": None},
-    },
-]
+# Canonical trainer-module records
+TRAINER_STUDENT_PROGRESS = []
 
 
 def project_trainer_record_for_egace(record):
-    """Normalize legacy trainer demo record into registrar EGACE row shape."""
+    """Normalize trainer record into registrar EGACE row shape."""
     row = {key: value for key, value in record.items() if key not in EGACE_EXCLUDED_FIELDS}
     row.setdefault("enrolled", True)
     row.setdefault("certificate", record.get("certified", False))
@@ -179,7 +38,4 @@ def project_trainer_record_for_egace(record):
 def egace_rows_for_registrar():
     from .egace_progress import build_registrar_egace_rows
 
-    rows = build_registrar_egace_rows()
-    if rows:
-        return rows
-    return [project_trainer_record_for_egace(r) for r in TRAINER_STUDENT_PROGRESS]
+    return build_registrar_egace_rows()

@@ -269,6 +269,12 @@
             </span>
           </td>
         </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-4">
+            No candidate competency records found for this trainer.
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
@@ -339,12 +345,12 @@
         <div class="row pt-5 text-center fs-7">
           <div class="col-6">
             <p class="mb-5">Prepared & Certified Correct by:</p>
-            <p class="fw-bold text-dark border-top pt-2 d-inline-block px-5 mb-0">ENGR. JUAN DELA CRUZ</p>
+            <p class="fw-bold text-dark border-top pt-2 d-inline-block px-5 mb-0">{{ portal_display_name|default:user.username|default:"TVET LEAD TRAINER"|upper }}</p>
             <p class="fs-8 text-muted">TVET Lead Trainer / Assessor</p>
           </div>
           <div class="col-6">
             <p class="mb-5">Approved & Verified by:</p>
-            <p class="fw-bold text-dark border-top pt-2 d-inline-block px-5 mb-0">ATTY. MARIA SANTOS</p>
+            <p class="fw-bold text-dark border-top pt-2 d-inline-block px-5 mb-0">OFFICE OF THE REGISTRAR</p>
             <p class="fs-8 text-muted">Institutional Registrar / Director</p>
           </div>
         </div>

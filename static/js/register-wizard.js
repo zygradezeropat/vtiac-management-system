@@ -34,36 +34,47 @@ const FALLBACK_PROGRAM_OPTIONS = [
   "Rice Machinery Operations NC II",
 ];
 
-function loadRegistrationConfig() {
-  const el = document.getElementById("registration-config");
-  if (!el?.textContent) {
-    return { enrollmentOpen: true, programs: FALLBACK_PROGRAM_OPTIONS };
-  }
-  try {
-    const data = JSON.parse(el.textContent);
-    const programs = Array.isArray(data.programs) && data.programs.length ? data.programs : FALLBACK_PROGRAM_OPTIONS;
-    return {
-      enrollmentOpen: data.enrollmentOpen !== false,
-      programs,
-    };
-  } catch {
-    return { enrollmentOpen: true, programs: FALLBACK_PROGRAM_OPTIONS };
-  }
-}
-
-const registrationConfig = loadRegistrationConfig();
-const PROGRAM_OPTIONS = registrationConfig.programs;
-
-const VALID_PROGRAM_TYPES = new Set(["training_with_assessment", "assessment_only"]);
-
-const SCHEDULE_OPTIONS = [
+const FALLBACK_SCHEDULE_OPTIONS = [
   { id: "mon_fri_8_5", label: "Mondays - Fridays (8am - 5pm)" },
   { id: "sat_sun_8_5", label: "Saturdays - Sundays (8am - 5pm)" },
   { id: "mon_fri_5_9", label: "Mondays - Fridays (5pm - 9pm)" },
   { id: "sat_sun_5_9", label: "Saturdays - Sundays (5pm - 9pm)" },
 ];
 
+function loadRegistrationConfig() {
+  const el = document.getElementById("registration-config");
+  if (!el?.textContent) {
+    return {
+      enrollmentOpen: true,
+      programs: FALLBACK_PROGRAM_OPTIONS,
+      schedules: FALLBACK_SCHEDULE_OPTIONS,
+    };
+  }
+  try {
+    const data = JSON.parse(el.textContent);
+    const programs = Array.isArray(data.programs) && data.programs.length ? data.programs : FALLBACK_PROGRAM_OPTIONS;
+    const schedules = Array.isArray(data.schedules) && data.schedules.length ? data.schedules : FALLBACK_SCHEDULE_OPTIONS;
+    return {
+      enrollmentOpen: data.enrollmentOpen !== false,
+      programs,
+      schedules,
+    };
+  } catch {
+    return {
+      enrollmentOpen: true,
+      programs: FALLBACK_PROGRAM_OPTIONS,
+      schedules: FALLBACK_SCHEDULE_OPTIONS,
+    };
+  }
+}
+
+const registrationConfig = loadRegistrationConfig();
+const PROGRAM_OPTIONS = registrationConfig.programs;
+const SCHEDULE_OPTIONS = registrationConfig.schedules;
+
 const VALID_SCHEDULE_IDS = new Set(SCHEDULE_OPTIONS.map((o) => o.id));
+
+const VALID_PROGRAM_TYPES = new Set(["training_with_assessment", "assessment_only"]);
 
 const PROGRAM_TYPE_LABELS = {
   training_with_assessment: "Training with Assessment",

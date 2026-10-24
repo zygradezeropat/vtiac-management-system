@@ -121,15 +121,16 @@ def student_enrollment_pending_context(request):
     profile = get_enrollment_profile(request.user)
     is_assessment_only = is_assessment_only_program(enrollment_program_type_for_user(request.user))
     awaiting_registrar = bool(profile and profile_has_payment(profile))
+    reqs_ok = bool(profile and (profile.requirements_submitted or documents_cleared_for_payment(profile)))
     documents_approved_can_pay = bool(
         profile
-        and profile.requirements_submitted
+        and reqs_ok
         and documents_cleared_for_payment(profile)
         and not profile_has_payment(profile)
     )
     awaiting_document_approval = bool(
         profile
-        and profile.requirements_submitted
+        and reqs_ok
         and not documents_cleared_for_payment(profile)
         and not profile_has_payment(profile)
     )
