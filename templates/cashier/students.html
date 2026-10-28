@@ -1,39 +1,359 @@
 {% extends "cashier/base.html" %}
 {% load static %}
 
-
 {% block body %}
 {% include "components/cashier/layout_start.html" %}
 {% include "components/cashier/page_header.html" %}
 
+<!-- =========================================================================
+     Aging of Receivables & Overdue Tracking Module
+     ========================================================================= -->
+<section class="cashier-aging-panel" aria-labelledby="agingModuleTitle">
+  <div class="cashier-aging-hero">
+    <div class="cashier-aging-hero__info">
+
+      <div>
+        <h2 class="cashier-aging-hero__title" id="agingModuleTitle">Aging of Receivables &amp; Overdue Tracking</h2>
+        <p class="cashier-aging-hero__subtitle">
+          Monitor unpaid balances, track delinquency brackets, and accelerate fee collections.
+        </p>
+      </div>
+    </div>
+    <div class="cashier-aging-hero__actions">
+      <button type="button" class="btn btn-sm cashier-btn-outline d-inline-flex align-items-center gap-1"
+        id="refreshAgingBtn" title="Refresh data">
+        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+        <span>Refresh</span>
+      </button>
+      <div class="btn-group">
+        <button type="button"
+          class="btn btn-sm cashier-btn-primary d-inline-flex align-items-center gap-1 dropdown-toggle"
+          data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-download" aria-hidden="true"></i>
+          <span>Export Receivables</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2" href="/cashier/api/reports/export/?type=aging">
+              <i class="bi bi-file-earmark-excel text-success" aria-hidden="true"></i>
+              <span>Export Excel Workbook (.xlsx)</span>
+            </a>
+          </li>
+          <li>
+            <button type="button" class="dropdown-item d-flex align-items-center gap-2" id="exportCsvBtn">
+              <i class="bi bi-file-earmark-text text-primary" aria-hidden="true"></i>
+              <span>Export Filtered Table (.csv)</span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="cashier-aging-body">
+    <!-- Top 4 KPI Metrics Cards -->
+    <div class="cashier-aging-grid" role="region" aria-label="Receivables summary metrics">
+      <!-- Total Outstanding -->
+      <div class="cashier-aging-card cashier-aging-card--total" id="cardTotalReceivables" tabindex="0" role="button"
+        title="View all outstanding balances">
+        <div class="cashier-aging-card__header">
+          <span class="cashier-aging-card__label">Total Receivables</span>
+          <div class="cashier-aging-card__icon"><i class="bi bi-cash-stack" aria-hidden="true"></i></div>
+        </div>
+        <p class="cashier-aging-card__value" id="kpiTotalReceivables">₱0.00</p>
+        <div class="cashier-aging-card__footer">
+          <span id="kpiActiveAccounts">0 accounts with balance</span>
+          <span class="cashier-aging-badge bg-success-subtle text-success" id="kpiCollectionRate">0% collected</span>
+        </div>
+      </div>
+
+      <!-- Unpaid Accounts (0 payments made) -->
+      <div class="cashier-aging-card cashier-aging-card--unpaid" id="cardUnpaid" tabindex="0" role="button"
+        title="Filter to Unpaid students (0 payments made)">
+        <div class="cashier-aging-card__header">
+          <span class="cashier-aging-card__label">Unpaid (0 Payments)</span>
+          <div class="cashier-aging-card__icon"><i class="bi bi-exclamation-circle" aria-hidden="true"></i></div>
+        </div>
+        <p class="cashier-aging-card__value" id="kpiUnpaidAmount">₱0.00</p>
+        <div class="cashier-aging-card__footer">
+          <span id="kpiUnpaidCount">0 students</span>
+          <span class="cashier-aging-badge bg-warning-subtle text-warning-emphasis">Zero Paid</span>
+        </div>
+      </div>
+
+      <!-- Partial Balance (payments made, balance remaining) -->
+      <div class="cashier-aging-card cashier-aging-card--partial" id="cardPartial" tabindex="0" role="button"
+        title="Filter to Partial payment students">
+        <div class="cashier-aging-card__header">
+          <span class="cashier-aging-card__label">Partial Balances</span>
+          <div class="cashier-aging-card__icon"><i class="bi bi-pie-chart" aria-hidden="true"></i></div>
+        </div>
+        <p class="cashier-aging-card__value" id="kpiPartialAmount">₱0.00</p>
+        <div class="cashier-aging-card__footer">
+          <span id="kpiPartialCount">0 students</span>
+          <span class="cashier-aging-badge bg-primary-subtle text-primary">In Progress</span>
+        </div>
+      </div>
+
+      <!-- Overdue Receivables -->
+      <div class="cashier-aging-card cashier-aging-card--overdue" id="cardOverdue" tabindex="0" role="button"
+        title="Filter to Overdue accounts">
+        <div class="cashier-aging-card__header">
+          <span class="cashier-aging-card__label">Overdue Accounts</span>
+          <div class="cashier-aging-card__icon"><i class="bi bi-alarm-fill" aria-hidden="true"></i></div>
+        </div>
+        <p class="cashier-aging-card__value" id="kpiOverdueAmount">₱0.00</p>
+        <div class="cashier-aging-card__footer">
+          <span id="kpiOverdueCount">0 students past deadline</span>
+          <span class="cashier-aging-badge bg-danger-subtle text-danger cashier-aging-badge--pulse"
+            id="kpiOverdueBadge">Urgent</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aging Distribution Track & 5-Bracket Selector -->
+    <div class="cashier-aging-track-wrap">
+      <div class="cashier-aging-track-header">
+        <span><i class="bi bi-bar-chart-steps me-1" aria-hidden="true"></i> Receivables Aging Distribution</span>
+        <small class="text-muted">Click any aging bracket to filter students</small>
+      </div>
+
+      <div class="cashier-aging-bar" id="agingDistributionBar" aria-hidden="true">
+        <div class="cashier-aging-bar__seg cashier-aging-bar__seg--current" id="barSegCurrent" style="width: 20%;"
+          title="Current (0–30 Days)"></div>
+        <div class="cashier-aging-bar__seg cashier-aging-bar__seg--days1-30" id="barSegDays1_30" style="width: 20%;"
+          title="1–30 Days Overdue"></div>
+        <div class="cashier-aging-bar__seg cashier-aging-bar__seg--days31-60" id="barSegDays31_60" style="width: 20%;"
+          title="31–60 Days Overdue"></div>
+        <div class="cashier-aging-bar__seg cashier-aging-bar__seg--days61-90" id="barSegDays61_90" style="width: 20%;"
+          title="61–90 Days Overdue"></div>
+        <div class="cashier-aging-bar__seg cashier-aging-bar__seg--days90plus" id="barSegDays90Plus" style="width: 20%;"
+          title=">90 Days Overdue"></div>
+      </div>
+
+      <div class="cashier-aging-brackets" role="group" aria-label="Aging brackets filter">
+        <!-- Current (0-30 Days) -->
+        <button type="button" class="cashier-aging-bracket-btn" data-bracket="current">
+          <div class="cashier-aging-bracket-btn__head">
+            <span class="cashier-aging-bracket-btn__name">Current (0–30d)</span>
+            <span class="cashier-aging-bracket-btn__indicator" style="background:#10b981;"></span>
+          </div>
+          <p class="cashier-aging-bracket-btn__amount" id="bracketAmountCurrent">₱0.00</p>
+          <span class="cashier-aging-bracket-btn__count" id="bracketCountCurrent">0 students</span>
+        </button>
+
+        <!-- 1-30 Days Overdue -->
+        <button type="button" class="cashier-aging-bracket-btn" data-bracket="1-30">
+          <div class="cashier-aging-bracket-btn__head">
+            <span class="cashier-aging-bracket-btn__name">1–30d Overdue</span>
+            <span class="cashier-aging-bracket-btn__indicator" style="background:#f59e0b;"></span>
+          </div>
+          <p class="cashier-aging-bracket-btn__amount" id="bracketAmount1_30">₱0.00</p>
+          <span class="cashier-aging-bracket-btn__count" id="bracketCount1_30">0 students</span>
+        </button>
+
+        <!-- 31-60 Days Overdue -->
+        <button type="button" class="cashier-aging-bracket-btn" data-bracket="31-60">
+          <div class="cashier-aging-bracket-btn__head">
+            <span class="cashier-aging-bracket-btn__name">31–60d Overdue</span>
+            <span class="cashier-aging-bracket-btn__indicator" style="background:#f97316;"></span>
+          </div>
+          <p class="cashier-aging-bracket-btn__amount" id="bracketAmount31_60">₱0.00</p>
+          <span class="cashier-aging-bracket-btn__count" id="bracketCount31_60">0 students</span>
+        </button>
+
+        <!-- 61-90 Days Overdue -->
+        <button type="button" class="cashier-aging-bracket-btn" data-bracket="61-90">
+          <div class="cashier-aging-bracket-btn__head">
+            <span class="cashier-aging-bracket-btn__name">61–90d Overdue</span>
+            <span class="cashier-aging-bracket-btn__indicator" style="background:#ef4444;"></span>
+          </div>
+          <p class="cashier-aging-bracket-btn__amount" id="bracketAmount61_90">₱0.00</p>
+          <span class="cashier-aging-bracket-btn__count" id="bracketCount61_90">0 students</span>
+        </button>
+
+        <!-- >90 Days Overdue -->
+        <button type="button" class="cashier-aging-bracket-btn" data-bracket="90+">
+          <div class="cashier-aging-bracket-btn__head">
+            <span class="cashier-aging-bracket-btn__name">&gt;90d Critical</span>
+            <span class="cashier-aging-bracket-btn__indicator" style="background:#991b1b;"></span>
+          </div>
+          <p class="cashier-aging-bracket-btn__amount" id="bracketAmount90Plus">₱0.00</p>
+          <span class="cashier-aging-bracket-btn__count" id="bracketCount90Plus">0 students</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     Filter Bar & Quick Toggles + Balance Data Table
+     ========================================================================= -->
 <article class="cashier-panel">
   <div class="cashier-panel__body">
-    <div class="cashier-filter-row">
-      <div class="cashier-search-box">
-        <i class="bi bi-search" aria-hidden="true"></i>
-        <input type="text" class="form-control" id="studentSearch" placeholder="Search students by name..." />
-      </div>
-      <select class="form-select" id="studentSort" style="max-width: 12rem;">
-        <option value="asc">Name (A-Z)</option>
-        <option value="desc">Name (Z-A)</option>
-      </select>
+    <!-- Quick Status Toggles (Pill Buttons) -->
+    <div class="cashier-status-toggles" role="group" aria-label="Payment status toggles">
+      <button type="button" class="cashier-status-pill is-active" data-status="all" id="pillStatusAll">
+        <span>All Accounts</span>
+        <span class="cashier-status-pill__badge" id="badgeCountAll">0</span>
+      </button>
+      <button type="button" class="cashier-status-pill" data-status="unpaid" id="pillStatusUnpaid">
+        <i class="bi bi-circle-fill text-warning" style="font-size: 0.5rem;" aria-hidden="true"></i>
+        <span>Unpaid (0 Payments)</span>
+        <span class="cashier-status-pill__badge" id="badgeCountUnpaid">0</span>
+      </button>
+      <button type="button" class="cashier-status-pill" data-status="partial" id="pillStatusPartial">
+        <i class="bi bi-pie-chart-fill text-primary" style="font-size: 0.75rem;" aria-hidden="true"></i>
+        <span>Partial (Balance Remaining)</span>
+        <span class="cashier-status-pill__badge" id="badgeCountPartial">0</span>
+      </button>
+      <button type="button" class="cashier-status-pill" data-status="paid" id="pillStatusPaid">
+        <i class="bi bi-check-circle-fill text-success" style="font-size: 0.75rem;" aria-hidden="true"></i>
+        <span>Paid in Full</span>
+        <span class="cashier-status-pill__badge" id="badgeCountPaid">0</span>
+      </button>
+      <button type="button" class="cashier-status-pill cashier-status-pill--overdue" data-status="overdue"
+        id="pillStatusOverdue">
+        <i class="bi bi-alarm-fill" style="font-size: 0.75rem;" aria-hidden="true"></i>
+        <span>Overdue</span>
+        <span class="cashier-status-pill__badge" id="badgeCountOverdue">0</span>
+      </button>
     </div>
+
+    <!-- Multi-Dimension Filter Toolbar -->
+    <div class="cashier-filter-toolbar">
+      <!-- Search Input: Student ID or Full Name -->
+      <div class="cashier-filter-field">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" class="form-control cashier-filter-input" id="studentSearch"
+          placeholder="Search by Student ID (e.g. REF-XXXX) or Full Name..." autocomplete="off" />
+      </div>
+
+      <!-- Academic Dimension: Course Type -->
+      <div class="cashier-filter-field">
+        <select class="form-select cashier-filter-select" id="courseTypeFilter" aria-label="Filter by course type">
+          <option value="all">All Course Types</option>
+          <option value="training_with_assessment">Training with Assessment</option>
+          <option value="assessment_only">Assessment Only</option>
+        </select>
+      </div>
+
+      <!-- Specific Program / Qualification -->
+      <div class="cashier-filter-field">
+        <select class="form-select cashier-filter-select" id="programFilter"
+          aria-label="Filter by qualification course">
+          <option value="all">All Programs / Courses</option>
+        </select>
+      </div>
+
+      <!-- Fee Category: Scholar or Regular -->
+      <div class="cashier-filter-field">
+        <select class="form-select cashier-filter-select" id="feeCategoryFilter" aria-label="Filter by fee category">
+          <option value="all">All Fee Categories</option>
+          <option value="regular">Regular (Non-Scholar)</option>
+          <option value="scholar">Scholar</option>
+        </select>
+      </div>
+
+      <!-- Sort Selection -->
+      <div class="cashier-filter-field">
+        <select class="form-select cashier-filter-select" id="studentSort" aria-label="Sort student records">
+          <option value="name_asc">Name (A–Z)</option>
+          <option value="name_desc">Name (Z–A)</option>
+          <option value="balance_desc">Highest Balance Due</option>
+          <option value="balance_asc">Lowest Balance Due</option>
+          <option value="overdue_desc">Most Days Overdue</option>
+          <option value="due_asc">Due Date (Earliest First)</option>
+        </select>
+      </div>
+
+      <!-- Reset Filters Button -->
+      <div>
+        <button type="button" class="cashier-filter-reset-btn" id="resetFiltersBtn"
+          title="Reset all search and filter options">
+          <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+          <span>Reset</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Filters Feedback Summary -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+      <div class="small text-muted" id="filterResultSummary">
+        Loading student balances…
+      </div>
+      <div class="small text-muted" id="activeFilterTags"></div>
+    </div>
+
+    <!-- Balance Data Table -->
     <div class="table-responsive">
-      <table class="table cashier-table mb-0">
+      <table class="table cashier-balance-table mb-0" id="studentsTable">
         <thead>
           <tr>
-            <th>Student Name</th>
-            <th>Course</th>
-            <th>Balance</th>
-            <th>Actions</th>
+            <th scope="col" style="min-width: 7.5rem;">Student ID</th>
+            <th scope="col" style="min-width: 13rem;">Student Name</th>
+            <th scope="col" style="min-width: 14rem;">Academic Course &amp; Dimension</th>
+            <th scope="col" style="min-width: 8.5rem;">Fee Category</th>
+            <th scope="col" class="text-end" style="min-width: 8rem;">Total Assessed</th>
+            <th scope="col" class="text-end" style="min-width: 7.5rem;">Total Paid</th>
+            <th scope="col" class="text-end" style="min-width: 8.5rem;">Remaining Balance</th>
+            <th scope="col" style="min-width: 10rem;">Due Date &amp; Aging</th>
+            <th scope="col" class="text-center" style="min-width: 9.5rem;">Actions</th>
           </tr>
         </thead>
-        <tbody id="studentsTableBody"></tbody>
+        <tbody id="studentsTableBody">
+          <tr>
+            <td colspan="9" class="text-center py-5 text-muted">
+              <div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>
+              <span>Fetching student balances and receivables data...</span>
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
-    <div class="cashier-pagination d-none" id="studentsPagination" aria-label="Students list pagination"></div>
+
+    <!-- Pagination Controls (10 records per page) -->
+    <div class="cashier-pagination" id="studentsPagination" aria-label="Students list pagination"></div>
   </div>
 </article>
+
+<!-- =========================================================================
+     Follow-up Notice Modal
+     ========================================================================= -->
+<div class="modal fade" id="followupNoticeModal" tabindex="-1" aria-labelledby="followupNoticeTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4">
+      <div class="modal-header border-bottom py-3 px-4">
+        <h5 class="modal-title fs-6 fw-bold text-dark d-flex align-items-center gap-2" id="followupNoticeTitle">
+          <i class="bi bi-envelope-paper-heart text-success fs-5" aria-hidden="true"></i>
+          <span>Student Payment Follow-up Notice</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="small text-muted mb-2">
+          Review and copy the follow-up reminder text or send it directly to the student's email.
+        </p>
+        <div class="cashier-notice-card" id="followupNoticeText"></div>
+      </div>
+      <div class="modal-footer border-top py-2 px-4 d-flex justify-content-between">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="d-flex gap-2">
+          <a href="#" class="btn btn-sm cashier-btn-outline d-inline-flex align-items-center gap-1"
+            id="followupEmailLink" target="_blank" rel="noopener">
+            <i class="bi bi-envelope-fill" aria-hidden="true"></i>
+            <span>Open Email</span>
+          </a>
+          <button type="button" class="btn btn-sm cashier-btn-primary d-inline-flex align-items-center gap-1"
+            id="copyNoticeBtn">
+            <i class="bi bi-clipboard-check" aria-hidden="true"></i>
+            <span>Copy Notice</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% include "components/cashier/payment_modal.html" %}
 {% include "components/cashier/receipt_modal.html" %}
@@ -45,14 +365,19 @@
 <script type="module">
   import { findCachedCashierStudent, initCashierStudents } from "{% static 'js/cashier-students.js' %}";
   import { initPaymentModal, openPaymentModal, selectStudentForPayment } from "{% static 'js/cashier-payment.js' %}";
+
   initPaymentModal();
   initCashierStudents();
+
+  // Inline "Receive Payment" action button handler
   document.getElementById("studentsTableBody")?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".btn-student-pay");
-    if (!btn) return;
+    const payBtn = e.target.closest(".btn-student-pay");
+    if (!payBtn) return;
     openPaymentModal();
-    const student = findCachedCashierStudent(btn.dataset.registrationId || "");
-    if (student) selectStudentForPayment(student);
+    const student = findCachedCashierStudent(payBtn.dataset.registrationId || "");
+    if (student) {
+      selectStudentForPayment(student);
+    }
   });
 </script>
 {% endblock %}

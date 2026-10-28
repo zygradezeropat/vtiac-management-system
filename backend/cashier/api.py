@@ -12,8 +12,12 @@ from backend.accounts.services import require_portal_access
 
 from .payment_record import record_cashier_payment
 from .services import CASHIER_ROLE
-from .fees import payment_list_display
-from .student_search import get_student_fees, list_students_for_cashier, search_students
+from .student_search import (
+    calculate_receivables_aging_summary,
+    get_student_fees,
+    list_students_for_cashier,
+    search_students,
+)
 from .report_export import build_report_workbook
 from .transactions import dashboard_stats, list_transactions, reports_summary, _parse_date_param
 
@@ -75,7 +79,21 @@ def students_list(request):
     if denied:
         return denied
 
-    return JsonResponse({"students": list_students_for_cashier()})
+    students = list_students_for_cashier()
+    aging = calculate_receivables_aging_summary(students)
+    return JsonResponse({"students": students, "aging": aging, "summary": aging})
+
+
+@login_required(login_url="/")
+@require_GET
+def receivables_aging(request):
+    denied = require_portal_access(request, CASHIER_ROLE)
+    if denied:
+        return denied
+
+    students = list_students_for_cashier()
+    aging = calculate_receivables_aging_summary(students)
+    return JsonResponse({"aging": aging, "students": students})
 
 
 @login_required(login_url="/")

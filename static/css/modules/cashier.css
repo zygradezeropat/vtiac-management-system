@@ -1732,3 +1732,688 @@
     padding: 0;
   }
 }
+
+/* ==========================================================================
+   Aging of Receivables & Overdue Tracking Module + Enhanced Balance Filters
+   ========================================================================== */
+
+.cashier-aging-panel {
+  background: #ffffff;
+  border: 1px solid var(--cashier-border);
+  border-radius: 1rem;
+  box-shadow: 0 4px 16px -2px rgba(15, 61, 46, 0.05);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.cashier-aging-panel:hover {
+  box-shadow: 0 8px 24px -4px rgba(15, 61, 46, 0.08);
+}
+
+.cashier-aging-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgba(0, 168, 89, 0.06) 0%, rgba(241, 245, 249, 0.7) 100%);
+  border-bottom: 1px solid var(--cashier-border);
+}
+
+.cashier-aging-hero__info {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.cashier-aging-hero__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: #00a859;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  box-shadow: 0 4px 12px rgba(0, 168, 89, 0.25);
+  flex-shrink: 0;
+}
+
+.cashier-aging-hero__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f3d2e;
+  line-height: 1.25;
+}
+
+.cashier-aging-hero__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.cashier-aging-hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cashier-aging-body {
+  padding: 1.25rem 1.5rem;
+}
+
+/* Aging KPI Cards Grid */
+.cashier-aging-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.cashier-aging-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  padding: 1.125rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  text-decoration: none;
+  display: block;
+  color: inherit;
+}
+
+.cashier-aging-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px -2px rgba(0, 0, 0, 0.07);
+  text-decoration: none;
+  color: inherit;
+}
+
+.cashier-aging-card.is-active {
+  ring: 2px solid #00a859;
+  border-color: #00a859;
+  background: #f0fdf4;
+}
+
+.cashier-aging-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+
+.cashier-aging-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.cashier-aging-card__icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+
+.cashier-aging-card--total .cashier-aging-card__icon {
+  background: #ecfdf5;
+  color: #059669;
+}
+.cashier-aging-card--total:hover {
+  border-color: #10b981;
+}
+
+.cashier-aging-card--unpaid .cashier-aging-card__icon {
+  background: #fffbeb;
+  color: #d97706;
+}
+.cashier-aging-card--unpaid:hover {
+  border-color: #f59e0b;
+}
+
+.cashier-aging-card--partial .cashier-aging-card__icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+.cashier-aging-card--partial:hover {
+  border-color: #3b82f6;
+}
+
+.cashier-aging-card--overdue .cashier-aging-card__icon {
+  background: #fef2f2;
+  color: #dc2626;
+}
+.cashier-aging-card--overdue:hover {
+  border-color: #ef4444;
+}
+
+.cashier-aging-card__value {
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #0f172a;
+  margin: 0 0 0.35rem;
+  font-feature-settings: "tnum";
+}
+
+.cashier-aging-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.cashier-aging-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.cashier-aging-badge--pulse {
+  animation: cashier-pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes cashier-pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.15); }
+}
+
+/* Aging Distribution Segmented Track */
+.cashier-aging-track-wrap {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.cashier-aging-track-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.625rem;
+}
+
+.cashier-aging-bar {
+  display: flex;
+  height: 0.625rem;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: #e2e8f0;
+  gap: 2px;
+  margin-bottom: 0.75rem;
+}
+
+.cashier-aging-bar__seg {
+  height: 100%;
+  transition: width 0.4s ease;
+  position: relative;
+}
+
+.cashier-aging-bar__seg--current { background: #10b981; }
+.cashier-aging-bar__seg--days1-30 { background: #f59e0b; }
+.cashier-aging-bar__seg--days31-60 { background: #f97316; }
+.cashier-aging-bar__seg--days61-90 { background: #ef4444; }
+.cashier-aging-bar__seg--days90plus { background: #991b1b; }
+
+/* 5-Bracket Interactive Strip */
+.cashier-aging-brackets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 0.625rem;
+}
+
+.cashier-aging-bracket-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.cashier-aging-bracket-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.cashier-aging-bracket-btn.is-active {
+  background: #f8fafc;
+  border-color: #00a859;
+  box-shadow: 0 0 0 2px rgba(0, 168, 89, 0.25);
+}
+
+.cashier-aging-bracket-btn__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.cashier-aging-bracket-btn__indicator {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.cashier-aging-bracket-btn__name {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+.cashier-aging-bracket-btn__amount {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  font-feature-settings: "tnum";
+}
+
+.cashier-aging-bracket-btn__count {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+}
+
+/* Quick Status Toggle Pills */
+.cashier-status-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cashier-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.cashier-status-pill:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+.cashier-status-pill.is-active {
+  background: #00a859;
+  border-color: #00a859;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 168, 89, 0.3);
+}
+
+.cashier-status-pill__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.cashier-status-pill.is-active .cashier-status-pill__badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.cashier-status-pill--overdue.is-active {
+  background: #dc2626;
+  border-color: #dc2626;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* Multi-Dimension Filter Toolbar */
+.cashier-filter-toolbar {
+  display: grid;
+  grid-template-columns: 2fr 1.2fr 1.2fr 1fr 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 1200px) {
+  .cashier-filter-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .cashier-filter-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cashier-filter-field {
+  position: relative;
+}
+
+.cashier-filter-field .bi-search {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.cashier-filter-input {
+  padding-left: 2.35rem !important;
+  border-radius: 0.625rem;
+  border: 1px solid #cbd5e1;
+  font-size: 0.875rem;
+  height: 2.5rem;
+  transition: all 0.15s ease;
+}
+
+.cashier-filter-input:focus,
+.cashier-filter-select:focus {
+  border-color: #00a859;
+  box-shadow: 0 0 0 3px rgba(0, 168, 89, 0.15);
+  outline: none;
+}
+
+.cashier-filter-select {
+  border-radius: 0.625rem;
+  border: 1px solid #cbd5e1;
+  font-size: 0.8125rem;
+  height: 2.5rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.cashier-filter-reset-btn {
+  height: 2.5rem;
+  padding: 0 0.875rem;
+  border-radius: 0.625rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.cashier-filter-reset-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* Balance Table Enhancements */
+.cashier-balance-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.cashier-balance-table thead th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--cashier-border);
+  white-space: nowrap;
+}
+
+.cashier-balance-table tbody td {
+  padding: 0.875rem 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease;
+}
+
+.cashier-balance-table tbody tr:hover td {
+  background-color: #f8fafc;
+}
+
+.cashier-student-id-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.375rem;
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cashier-student-id-badge:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.cashier-student-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cashier-student-meta__name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cashier-student-meta__sub {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.cashier-dim-tag {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+  margin-top: 0.2rem;
+}
+
+.cashier-badge-scholar {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  font-weight: 700;
+  font-size: 0.6875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cashier-badge-regular {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cashier-amount-assessed {
+  color: #475569;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.cashier-amount-paid {
+  color: #059669;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.cashier-amount-balance {
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+
+.cashier-amount-balance--due {
+  color: #dc2626;
+}
+
+.cashier-amount-balance--zero {
+  color: #059669;
+}
+
+/* Aging pills on due date column */
+.cashier-aging-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+  white-space: nowrap;
+}
+
+.cashier-aging-pill--overdue {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.cashier-aging-pill--duesoon {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.cashier-aging-pill--current {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.cashier-aging-pill--paid {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+/* Action button in table */
+.cashier-btn-pay {
+  background: #00a859;
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 168, 89, 0.2);
+  white-space: nowrap;
+}
+
+.cashier-btn-pay:hover {
+  background: #008f4c;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 168, 89, 0.25);
+}
+
+.cashier-btn-notice {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  font-size: 0.8125rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.cashier-btn-notice:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+/* Follow-up Notice Modal */
+.cashier-notice-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+@keyframes cashier-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-animation {
+  animation: cashier-spin 0.8s linear infinite;
+  display: inline-block;
+}
+

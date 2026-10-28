@@ -170,15 +170,23 @@ def dashboard_stats() -> dict:
         p.paid_amount for p in payments if timezone.localtime(p.created_at) >= week_start
     )
 
-    students_with_balance = set()
-    for p in payments:
-        if p.remaining_balance > 0:
-            students_with_balance.add(p.student_name)
+    try:
+        from .student_search import list_students_for_cashier
+
+        active_count = sum(
+            1 for s in list_students_for_cashier() if (s.get("totalRemaining") or 0) > 0
+        )
+    except Exception:
+        students_with_balance = set()
+        for p in payments:
+            if p.remaining_balance > 0:
+                students_with_balance.add(p.student_name)
+        active_count = len(students_with_balance)
 
     return {
         "totalCollections": float(total_collections),
         "todayTransactions": today_count,
-        "activeStudents": len(students_with_balance),
+        "activeStudents": active_count,
         "weeklyTotal": float(weekly_total),
         "recentTransactions": [serialize_payment(p) for p in payments[:5]],
         "transactionCount": len(payments),

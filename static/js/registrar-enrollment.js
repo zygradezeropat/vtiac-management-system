@@ -14,7 +14,7 @@ const ENROLLMENT_TABS = [
   { key: "training", label: "Training with Assessment" },
   { key: "assessment", label: "Assessment Only Clients" },
 ];
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 function loadPendingEnrollmentsData() {
   const el = document.getElementById("pending-enrollments-data");

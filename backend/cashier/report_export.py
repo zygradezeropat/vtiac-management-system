@@ -421,6 +421,109 @@ def build_annual_workbook(year: int) -> tuple[BytesIO, str]:
     return _workbook_to_buffer(wb), filename
 
 
+def build_receivables_aging_workbook():
+    from .student_search import calculate_receivables_aging_summary, list_students_for_cashier
+
+    students = list_students_for_cashier()
+    summary = calculate_receivables_aging_summary(students)
+
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.title = "Aging Summary"
+
+    headers1 = ["Aging Category", "Student Count", "Total Outstanding (₱)", "% of Total Receivables"]
+    col_count1 = len(headers1)
+    today = timezone.localdate()
+    row = _write_title_block(
+        ws1,
+        "AGING OF RECEIVABLES & OVERDUE REPORT",
+        [
+            ("As of Date", today.strftime("%B %d, %Y")),
+            ("Total Receivables", f"₱{summary['totalReceivables']:,.2f}"),
+            ("Overdue Balance", f"₱{summary['overdue']['amount']:,.2f} ({summary['overdue']['count']} accounts)"),
+        ],
+        col_count1,
+    )
+
+    for idx, label in enumerate(headers1, start=1):
+        ws1.cell(row=row, column=idx, value=label)
+    _style_header_row(ws1, row, col_count1)
+    row += 1
+
+    total_rec = summary["totalReceivables"]
+    brackets_data = [
+        ("Current (0–30 Days)", summary["brackets"]["current"]["count"], summary["brackets"]["current"]["amount"]),
+        ("1–30 Days Overdue", summary["brackets"]["days1_30"]["count"], summary["brackets"]["days1_30"]["amount"]),
+        ("31–60 Days Overdue", summary["brackets"]["days31_60"]["count"], summary["brackets"]["days31_60"]["amount"]),
+        ("61–90 Days Overdue", summary["brackets"]["days61_90"]["count"], summary["brackets"]["days61_90"]["amount"]),
+        (">90 Days Overdue", summary["brackets"]["days90Plus"]["count"], summary["brackets"]["days90Plus"]["amount"]),
+    ]
+
+    for label, count, amt in brackets_data:
+        pct = (amt / total_rec * 100) if total_rec > 0 else 0.0
+        ws1.cell(row=row, column=1, value=label)
+        ws1.cell(row=row, column=2, value=count)
+        ws1.cell(row=row, column=3, value=float(amt))
+        ws1.cell(row=row, column=4, value=round(pct, 1))
+        for c in range(1, col_count1 + 1):
+            _style_data_cell(ws1, row, c)
+        row += 1
+
+    ws1.cell(row=row, column=1, value="TOTAL OUTSTANDING")
+    ws1.cell(row=row, column=2, value=summary["activeReceivablesCount"])
+    ws1.cell(row=row, column=3, value=float(total_rec))
+    ws1.cell(row=row, column=4, value=100.0 if total_rec > 0 else 0.0)
+    for c in range(1, col_count1 + 1):
+        ws1.cell(row=row, column=c).fill = TOTAL_FILL
+        ws1.cell(row=row, column=c).border = THIN_BORDER
+        ws1.cell(row=row, column=c).font = TOTAL_FONT
+
+    _autosize_columns(ws1, col_count1)
+
+    ws2 = wb.create_sheet("Student Accounts")
+    headers2 = [
+        "Student ID",
+        "Student Name",
+        "Course / Program",
+        "Course Type",
+        "Fee Category",
+        "Total Assessed (₱)",
+        "Total Paid (₱)",
+        "Remaining Balance (₱)",
+        "Due Date",
+        "Days Overdue",
+        "Aging Status",
+    ]
+    col_count2 = len(headers2)
+    row2 = _write_title_block(ws2, "STUDENT RECEIVABLES & AGING BREAKDOWN", [("Report Date", today.strftime("%B %d, %Y"))], col_count2)
+
+    for idx, label in enumerate(headers2, start=1):
+        ws2.cell(row=row2, column=idx, value=label)
+    _style_header_row(ws2, row2, col_count2)
+    row2 += 1
+
+    for s in students:
+        ws2.cell(row=row2, column=1, value=s.get("studentId") or s.get("referenceId") or "—")
+        ws2.cell(row=row2, column=2, value=s.get("name") or "—")
+        ws2.cell(row=row2, column=3, value=s.get("program") or "—")
+        ws2.cell(row=row2, column=4, value=s.get("courseTypeLabel") or "—")
+        ws2.cell(row=row2, column=5, value=s.get("scholarshipLabel") or "Regular")
+        ws2.cell(row=row2, column=6, value=float(s.get("totalAssessed") or 0))
+        ws2.cell(row=row2, column=7, value=float(s.get("totalPaid") or 0))
+        ws2.cell(row=row2, column=8, value=float(s.get("totalRemaining") or 0))
+        ws2.cell(row=row2, column=9, value=s.get("dueDateFormatted") or s.get("dueDate") or "—")
+        ws2.cell(row=row2, column=10, value=s.get("daysOverdue") if s.get("isOverdue") else 0)
+        ws2.cell(row=row2, column=11, value=s.get("agingBracketLabel") or s.get("paymentStatus") or "—")
+        for c in range(1, col_count2 + 1):
+            _style_data_cell(ws2, row2, c)
+        row2 += 1
+
+    _autosize_columns(ws2, col_count2)
+
+    filename = f"VTIAC_Receivables_Aging_{today.isoformat()}.xlsx"
+    return _workbook_to_buffer(wb), filename
+
+
 def build_report_workbook(report_type: str, *, day: date | None = None, year: int | None = None, month: int | None = None):
     report_type = (report_type or "").strip().lower()
     today = timezone.localdate()
@@ -435,7 +538,9 @@ def build_report_workbook(report_type: str, *, day: date | None = None, year: in
     if report_type == "annual":
         y = year or today.year
         return build_annual_workbook(y)
-    raise ValueError("Invalid report type. Use daily, monthly, or annual.")
+    if report_type in ("aging", "receivables", "overdue"):
+        return build_receivables_aging_workbook()
+    raise ValueError("Invalid report type. Use daily, monthly, annual, or aging.")
 
 
 def _workbook_to_buffer(wb: Workbook) -> BytesIO:

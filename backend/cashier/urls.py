@@ -8,6 +8,11 @@ urlpatterns = [
     path("cashier/api/students/search/", api.students_search, name="cashier_students_search"),
     path("cashier/api/students/", api.students_list, name="cashier_students_list"),
     path(
+        "cashier/api/receivables/aging/",
+        api.receivables_aging,
+        name="cashier_receivables_aging",
+    ),
+    path(
         "cashier/api/control-number/",
         api.next_control_number,
         name="cashier_next_control_number",

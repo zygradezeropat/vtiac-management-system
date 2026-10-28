@@ -95,12 +95,9 @@ function renderSummary(filteredTotal, pageInfo) {
   const start = (page - 1) * PAGE_SIZE + 1;
   const end = Math.min(page * PAGE_SIZE, total);
 
-  if (total <= PAGE_SIZE) {
-    el.textContent = `Showing ${total} of ${allTransactions.length} transaction${allTransactions.length === 1 ? "" : "s"}.`;
-    return;
-  }
-
-  el.textContent = `Showing ${start}–${end} of ${total} (${allTransactions.length} total) · Page ${page} of ${totalPages}`;
+  el.innerHTML = `Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> transactions (10 records per page)${
+    total !== allTransactions.length ? ` &bull; ${allTransactions.length} total recorded` : ""
+  }`;
 }
 
 function renderPagination(pageInfo) {
@@ -109,21 +106,54 @@ function renderPagination(pageInfo) {
 
   const { page, totalPages, total } = pageInfo;
 
-  if (total <= PAGE_SIZE) {
-    nav.classList.add("hidden");
+  if (!total) {
+    nav.classList.add("d-none");
     nav.innerHTML = "";
     return;
   }
 
+  nav.classList.remove("d-none");
   nav.classList.remove("hidden");
+  const start = (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, total);
+  const prevDisabled = page <= 1 ? "disabled" : "";
+  const nextDisabled = page >= totalPages ? "disabled" : "";
+
+  // Show page window (up to 5 buttons)
+  let startPage = Math.max(1, page - 2);
+  let endPage = Math.min(totalPages, page + 2);
+  if (endPage - startPage < 4) {
+    if (startPage === 1) endPage = Math.min(totalPages, 5);
+    else if (endPage === totalPages) startPage = Math.max(1, totalPages - 4);
+  }
+
+  const pageButtons = [];
+  for (let i = startPage; i <= endPage; i++) {
+    pageButtons.push(
+      `<button type="button" class="btn btn-sm ${
+        i === page ? "cashier-btn-primary" : "btn-outline-secondary"
+      } history-page-btn" data-page="${i}" ${i === page ? 'aria-current="page"' : ""}>${i}</button>`
+    );
+  }
+
   nav.innerHTML = `
-    <button type="button" class="btn btn-sm cashier-btn-outline" data-history-page="prev" ${page <= 1 ? "disabled" : ""}>
-      Previous
-    </button>
-    <span class="cashier-pagination__label">Page ${page} of ${totalPages}</span>
-    <button type="button" class="btn btn-sm cashier-btn-outline" data-history-page="next" ${page >= totalPages ? "disabled" : ""}>
-      Next
-    </button>
+    <div class="d-flex align-items-center gap-2">
+      <span class="cashier-pagination__label">
+        Showing <strong>${start}–${end}</strong> of <strong>${total}</strong> transactions
+      </span>
+      <span class="badge bg-light text-secondary border" style="font-weight: 600; font-size: 0.75rem;">
+        10 records per page
+      </span>
+    </div>
+    <div class="d-flex flex-wrap gap-1 align-items-center justify-content-center">
+      <button type="button" class="btn btn-sm btn-outline-secondary history-page-prev" data-history-page="prev" ${prevDisabled} title="Previous page">
+        <i class="bi bi-chevron-left" aria-hidden="true"></i> Prev
+      </button>
+      ${pageButtons.join("")}
+      <button type="button" class="btn btn-sm btn-outline-secondary history-page-next" data-history-page="next" ${nextDisabled} title="Next page">
+        Next <i class="bi bi-chevron-right" aria-hidden="true"></i>
+      </button>
+    </div>
   `;
 }
 
@@ -220,14 +250,22 @@ export function initCashierHistory() {
   });
 
   document.getElementById("historyPagination")?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-history-page]");
-    if (!btn || btn.disabled) return;
-    const action = btn.getAttribute("data-history-page");
+    const prev = e.target.closest(".history-page-prev") || e.target.closest("[data-history-page='prev']");
+    const next = e.target.closest(".history-page-next") || e.target.closest("[data-history-page='next']");
+    const pageBtn = e.target.closest(".history-page-btn");
     const filtered = filterTransactions(allTransactions);
     const { totalPages } = paginate(filtered, currentPage);
-    if (action === "prev" && currentPage > 1) currentPage -= 1;
-    if (action === "next" && currentPage < totalPages) currentPage += 1;
-    render();
+
+    if (prev && currentPage > 1) {
+      currentPage -= 1;
+      render();
+    } else if (next && currentPage < totalPages) {
+      currentPage += 1;
+      render();
+    } else if (pageBtn) {
+      currentPage = parseInt(pageBtn.dataset.page, 10) || 1;
+      render();
+    }
   });
 
   ["historyFilterDate", "historyFilterType", "historyFilterName", "historyFilterStatus", "historyFilterRef"].forEach(
