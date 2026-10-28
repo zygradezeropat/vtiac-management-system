@@ -255,6 +255,12 @@ function syncUserFormPanels() {
   if (last) last.required = !trainerMode && !editingUserId;
   if (email) email.required = !trainerMode && !editingUserId;
   if (password) password.required = !trainerMode && !editingUserId;
+
+  if (editingUserId) {
+    const role = document.getElementById("userFormRole")?.value;
+    const isTrainer = accountType === "staff" && role === "trainer";
+    document.getElementById("userFormTrainerEditQuals")?.classList.toggle("d-none", !isTrainer);
+  }
 }
 
 function getCheckedTrainerQualifications() {
@@ -361,6 +367,70 @@ function initTrainerFormBehaviors() {
   });
 }
 
+let dynamicProgramsCache = null;
+
+async function fetchDynamicPrograms() {
+  try {
+    const res = await fetch("/admin/api/system-settings/", { credentials: "same-origin" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && Array.isArray(data.programs)) {
+      dynamicProgramsCache = data.programs.filter((p) => p.isActive !== false).map((p) => p.name);
+      return dynamicProgramsCache;
+    }
+  } catch (err) {
+    console.warn("Failed to fetch dynamic programs:", err);
+  }
+  return null;
+}
+
+function updateTrainerQualificationGrids(programs, selectedQuals = []) {
+  if (!Array.isArray(programs) || !programs.length) return;
+
+  // 1. Update Trainer Edit Grid
+  const editGrid = document.getElementById("trainerEditQualGrid");
+  if (editGrid) {
+    editGrid.innerHTML = programs
+      .map(
+        (prog, idx) => `
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="${escapeHtml(prog)}" id="editTrainerQual${idx + 1}" data-edit-trainer-qualification ${selectedQuals.includes(prog) ? "checked" : ""} />
+        <label class="form-check-label" for="editTrainerQual${idx + 1}">${escapeHtml(prog)}</label>
+      </div>`
+      )
+      .join("");
+  }
+
+  // 2. Update Trainer Create Grid (preserving Other option)
+  const createGrid = document.getElementById("adminTrainerQualGrid");
+  if (createGrid) {
+    const otherChecked = document.getElementById("adminTrainerQualOther")?.checked;
+    createGrid.innerHTML = `
+      ${programs
+        .map(
+          (prog, idx) => `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${escapeHtml(prog)}" id="adminTrainerQual${idx + 1}" data-admin-trainer-qualification />
+          <label class="form-check-label" for="adminTrainerQual${idx + 1}">${escapeHtml(prog)}</label>
+        </div>`
+        )
+        .join("")}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="adminTrainerQualOther" data-admin-trainer-qual-other ${otherChecked ? "checked" : ""} />
+        <label class="form-check-label" for="adminTrainerQualOther">Other (specify below)</label>
+      </div>
+    `;
+    const newOther = document.getElementById("adminTrainerQualOther");
+    const otherText = document.getElementById("adminTrainerOtherQual");
+    newOther?.addEventListener("change", () => {
+      if (otherText) {
+        otherText.disabled = !newOther.checked;
+        if (!newOther.checked) otherText.value = "";
+      }
+    });
+  }
+}
+
 function openCreateModal() {
   editingUserId = null;
   showFormError("");
@@ -379,6 +449,15 @@ function openCreateModal() {
   document.getElementById("userFormPasswordWrap")?.classList.remove("d-none");
   resetTrainerFields();
   syncUserFormPanels();
+
+  if (dynamicProgramsCache) {
+    updateTrainerQualificationGrids(dynamicProgramsCache);
+  } else {
+    fetchDynamicPrograms().then((progs) => {
+      if (progs) updateTrainerQualificationGrids(progs);
+    });
+  }
+
   userFormModal?.show();
 }
 
@@ -401,6 +480,27 @@ function openEditModal(userId) {
   document.getElementById("userFormAccountTypeWrap")?.classList.add("d-none");
   document.getElementById("userFormActiveWrap")?.classList.remove("d-none");
   document.getElementById("userFormPasswordWrap")?.classList.add("d-none");
+
+  const isTrainer = user.account_type === "staff" && user.role === "trainer";
+  const editQualsWrap = document.getElementById("userFormTrainerEditQuals");
+  if (editQualsWrap) {
+    editQualsWrap.classList.toggle("d-none", !isTrainer);
+    const userQuals = Array.isArray(user.qualifications) ? user.qualifications : [];
+    if (dynamicProgramsCache) {
+      updateTrainerQualificationGrids(dynamicProgramsCache, userQuals);
+    } else {
+      fetchDynamicPrograms().then((progs) => {
+        if (progs) {
+          updateTrainerQualificationGrids(progs, userQuals);
+        } else {
+          document.querySelectorAll("[data-edit-trainer-qualification]").forEach((cb) => {
+            cb.checked = userQuals.includes(cb.value);
+          });
+        }
+      });
+    }
+  }
+
   syncUserFormPanels();
   userFormModal?.show();
 }
@@ -440,6 +540,13 @@ async function submitUserForm() {
     };
     if (document.getElementById("userFormAccountType").value === "staff") {
       body.role = document.getElementById("userFormRole").value;
+      if (body.role === "trainer") {
+        const quals = [];
+        document.querySelectorAll("[data-edit-trainer-qualification]:checked").forEach((el) => {
+          if (el.value) quals.push(el.value);
+        });
+        body.qualifications = quals;
+      }
     }
     const res = await fetch(`/admin/api/users/${editingUserId}/`, {
       method: "PATCH",
@@ -580,6 +687,7 @@ export function initAdminUserManagement() {
   if (!document.getElementById("usersTableBody")) return;
   initTrainerFormBehaviors();
   bindEvents();
+  fetchDynamicPrograms().catch(() => {});
   fetchUsers().catch((err) => {
     console.error(err);
     const tbody = document.getElementById("usersTableBody");

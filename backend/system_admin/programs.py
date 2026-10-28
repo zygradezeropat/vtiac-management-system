@@ -280,10 +280,14 @@ def save_program_competencies(program_id: int, competencies_data: list[dict]) ->
 
 
 def get_competency_library() -> dict:
-    from .defaults import TESDA_STANDARD_BASIC_COMPETENCIES, TESDA_STANDARD_COMMON_COMPETENCIES
+    from .defaults import (
+        TESDA_STANDARD_BASIC_COMPETENCIES,
+        TESDA_STANDARD_COMMON_COMPETENCIES,
+        TESDA_STANDARD_CORE_COMPETENCIES,
+    )
 
     return {
         "basic": TESDA_STANDARD_BASIC_COMPETENCIES,
         "common": TESDA_STANDARD_COMMON_COMPETENCIES,
-        "core": [],
+        "core": TESDA_STANDARD_CORE_COMPETENCIES,
     }

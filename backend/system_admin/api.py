@@ -108,6 +108,7 @@ def users_update(request, user_id):
             last_name=data.get("last_name"),
             role=data.get("role"),
             is_active=data.get("is_active"),
+            qualifications=data.get("qualifications"),
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)

@@ -414,13 +414,49 @@ def trainer_dashboard_stats():
     }
 
 
-PROGRAM_QUALIFICATIONS = [
+DEFAULT_PROGRAM_QUALIFICATIONS = [
     "Automotive Servicing NC I",
     "Automotive Servicing (Engine Repair) NC II",
     "Driving NC II",
     "Driving NC III (Passenger Bus / Straight Truck)",
     "Rice Machinery Operations NC II",
 ]
+
+
+def get_active_program_qualifications() -> list[str]:
+    """Dynamically return names of all active registered NC Programs for trainer qualification/assignment."""
+    try:
+        from backend.system_admin.models import NcProgram
+
+        names = list(
+            NcProgram.objects.filter(is_active=True)
+            .order_by("sort_order", "name")
+            .values_list("name", flat=True)
+        )
+        if names:
+            return names
+    except Exception:
+        pass
+    return list(DEFAULT_PROGRAM_QUALIFICATIONS)
+
+
+class _DynamicProgramQualifications(list):
+    """Dynamic list wrapper to preserve compatibility while querying active programs from the database."""
+
+    def __iter__(self):
+        return iter(get_active_program_qualifications())
+
+    def __len__(self):
+        return len(get_active_program_qualifications())
+
+    def __getitem__(self, index):
+        return get_active_program_qualifications()[index]
+
+    def __contains__(self, item):
+        return item in get_active_program_qualifications()
+
+
+PROGRAM_QUALIFICATIONS = _DynamicProgramQualifications(DEFAULT_PROGRAM_QUALIFICATIONS)
 
 PH_MOBILE_RE = re.compile(r"^09\d{9}$")
 PHONE_MSG = "Enter 11 digits including 09 (example: 09171234567)."

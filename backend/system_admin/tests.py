@@ -124,3 +124,74 @@ class DynamicProgramCompetencyTests(TestCase):
         common_count = sum(1 for c in comps if c["category"] == "common")
         self.assertEqual(basic_count, 4)
         self.assertEqual(common_count, 3)
+
+    def test_program_creation_with_explicit_competencies_and_trainer_correspondence(self):
+        from backend.trainer.services import PROGRAM_QUALIFICATIONS, get_active_program_qualifications
+        from backend.system_admin.user_management import update_user, create_trainer_staff_user, serialize_user
+        from django.contrib.auth.models import User
+
+        new_prog = create_program(
+            name="Solar PV Installation NC II",
+            training_fee=12000.00,
+            competencies=[
+                {
+                    "category": "basic",
+                    "code": "BASIC-01",
+                    "title": "Participate in workplace communication",
+                    "nominal_hours": 4,
+                },
+                {
+                    "category": "common",
+                    "code": "COM-01",
+                    "title": "Apply Quality Standards",
+                    "nominal_hours": 8,
+                },
+                {
+                    "category": "core",
+                    "code": "SOLAR-CORE-01",
+                    "title": "Install solar photovoltaic modules",
+                    "nominal_hours": 60,
+                    "learning_outcomes": ["Mount solar frames", "Connect PV wiring"],
+                },
+            ],
+        )
+
+        # 1. Registered program must immediately be available in trainer qualifications
+        active_quals = list(PROGRAM_QUALIFICATIONS)
+        self.assertIn("Solar PV Installation NC II", active_quals)
+        self.assertIn("Solar PV Installation NC II", get_active_program_qualifications())
+
+        # 2. Competencies must be stored
+        prog_comps = list_program_competencies(new_prog["id"])
+        self.assertEqual(len(prog_comps), 3)
+        self.assertEqual(prog_comps[2]["code"], "SOLAR-CORE-01")
+        self.assertEqual(prog_comps[2]["learningOutcomes"], ["Mount solar frames", "Connect PV wiring"])
+
+        # 3. Dynamic trainer record sheets must immediately reflect the new program and units
+        sheet = record_sheet_structure_for_program("Solar PV Installation NC II")
+        self.assertEqual(len(sheet), 3)
+        self.assertEqual(sheet[2]["label"], "CORE COMPETENCIES")
+        self.assertEqual(sheet[2]["units"][0]["title"], "Install solar photovoltaic modules")
+
+        # 4. Trainer can be assigned this newly registered program
+        trainer_dict = create_trainer_staff_user({
+            "first_name": "Juan",
+            "last_name": "Trainer",
+            "email": "juantrainer@example.com",
+            "phone_number": "09171234567",
+            "password": "Password123!",
+            "password_confirm": "Password123!",
+            "highest_tesda_nc": "NC II Assessor",
+            "qualifications": ["Solar PV Installation NC II"],
+            "years_experience": "4_6",
+        })
+        self.assertIn("Solar PV Installation NC II", trainer_dict.get("qualifications", []))
+
+        # 5. Admin updates trainer qualifications to add another registered program
+        updated = update_user(
+            trainer_dict["id"],
+            qualifications=["Solar PV Installation NC II", "Welding NC II"],
+        )
+        self.assertIn("Solar PV Installation NC II", updated.get("qualifications", []))
+        self.assertIn("Welding NC II", updated.get("qualifications", []))
+

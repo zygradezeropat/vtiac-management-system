@@ -47,8 +47,15 @@ def _role_label(user):
 def serialize_user(user):
     account_type = _account_type_for(user)
     role = ""
+    qualifications = []
     if account_type == "staff":
         role = user.staff_profile.role
+        if role == StaffProfile.Role.TRAINER:
+            from backend.trainer.models import TrainerAccountRequest
+
+            treq = TrainerAccountRequest.objects.filter(email__iexact=user.email).first()
+            if treq and isinstance(treq.qualifications, list):
+                qualifications = treq.qualifications
     return {
         "id": user.id,
         "email": user.email,
@@ -59,6 +66,7 @@ def serialize_user(user):
         "account_type": account_type,
         "role": role,
         "role_label": _role_label(user),
+        "qualifications": qualifications,
         "is_active": user.is_active,
         "is_staff": user.is_staff,
         "date_joined": user.date_joined.isoformat() if user.date_joined else "",
@@ -180,7 +188,7 @@ def create_trainer_staff_user(trainer_payload):
     return serialize_user(user)
 
 
-def update_user(user_id, *, email=None, first_name=None, last_name=None, role=None, is_active=None):
+def update_user(user_id, *, email=None, first_name=None, last_name=None, role=None, is_active=None, qualifications=None):
     try:
         user = User.objects.select_related("staff_profile", "student_profile").get(pk=user_id)
     except User.DoesNotExist as exc:
@@ -208,6 +216,14 @@ def update_user(user_id, *, email=None, first_name=None, last_name=None, role=No
             raise ValueError("Select a valid staff role.")
         user.staff_profile.role = role
         user.staff_profile.save(update_fields=["role"])
+
+    if qualifications is not None and hasattr(user, "staff_profile") and user.staff_profile.role == StaffProfile.Role.TRAINER:
+        from backend.trainer.models import TrainerAccountRequest
+
+        treq = TrainerAccountRequest.objects.filter(email__iexact=user.email).first()
+        if treq:
+            treq.qualifications = qualifications if isinstance(qualifications, list) else []
+            treq.save(update_fields=["qualifications"])
 
     user.save()
     user.refresh_from_db()

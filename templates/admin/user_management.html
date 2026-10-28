@@ -130,6 +130,19 @@
                 autocomplete="new-password"
               />
             </div>
+
+            <div id="userFormTrainerEditQuals" class="d-none mt-3 border-top pt-3">
+              <label class="admin-form-label fw-bold"><i class="bi bi-mortarboard-fill text-success me-1"></i>Assigned Programs / Subjects</label>
+              <p class="text-muted small mb-2">Select the registered programs that this trainer is assigned to teach and grade:</p>
+              <div class="admin-trainer-qual-grid mb-2" id="trainerEditQualGrid">
+                {% for program in program_qualifications %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="{{ program }}" id="editTrainerQual{{ forloop.counter }}" data-edit-trainer-qualification />
+                  <label class="form-check-label" for="editTrainerQual{{ forloop.counter }}">{{ program }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
           </div>
 
           <div id="userFormTrainerFields" class="d-none">
