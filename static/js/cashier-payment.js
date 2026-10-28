@@ -723,6 +723,10 @@ function buildServiceInvoiceHtml(txn) {
 
   return `
     <article class="service-invoice" aria-label="Service invoice">
+      <!-- Watermark behind receipt (diagonal government-style, per PH reference) -->
+      <div class="service-invoice__watermark" aria-hidden="true" data-watermark="NOT OFFICIAL RECEIPT">
+        <span>NOT OFFICIAL RECEIPT</span>
+      </div>
       <header class="service-invoice__header">
         <div class="service-invoice__logo service-invoice__logo--left">
           <img src="${escapeHtml(logos.valient)}" alt="Valiant Technical Institute logo" />
@@ -843,6 +847,9 @@ function buildServiceInvoiceHtml(txn) {
           </tbody>
         </table>
       </footer>
+      <p class="service-invoice__disclaimer mb-0">
+        THIS DOCUMENT IS NOT AN OFFICIAL RECEIPT &bull; FOR REFERENCE PURPOSES ONLY
+      </p>
     </article>
   `;
 }
@@ -857,7 +864,14 @@ function buildArReceiptHtml(txn) {
 
   return `
     <div class="cashier-receipt-simple">
+      <!-- Watermark behind receipt (diagonal government-style, per PH reference) -->
+      <div class="service-invoice__watermark service-invoice__watermark--simple" aria-hidden="true" data-watermark="NOT OFFICIAL RECEIPT">
+        <span>NOT OFFICIAL RECEIPT</span>
+      </div>
       <div class="text-center mb-3">
+        <strong>VTIAC</strong>
+        <p class="mb-0 small text-muted">Acknowledgement Receipt</p>
+      </div>
         <strong>VTIAC</strong>
         <p class="mb-0 small text-muted">Acknowledgement Receipt</p>
       </div>

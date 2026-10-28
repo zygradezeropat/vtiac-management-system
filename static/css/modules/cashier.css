@@ -1230,11 +1230,66 @@
 .service-invoice {
   --si-border: #111;
   --si-red: #c00;
+  position: relative;
   color: #111;
   font-family: Arial, Helvetica, sans-serif;
   font-size: 0.68rem;
   line-height: 1.25;
   background: #fff;
+  overflow: hidden;
+}
+
+/* Watermark behind receipt (government-style diagonal text, matching PH PRC/CSC references) */
+.service-invoice__watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.service-invoice__watermark span {
+  display: block;
+  font-family: Arial, "Helvetica Neue", Helvetica, -apple-system, sans-serif;
+  font-size: clamp(2.2rem, 5.2vw, 3.6rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(30, 41, 59, 0.13);
+  transform: rotate(-35deg);
+  text-align: center;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Keep foreground receipt elements stacked above the watermark */
+.service-invoice > :not(.service-invoice__watermark) {
+  position: relative;
+  z-index: 1;
+}
+
+.cashier-receipt-simple {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+
+.cashier-receipt-simple > :not(.service-invoice__watermark) {
+  position: relative;
+  z-index: 1;
+}
+
+.service-invoice__watermark--simple span {
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  letter-spacing: 0.08em;
 }
 
 .service-invoice__header {
@@ -1726,10 +1781,31 @@
   body.cashier-print-invoice .service-invoice {
     font-size: 9pt;
     box-shadow: none;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__watermark {
+    display: flex !important;
+    visibility: visible !important;
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__watermark span {
+    visibility: visible !important;
+    color: rgba(30, 41, 59, 0.14) !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   body.cashier-print-invoice .cashier-receipt-simple {
     padding: 0;
+    position: relative !important;
+    overflow: hidden !important;
   }
 }
 
