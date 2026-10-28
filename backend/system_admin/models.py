@@ -8,6 +8,7 @@ from .defaults import (
     DEFAULT_REGISTRATION_FEE,
     DEFAULT_PROGRAMS,
     DEFAULT_SCHEDULES,
+    DEFAULT_PROGRAM_COMPETENCIES,
 )
 
 
@@ -26,6 +27,41 @@ class NcProgram(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ProgramCompetency(models.Model):
+    """Units of Competency (Basic, Common, Core) configured per NC Program."""
+
+    class Category(models.TextChoices):
+        BASIC = "basic", "Basic Competencies"
+        COMMON = "common", "Common Competencies"
+        CORE = "core", "Core Competencies"
+
+    program = models.ForeignKey(
+        NcProgram,
+        on_delete=models.CASCADE,
+        related_name="competencies",
+    )
+    category = models.CharField(
+        max_length=20,
+        choices=Category.choices,
+        default=Category.CORE,
+        db_index=True,
+    )
+    code = models.CharField(max_length=80, blank=True)
+    title = models.CharField(max_length=255)
+    nominal_hours = models.PositiveIntegerField(default=0, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    learning_outcomes = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category", "sort_order", "id"]
+
+    def __str__(self):
+        return f"{self.program.name} — [{self.get_category_display()}] {self.code} {self.title}"
 
 
 class TrainingSchedule(models.Model):
@@ -80,20 +116,35 @@ class SystemSettings(models.Model):
 
 
 def seed_default_programs():
-    """Ensure default NC programs exist (idempotent)."""
-    if NcProgram.objects.exists():
-        return
-    NcProgram.objects.bulk_create(
-        [
-            NcProgram(
-                name=name,
-                training_fee=fee,
-                sort_order=sort_order,
-                is_active=True,
-            )
-            for name, fee, sort_order in DEFAULT_PROGRAMS
-        ]
-    )
+    """Ensure default NC programs and their competencies exist (idempotent)."""
+    for name, fee, sort_order in DEFAULT_PROGRAMS:
+        program, _ = NcProgram.objects.get_or_create(
+            name=name,
+            defaults={
+                "training_fee": fee,
+                "sort_order": sort_order,
+                "is_active": True,
+            },
+        )
+        if not program.competencies.exists():
+            default_comps = DEFAULT_PROGRAM_COMPETENCIES.get(name) or {}
+            to_create = []
+            for cat_key, units in default_comps.items():
+                for idx, u in enumerate(units, start=1):
+                    to_create.append(
+                        ProgramCompetency(
+                            program=program,
+                            category=cat_key,
+                            code=u.get("code") or "",
+                            title=u.get("title") or "",
+                            nominal_hours=u.get("nominal_hours") or 0,
+                            sort_order=idx,
+                            learning_outcomes=u.get("learning_outcomes") or [],
+                            is_active=True,
+                        )
+                    )
+            if to_create:
+                ProgramCompetency.objects.bulk_create(to_create)
 
 
 def seed_default_schedules():

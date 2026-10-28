@@ -184,6 +184,7 @@ def programs_create(request):
             training_fee=data.get("training_fee"),
             sort_order=data.get("sort_order"),
             is_active=data.get("is_active", True),
+            competencies=data.get("competencies"),
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
@@ -209,11 +210,52 @@ def programs_update(request, program_id):
             training_fee=data.get("training_fee"),
             sort_order=data.get("sort_order"),
             is_active=data.get("is_active"),
+            competencies=data.get("competencies"),
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
     return JsonResponse({"ok": True, "program": program})
+
+
+@login_required(login_url="/")
+@require_http_methods(["GET", "POST", "PUT"])
+def program_competencies_manage(request, program_id):
+    from .programs import list_program_competencies, save_program_competencies
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    if request.method == "GET":
+        try:
+            competencies = list_program_competencies(program_id)
+            return JsonResponse({"ok": True, "competencies": competencies})
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=404)
+
+    data = _json_body(request)
+    if data is None or "competencies" not in data:
+        return JsonResponse({"error": "Invalid JSON body, competencies array required."}, status=400)
+
+    try:
+        saved = save_program_competencies(program_id, data.get("competencies", []))
+        return JsonResponse({"ok": True, "competencies": saved, "message": "Competencies updated successfully."})
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+
+@login_required(login_url="/")
+@require_http_methods(["GET"])
+def competencies_library(request):
+    from .programs import get_competency_library
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    library = get_competency_library()
+    return JsonResponse({"ok": True, "library": library})
 
 
 @login_required(login_url="/")

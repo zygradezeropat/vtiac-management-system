@@ -125,7 +125,7 @@
       <div class="d-flex align-items-center justify-content-between">
         <div>
           <span class="fs-8 text-uppercase text-muted fw-bold d-block">Units of Competency</span>
-          <h3 class="display-7 fw-bold text-dark mb-0 mt-1">11 / 11</h3>
+          <h3 class="display-7 fw-bold text-dark mb-0 mt-1">{{ total_competency_units }} / {{ total_competency_units }}</h3>
           <span class="fs-8 text-secondary">Basic, Common & Core UCs</span>
         </div>
         <div class="bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
@@ -152,7 +152,7 @@
         <div class="p-3 bg-light rounded-4 border h-100">
           <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
             <h6 class="fw-bold text-dark mb-0 fs-7">Basic Competencies</h6>
-            <span class="badge bg-success-subtle text-success border border-success-subtle">4 / 4 UCs</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle">{{ basic_total }} / {{ basic_total }} UCs</span>
           </div>
 
           {% for uc in competency_units.basic %}
@@ -174,7 +174,7 @@
         <div class="p-3 bg-light rounded-4 border h-100">
           <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
             <h6 class="fw-bold text-dark mb-0 fs-7">Common Competencies</h6>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">3 / 3 UCs</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ common_total }} / {{ common_total }} UCs</span>
           </div>
 
           {% for uc in competency_units.common %}
@@ -196,7 +196,7 @@
         <div class="p-3 bg-light rounded-4 border h-100">
           <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
             <h6 class="fw-bold text-dark mb-0 fs-7">Core Competencies</h6>
-            <span class="badge bg-warning-subtle text-dark border border-warning">4 / 4 UCs</span>
+            <span class="badge bg-warning-subtle text-dark border border-warning">{{ core_total }} / {{ core_total }} UCs</span>
           </div>
 
           {% for uc in competency_units.core %}
@@ -267,6 +267,11 @@
             <span class="badge {{ candidate.status_badge }} fs-8 px-3 py-1 rounded-pill">
               {{ candidate.result }}
             </span>
+            {% if candidate.readiness == "Ready for National Assessment" %}
+            <span class="d-block text-xs text-success fw-semibold mt-1">
+              <i class="bi bi-patch-check-fill me-1"></i>Ready for Assessment
+            </span>
+            {% endif %}
           </td>
         </tr>
         {% empty %}
@@ -335,7 +340,7 @@
               <td class="text-center text-success fw-bold">{{ candidate.basic_ucs }}</td>
               <td class="text-center text-primary fw-bold">{{ candidate.common_ucs }}</td>
               <td class="text-center text-dark fw-bold">{{ candidate.core_ucs }}</td>
-              <td class="text-center"><span class="badge bg-success">{{ candidate.result }}</span></td>
+              <td class="text-center"><span class="badge bg-success">{{ candidate.readiness|default:candidate.result }}</span></td>
             </tr>
             {% endfor %}
           </tbody>

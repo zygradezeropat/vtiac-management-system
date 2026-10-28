@@ -224,57 +224,140 @@ def module_page_context(module, request=None):
             students, batch_cards = assigned_students_by_batch(user)
 
         total_candidates = len(students)
-        competent_count = sum(1 for s in students if s.get("status") == "approved")
-        competency_mastery_pct = round((competent_count / total_candidates) * 100, 1) if total_candidates > 0 else 0.0
 
-        competency_units = {
-            "basic": [
-                {"code": "UC-B1", "name": "Participate in workplace communication", "mastery_pct": 100, "status": "Mastered"},
-                {"code": "UC-B2", "name": "Work in team environment", "mastery_pct": 100, "status": "Mastered"},
-                {"code": "UC-B3", "name": "Practice career professionalism", "mastery_pct": 98, "status": "Mastered"},
-                {"code": "UC-B4", "name": "Practice occupational health and safety procedures", "mastery_pct": 100, "status": "Mastered"},
-            ],
-            "common": [
-                {"code": "UC-C1", "name": "Apply quality standards", "mastery_pct": 96, "status": "Mastered"},
-                {"code": "UC-C2", "name": "Perform computer operations", "mastery_pct": 94, "status": "Mastered"},
-                {"code": "UC-C3", "name": "Perform mensuration and calculation", "mastery_pct": 95, "status": "Mastered"},
-            ],
-            "core": [
-                {"code": "UC-R1", "name": "Service automotive battery & electrical system", "mastery_pct": 92, "status": "Mastered"},
-                {"code": "UC-R2", "name": "Service ignition system & engine tune-up", "mastery_pct": 95, "status": "Mastered"},
-                {"code": "UC-R3", "name": "Service brake and hydraulic suspension system", "mastery_pct": 91, "status": "Mastered"},
-                {"code": "UC-R4", "name": "Inspect & service engine mechanical components", "mastery_pct": 94, "status": "Mastered"},
-            ],
-        } if students else {}
+        # Determine programs assigned to trainer
+        programs_in_class = sorted({s.get("program") for s in students if s.get("program")})
+        primary_program = programs_in_class[0] if programs_in_class else "Automotive Servicing NC I"
+
+        from .grading_sample import record_sheet_structure_for_program
+        from .models import TrainerStudentGrade
+
+        record_struct = record_sheet_structure_for_program(primary_program)
+        cats_by_id = {c["id"]: c for c in record_struct}
+
+        grade_records = {
+            g.student_key: g.payload
+            for g in TrainerStudentGrade.objects.filter(trainer=user)
+        } if user and user.is_authenticated else {}
+
+        competency_units = {"basic": [], "common": [], "core": []}
+        for cat_key in ("basic", "common", "core"):
+            cat_obj = cats_by_id.get(cat_key)
+            if not cat_obj:
+                continue
+            for u in cat_obj.get("units", []):
+                u_id = u.get("id") or ""
+                scored_competent = 0
+                for s in students:
+                    s_key = s.get("reference_id") or s.get("key") or ""
+                    payload = grade_records.get(s_key) or {}
+                    scores = payload.get("scores", {}).get(u_id, {})
+                    w, d, i = scores.get("written"), scores.get("demo"), scores.get("interview")
+                    nums = [n for n in (w, d, i) if n is not None]
+                    if len(nums) == 3 and (sum(nums) / 3) >= 75:
+                        scored_competent += 1
+                mastery_pct = round((scored_competent / total_candidates) * 100, 1) if total_candidates > 0 else 100.0
+                status_label = "Mastered" if mastery_pct >= 75 else ("In Progress" if mastery_pct > 0 else "Pending")
+                competency_units[cat_key].append({
+                    "id": u_id,
+                    "code": u.get("code") or "UC",
+                    "name": u.get("title") or "",
+                    "mastery_pct": mastery_pct,
+                    "status": status_label,
+                })
 
         candidate_competency_rows = []
-        if students:
-            for s in students:
-                candidate_competency_rows.append({
-                    "name": s.get("name") or f"{s.get('first_name', '')} {s.get('last_name', '')}",
-                    "ref_id": s.get("reference_id", "REG-2026"),
-                    "program": s.get("program", "Automotive Servicing NC I"),
-                    "batch": s.get("batch_label", "Morning Batch A"),
-                    "basic_ucs": "4 / 4 Completed",
-                    "common_ucs": "3 / 3 Completed",
-                    "core_ucs": "4 / 4 Completed",
-                    "readiness": "Recommended for Assessment",
-                    "status_badge": "bg-success",
-                    "result": "Competent (C)",
-                })
+        ready_for_assessment_count = 0
+
+        basic_total = len(competency_units["basic"]) or 4
+        common_total = len(competency_units["common"]) or 3
+        core_total = len(competency_units["core"]) or 4
+
+        for s in students:
+            s_key = s.get("reference_id") or s.get("key") or ""
+            payload = grade_records.get(s_key) or {}
+            scores_map = payload.get("scores", {}) if isinstance(payload, dict) else {}
+
+            passed_basic = 0
+            for u in competency_units["basic"]:
+                u_scores = scores_map.get(u.get("id", "")) or {}
+                nums = [n for n in (u_scores.get("written"), u_scores.get("demo"), u_scores.get("interview")) if n is not None]
+                if len(nums) == 3 and (sum(nums) / 3) >= 75:
+                    passed_basic += 1
+
+            passed_common = 0
+            for u in competency_units["common"]:
+                u_scores = scores_map.get(u.get("id", "")) or {}
+                nums = [n for n in (u_scores.get("written"), u_scores.get("demo"), u_scores.get("interview")) if n is not None]
+                if len(nums) == 3 and (sum(nums) / 3) >= 75:
+                    passed_common += 1
+
+            passed_core = 0
+            for u in competency_units["core"]:
+                u_scores = scores_map.get(u.get("id", "")) or {}
+                nums = [n for n in (u_scores.get("written"), u_scores.get("demo"), u_scores.get("interview")) if n is not None]
+                if len(nums) == 3 and (sum(nums) / 3) >= 75:
+                    passed_core += 1
+
+            is_ready = False
+            if scores_map:
+                is_ready = (passed_core == core_total and passed_basic == basic_total and passed_common == common_total)
+            else:
+                is_ready = (s.get("status") == "approved")
+
+            if is_ready:
+                ready_for_assessment_count += 1
+                readiness_text = "Ready for National Assessment"
+                badge_class = "bg-success"
+                result_text = "Competent (C)"
+            elif passed_core > 0 or passed_basic > 0:
+                readiness_text = "Pending Competencies"
+                badge_class = "bg-warning text-dark"
+                result_text = "In Progress"
+            else:
+                readiness_text = "Recommended for Assessment" if s.get("status") == "approved" else "Needs Assessment"
+                badge_class = "bg-success" if s.get("status") == "approved" else "bg-secondary"
+                result_text = "Competent (C)" if s.get("status") == "approved" else "Not Yet Assessed"
+                if s.get("status") == "approved":
+                    ready_for_assessment_count += 1
+
+            candidate_competency_rows.append({
+                "name": s.get("name") or f"{s.get('first_name', '')} {s.get('last_name', '')}",
+                "ref_id": s.get("reference_id", "REG-2026"),
+                "program": s.get("program", primary_program),
+                "batch": s.get("batch_label", "Batch 1"),
+                "basic_ucs": f"{passed_basic if scores_map else basic_total} / {basic_total} Completed",
+                "common_ucs": f"{passed_common if scores_map else common_total} / {common_total} Completed",
+                "core_ucs": f"{passed_core if scores_map else core_total} / {core_total} Completed",
+                "readiness": readiness_text,
+                "status_badge": badge_class,
+                "result": result_text,
+            })
+
+        competent_count = ready_for_assessment_count
+        competency_mastery_pct = round((competent_count / total_candidates) * 100, 1) if total_candidates > 0 else 100.0
+
+        total_comp_units = basic_total + common_total + core_total
 
         ctx.update({
             "total_candidates": total_candidates,
             "competent_count": competent_count,
             "competency_mastery_pct": competency_mastery_pct,
-            "national_assessment_ready": int(total_candidates * 0.905) if total_candidates else 0,
+            "national_assessment_ready": ready_for_assessment_count,
+            "basic_total": basic_total,
+            "common_total": common_total,
+            "core_total": core_total,
+            "total_competency_units": total_comp_units,
             "competency_units": competency_units,
             "candidate_competency_rows": candidate_competency_rows,
+            "primary_program": primary_program,
+            "programs_in_class": programs_in_class,
             "trainer_reports_json": json.dumps(
                 {
                     "students": students,
                     "batch_cards": batch_cards,
                     "has_classes": bool(batch_cards),
+                    "primary_program": primary_program,
                 }
             ),
         })

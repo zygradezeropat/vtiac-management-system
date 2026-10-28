@@ -872,9 +872,6 @@ function buildArReceiptHtml(txn) {
         <strong>VTIAC</strong>
         <p class="mb-0 small text-muted">Acknowledgement Receipt</p>
       </div>
-        <strong>VTIAC</strong>
-        <p class="mb-0 small text-muted">Acknowledgement Receipt</p>
-      </div>
       <p><strong>Control No:</strong> ${escapeHtml(txn.controlNumber)}</p>
       ${txn.orNumber ? `<p><strong>OR No:</strong> ${escapeHtml(txn.orNumber)}</p>` : ""}
       <p><strong>Student:</strong> ${escapeHtml(formatInvoiceStudentName(txn.studentName))}</p>

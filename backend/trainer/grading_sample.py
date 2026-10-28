@@ -426,10 +426,11 @@ def _attach_learning_outcomes(categories: list[dict]) -> list[dict]:
 
 def non_encodable_structure_for_program(program: str) -> list[dict]:
     """Read-only competency columns reflected from Record Sheet scores."""
-    # Automotive Servicing NC I uses the full TESDA competency column layout
-    # (Basic/Common/Core) so Overall Results mirrors the provided sheet image.
-    if (program or "").strip() == "Automotive Servicing NC I":
-        return record_sheet_structure_for_program(program)
+    # Always reflect the full 3-category structure (Basic/Common/Core) so Overall Results
+    # mirrors the complete official TESDA competency rating sheet.
+    record = record_sheet_structure_for_program(program)
+    if record:
+        return record
 
     units = unit_competencies_for_program(program)
     label = (program or "Unit Competencies").upper()
@@ -483,6 +484,33 @@ def flatten_learning_outcomes(categories: list[dict]) -> list[dict]:
 
 
 def unit_competencies_for_program(program: str) -> list[dict]:
+    try:
+        from backend.system_admin.models import NcProgram
+        from backend.system_admin.program_config import resolve_program
+
+        canonical = resolve_program(program) or (program or "").strip()
+        program_row = NcProgram.objects.filter(name__iexact=canonical).first()
+        if not program_row and program:
+            program_row = NcProgram.objects.filter(name__icontains=program).first()
+
+        if program_row:
+            db_comps = list(
+                program_row.competencies.filter(is_active=True).order_by("category", "sort_order", "id")
+            )
+            if db_comps:
+                return [
+                    {
+                        "id": f"comp-{c.id}",
+                        "code": c.code or f"UC-{idx}",
+                        "title": c.title,
+                        "category": c.category,
+                        "nominal_hours": c.nominal_hours,
+                    }
+                    for idx, c in enumerate(db_comps, start=1)
+                ]
+    except Exception:
+        pass
+
     return list(
         SAMPLE_UNIT_COMPETENCIES.get(program) or DEFAULT_UNIT_COMPETENCIES
     )
@@ -490,10 +518,55 @@ def unit_competencies_for_program(program: str) -> list[dict]:
 
 def record_sheet_structure_for_program(program: str) -> list[dict]:
     """Excel-style rating sheet categories and UCs (Written / Demo / Interview per UC)."""
+    # 1. Query dynamic database competencies configured for this program
+    try:
+        from backend.system_admin.models import NcProgram
+        from backend.system_admin.program_config import resolve_program
+
+        canonical = resolve_program(program) or (program or "").strip()
+        program_row = NcProgram.objects.filter(name__iexact=canonical).first()
+        if not program_row and program:
+            program_row = NcProgram.objects.filter(name__icontains=program).first()
+
+        if program_row:
+            db_comps = list(
+                program_row.competencies.filter(is_active=True).order_by("category", "sort_order", "id")
+            )
+            if db_comps:
+                categories_map = {
+                    "basic": {"id": "basic", "label": "BASIC COMPETENCIES", "units": []},
+                    "common": {"id": "common", "label": "COMMON COMPETENCIES", "units": []},
+                    "core": {"id": "core", "label": "CORE COMPETENCIES", "units": []},
+                }
+                for index, comp in enumerate(db_comps, start=1):
+                    cat_key = comp.category.lower() if comp.category else "core"
+                    if cat_key not in categories_map:
+                        cat_key = "core"
+                    unit_id = f"comp-{comp.id}"
+                    categories_map[cat_key]["units"].append(
+                        {
+                            "id": unit_id,
+                            "db_id": comp.id,
+                            "code": comp.code or f"UC-{index}",
+                            "title": comp.title,
+                            "nominal_hours": comp.nominal_hours,
+                            "page": _page_label(index),
+                            "learning_outcomes": comp.learning_outcomes
+                            or _learning_outcomes_for_uc({"id": unit_id, "title": comp.title}),
+                        }
+                    )
+                result = [categories_map[k] for k in ("basic", "common", "core") if categories_map[k]["units"]]
+                if result:
+                    return result
+    except Exception:
+        pass
+
+    # 2. Preset fallback
     preset = RECORD_SHEET_BY_PROGRAM.get(program)
     if preset:
         return preset
 
+    # 3. Default unit competencies fallback
     units = unit_competencies_for_program(program)
     if not units:
         return []

@@ -1061,13 +1061,18 @@ function isOverallResultsRowComplete(record, units) {
   );
 }
 
-function renderNationalAssessmentSelect(record, studentName, disabled = false) {
+function renderNationalAssessmentSelect(record, studentName, disabled = false, isAllCompetent = false) {
   const current = (record?.national_assessment?.result || "").trim();
   const mutedClass = disabled ? " trainer-na-select-wrap--muted" : "";
   const disabledAttr = disabled ? " disabled" : "";
   const hint = disabled
     ? "Complete all competency results before selecting national assessment"
-    : "Select national assessment result";
+    : (isAllCompetent ? "Student has achieved all competencies! Recommended for National Assessment." : "Select national assessment result");
+
+  const readyBadge = isAllCompetent
+    ? `<div class="mt-1"><span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2 d-inline-flex align-items-center gap-1 small" title="Mastered Basic, Common, & Core Competencies"><i class="bi bi-award-fill"></i> Ready for Assessment</span></div>`
+    : "";
+
   return `
     <label class="trainer-na-select-wrap${mutedClass}">
       <select
@@ -1083,6 +1088,7 @@ function renderNationalAssessmentSelect(record, studentName, disabled = false) {
       </select>
       <i class="bi bi-chevron-down" aria-hidden="true"></i>
     </label>
+    ${readyBadge}
   `;
 }
 
@@ -1173,6 +1179,7 @@ function renderNonEncodableSheet(state, filters) {
       );
 
       const rowComplete = isOverallResultsRowComplete(record, allUnits);
+      const isAllCompetent = overallResultStatusKey(record, allUnits) === "competent";
 
       const competencyCells = allUnits
         .map((unit) => {
@@ -1193,7 +1200,7 @@ function renderNonEncodableSheet(state, filters) {
           <td class="trainer-non-encodable-name-col">${escapeHtml(names.middle || "—")}</td>
           ${competencyCells}
           <td class="trainer-non-encodable-na-cell">
-            ${renderNationalAssessmentSelect(record, student.name, !rowComplete)}
+            ${renderNationalAssessmentSelect(record, student.name, !rowComplete, isAllCompetent)}
           </td>
         </tr>
       `;
