@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderHeaderBanner(title, subtitle, badgeText = "Official Registrar Record") {
     return `
       <div class="text-center border-bottom pb-4 mb-4">
-        <h5 class="fw-bold text-uppercase mb-1" style="letter-spacing: 1px; color: #00563B;">Valenzuela Technical Institute &amp; Accreditation Center</h5>
+        <h5 class="fw-bold text-uppercase mb-1" style="letter-spacing: 1px; color: #00563B;">Valiant Technical Institute &amp; Accreditation Center</h5>
         <p class="text-secondary small mb-1">Office of the School Registrar &amp; Assessment Center</p>
         <p class="text-muted text-xs mb-3">TESDA Accredited Assessment Center • Technical Vocational Institution</p>
         <h4 class="fw-extrabold text-dark text-uppercase mt-2 mb-1">${escapeHtml(title)}</h4>
@@ -135,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <p class="text-muted small mb-4">Approved By:</p>
           <div class="border-bottom mx-auto w-75 mb-1" style="height: 1px;"></div>
           <strong class="text-dark d-block">School Director / TESDA Representative</strong>
-          <span class="text-muted text-xs">Valenzuela Technical Institute</span>
+          <span class="text-muted text-xs">Valiant Technical Institute</span>
         </div>
       </div>
     `;
