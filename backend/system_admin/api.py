@@ -260,6 +260,27 @@ def competencies_library(request):
 
 
 @login_required(login_url="/")
+@require_GET
+def schedules_list(request):
+    from .schedules import list_schedules
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    schedules = list_schedules()
+    return JsonResponse({"ok": True, "schedules": schedules})
+
+
+@require_GET
+def public_schedules_list(request):
+    from .schedules import enrollment_schedule_options
+
+    options = enrollment_schedule_options()
+    return JsonResponse({"ok": True, "schedules": options})
+
+
+@login_required(login_url="/")
 @require_http_methods(["POST"])
 def schedules_create(request):
     from .schedules import create_schedule

@@ -176,21 +176,21 @@ function isStep1Complete(formData, emailAvailable = null) {
     emailAvailable !== false;
   return Boolean(
     formData.firstName?.trim() &&
-      formData.lastName?.trim() &&
-      emailOk &&
-      passwordOk &&
-      passwordsMatch &&
-      phoneOk &&
-      formData.region &&
-      formData.province &&
-      formData.cityMunicipality &&
-      formData.barangay &&
-      formData.birthDate &&
-      formData.gender &&
-      formData.civilStatus &&
-      formData.emergencyName?.trim() &&
-      emergencyOk &&
-      formData.privacyConsent
+    formData.lastName?.trim() &&
+    emailOk &&
+    passwordOk &&
+    passwordsMatch &&
+    phoneOk &&
+    formData.region &&
+    formData.province &&
+    formData.cityMunicipality &&
+    formData.barangay &&
+    formData.birthDate &&
+    formData.gender &&
+    formData.civilStatus &&
+    formData.emergencyName?.trim() &&
+    emergencyOk &&
+    formData.privacyConsent
   );
 }
 
@@ -745,7 +745,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       btn.className =
         "program-option-btn btn w-100 text-start p-3 rounded-3 border" +
         (formData.preferredSchedule === option.id ? " selected" : "");
-      btn.innerHTML = `<span class="d-flex justify-content-between align-items-center w-100"><span>${option.label}</span>${formData.preferredSchedule === option.id ? '<span class="text-vtiac fw-bold">✔</span>' : ""}</span>`;
+      const meta = [option.days, option.time].filter(Boolean).join(" · ");
+      const metaHtml = meta && meta !== option.label
+        ? `<span class="text-secondary small d-block mt-1">${meta}</span>`
+        : "";
+      btn.innerHTML = `<span class="d-flex justify-content-between align-items-center w-100"><span><span class="fw-semibold">${option.label}</span>${metaHtml}</span>${formData.preferredSchedule === option.id ? '<span class="text-vtiac fw-bold">✔</span>' : ""}</span>`;
       btn.addEventListener("click", () => {
         formData.preferredSchedule = option.id;
         renderScheduleList();

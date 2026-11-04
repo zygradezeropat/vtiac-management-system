@@ -493,6 +493,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     actionInFlight = true;
     confirmActionBtn.disabled = true;
+    const originalBtnHtml = confirmActionBtn.innerHTML;
+    if (action === "approve") {
+      confirmActionBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Approving &amp; Sending Email...';
+      if (confirmBodyEl) {
+        confirmBodyEl.innerHTML = '<div class="d-flex align-items-center gap-2 text-primary py-2"><span class="spinner-border spinner-border-sm flex-shrink-0" role="status" aria-hidden="true"></span><span>Enrolling applicant and dispatching notification email...</span></div>';
+      }
+    } else {
+      confirmActionBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+    }
 
     try {
       await submitAction(action, item);
@@ -506,7 +515,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } finally {
       actionInFlight = false;
-      if (confirmActionBtn) confirmActionBtn.disabled = false;
+      if (confirmActionBtn) {
+        confirmActionBtn.disabled = false;
+        confirmActionBtn.innerHTML = originalBtnHtml;
+      }
     }
   });
 

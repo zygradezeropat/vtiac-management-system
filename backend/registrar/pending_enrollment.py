@@ -363,16 +363,20 @@ def _resolve_item(profile_id: int | None, registration_id: str | None):
         try:
             reg = pending_registration_queryset().get(pk=registration_id)
         except (StudentRegistration.DoesNotExist, ValueError):
-            return None, None
+            try:
+                reg = StudentRegistration.objects.select_related("user").get(pk=registration_id)
+            except (StudentRegistration.DoesNotExist, ValueError):
+                return None, None
         profile = _profile_for_registration(reg)
     elif profile_id:
         try:
             profile = pending_enrollment_queryset().get(pk=profile_id)
-        except StudentEnrollmentProfile.DoesNotExist:
-            return None, None
+        except (StudentEnrollmentProfile.DoesNotExist, ValueError):
+            try:
+                profile = StudentEnrollmentProfile.objects.select_related("user").get(pk=profile_id)
+            except (StudentEnrollmentProfile.DoesNotExist, ValueError):
+                return None, None
         reg = _registration_for_profile(profile)
-        if reg and reg.status != StudentRegistration.Status.PENDING:
-            return None, None
 
     return profile, reg
 
@@ -387,7 +391,13 @@ def _action_ids_from_request(request):
 def _approve_enrollment_item(profile, reg) -> tuple[bool, str | None]:
     """Shared validation + approval for single and bulk registrar actions."""
     if not reg:
-        return False, "Enrollment not found or already processed."
+        return False, "Enrollment not found."
+
+    if reg.status == StudentRegistration.Status.APPROVED:
+        # Already officially enrolled! Trigger email attempt again and return ok.
+        from backend.student.enrollment_notifications import send_approval_notifications_in_background
+        send_approval_notifications_in_background(profile, reg, force=False)
+        return True, "already_approved"
 
     if profile:
         reqs_cleared = profile.requirements_submitted or documents_cleared_for_payment(profile)
@@ -409,9 +419,9 @@ def _approve_enrollment_item(profile, reg) -> tuple[bool, str | None]:
 
     reg.status = StudentRegistration.Status.APPROVED
     reg.save(update_fields=["status"])
-    from backend.student.enrollment_notifications import notify_enrollment_approved
+    from backend.student.enrollment_notifications import send_approval_notifications_in_background
 
-    notify_enrollment_approved(profile, reg)
+    send_approval_notifications_in_background(profile, reg, force=False)
     return True, None
 
 
@@ -452,12 +462,15 @@ def enrollment_approve(request):
 
     ok, error = _approve_enrollment_item(profile, reg)
     if not ok:
-        status = 404 if error == "Enrollment not found or already processed." else 400
+        status = 404 if error == "Enrollment not found." else 400
         return JsonResponse({"error": error}, status=status)
 
+    is_already = (error == "already_approved")
     return JsonResponse(
         {
             "ok": True,
+            "already_approved": is_already,
+            "message": "Student was already approved and enrolled." if is_already else "Enrollment approved successfully.",
             "profile_id": profile.pk if profile else None,
             "registration_id": str(reg.pk),
             "status": reg.status,

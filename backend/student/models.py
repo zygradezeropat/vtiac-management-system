@@ -297,7 +297,7 @@ class StudentEnrollmentDocument(models.Model):
         related_name="documents",
     )
     document_type = models.CharField(max_length=32, choices=DocumentType.choices)
-    file = models.FileField(upload_to="students/enrollment_documents/%Y/%m/")
+    file = models.FileField(upload_to="students/enrollment_documents/%Y/%m/", max_length=255)
     id_type = models.CharField(max_length=64, blank=True)
     original_filename = models.CharField(max_length=255, blank=True)
     uploaded_at = models.DateTimeField(auto_now=True)

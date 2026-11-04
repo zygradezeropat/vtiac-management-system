@@ -34,6 +34,8 @@ urlpatterns = [
         api.competencies_library,
         name="admin_competencies_library",
     ),
+    path("admin/api/schedules/", api.schedules_list, name="admin_schedules_list"),
+    path("api/schedules/", api.public_schedules_list, name="public_schedules_list"),
     path("admin/api/schedules/create/", api.schedules_create, name="admin_schedules_create"),
     path(
         "admin/api/schedules/<int:schedule_id>/",

@@ -170,3 +170,4 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'vtiac.iams.syst@gmail.com'       # Your Gmail address
 EMAIL_HOST_PASSWORD = 'vltk suca mobr ugsu'            # 16-character Google App Password
 DEFAULT_FROM_EMAIL = 'VTIAC Admissions <vtiac.iams.syst@gmail.com>'
+EMAIL_TIMEOUT = 25  # Increased to 25s for stable TLS handshake and HTML payload delivery on variable connections

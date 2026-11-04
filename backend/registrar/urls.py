@@ -47,7 +47,6 @@ urlpatterns = [
         views.dashboard_redirect,
         name="dashboard_registrar_redirect",
     ),
-    path("registrar/<str:module>/", views.module_page, name="registrar_module"),
     path(
         "registrar/api/profiles/<int:profile_id>/schedule-options/",
         student_schedule_options,
@@ -148,5 +147,6 @@ urlpatterns = [
         views.update_document_request_status,
         name="registrar_update_document_request_status",
     ),
+    path("registrar/<str:module>/", views.module_page, name="registrar_module"),
 ]
 

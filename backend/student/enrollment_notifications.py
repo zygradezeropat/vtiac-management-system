@@ -185,14 +185,26 @@ def send_enrollment_approved_email(profile: StudentEnrollmentProfile | None, reg
             html_message=html_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[recipient_email],
-            fail_silently=True,
+            fail_silently=False,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error(
+            "[EMAIL FAILED] Could not send enrollment approval email to %s: %s (Check Gmail SMTP settings in backend/settings.py)",
+            recipient_email,
+            exc,
+            exc_info=True,
+        )
 
 
-def notify_enrollment_approved(profile: StudentEnrollmentProfile | None, reg=None):
+def notify_enrollment_approved(profile: StudentEnrollmentProfile | None, reg=None, force: bool = False):
     """Notify student and registrar when an enrollment application is officially approved."""
+    if not force and ((profile and profile.user) or (reg and getattr(reg, "user", None))):
+        _u = profile.user if profile and profile.user else getattr(reg, "user", None)
+        if _u and PortalNotification.objects.filter(user=_u, category=PortalNotification.Category.DOCUMENT_APPROVED, title="Enrollment Approved!").exists():
+            import logging
+            logging.getLogger(__name__).info("[EMAIL DEDUP] Approval notification and email already processed for %s; skipping duplicate.", _u.email)
+            return
     name = (f"{reg.first_name} {reg.last_name}").strip() if reg else (_student_name(profile) if profile else "Student")
     program = (reg.selected_program if reg else "") or (profile.selected_program if profile else "") or "Training Program"
     student_user = profile.user if profile else getattr(reg, "user", None)
@@ -220,6 +232,28 @@ def notify_enrollment_approved(profile: StudentEnrollmentProfile | None, reg=Non
 
     # 3. Send official email notification to student
     send_enrollment_approved_email(profile, reg)
+
+
+def send_approval_notifications_in_background(profile: StudentEnrollmentProfile | None, reg=None, force: bool = False):
+    """Run approval notifications and email sending in a non-blocking background thread."""
+    import threading
+
+    def _worker():
+        from django.db import close_old_connections
+        close_old_connections()
+        try:
+            notify_enrollment_approved(profile, reg, force=force)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error(
+                "[NOTIFY BACKGROUND ERROR] Failed to dispatch approval notifications: %s",
+                exc,
+                exc_info=True,
+            )
+        finally:
+            close_old_connections()
+
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 def notify_enrollment_rejected(profile: StudentEnrollmentProfile | None, reg=None):
