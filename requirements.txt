@@ -5,4 +5,4 @@ psycopg2-binary>=2.9,<3   # PostgreSQL adapter (required)
 openpyxl>=3.1,<4          # Cashier Excel report exports
 django-storages[boto3]>=1.14,<2  # Supabase S3 storage support
 gunicorn>=21.0,<24        # Production WSGI server for Render
-
+whitenoise>=6.6,<7
