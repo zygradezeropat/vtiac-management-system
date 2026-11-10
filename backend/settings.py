@@ -199,8 +199,21 @@ USE_SUPABASE_STORAGE = os.getenv("USE_SUPABASE_STORAGE", "false").lower() in ("t
 
 if USE_SUPABASE_STORAGE:
     INSTALLED_APPS.append("storages")
-    SUPABASE_S3_ENDPOINT = os.getenv("SUPABASE_S3_ENDPOINT", "")
-    SUPABASE_S3_BUCKET = os.getenv("SUPABASE_S3_BUCKET", "media")
+    raw_endpoint = (os.getenv("SUPABASE_S3_ENDPOINT") or "").strip().rstrip("/")
+    SUPABASE_S3_BUCKET = (os.getenv("SUPABASE_S3_BUCKET") or "media").strip()
+
+    # Supabase S3 endpoint must end with /storage/v1/s3
+    if raw_endpoint:
+        if raw_endpoint.endswith("/storage/v1/s3"):
+            s3_endpoint = raw_endpoint
+            public_base = raw_endpoint[:-len("/storage/v1/s3")]
+        else:
+            s3_endpoint = f"{raw_endpoint}/storage/v1/s3"
+            public_base = raw_endpoint
+    else:
+        s3_endpoint = ""
+        public_base = ""
+
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -208,8 +221,10 @@ if USE_SUPABASE_STORAGE:
                 "access_key": os.getenv("SUPABASE_S3_ACCESS_KEY"),
                 "secret_key": os.getenv("SUPABASE_S3_SECRET_KEY"),
                 "bucket_name": SUPABASE_S3_BUCKET,
-                "endpoint_url": SUPABASE_S3_ENDPOINT,
+                "endpoint_url": s3_endpoint,
                 "region_name": os.getenv("SUPABASE_S3_REGION", "ap-southeast-1"),
+                "addressing_style": "path",
+                "signature_version": "s3v4",
                 "default_acl": None,
                 "querystring_auth": False,
                 "file_overwrite": False,
@@ -219,7 +234,7 @@ if USE_SUPABASE_STORAGE:
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
-    MEDIA_URL = f"{SUPABASE_S3_ENDPOINT}/storage/v1/object/public/{SUPABASE_S3_BUCKET}/" if SUPABASE_S3_ENDPOINT else "/media/"
+    MEDIA_URL = f"{public_base}/storage/v1/object/public/{SUPABASE_S3_BUCKET}/" if public_base else "/media/"
     MEDIA_ROOT = BASE_DIR / "media"
 else:
     MEDIA_URL = "/media/"
