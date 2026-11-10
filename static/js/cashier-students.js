@@ -472,18 +472,18 @@ function renderTable(filteredStudents, page) {
           <!-- Actions -->
           <td class="text-center">
             <div class="d-inline-flex align-items-center gap-1">
-              <button
-                type="button"
-                class="btn btn-sm cashier-btn-pay btn-student-pay"
-                data-registration-id="${regId}"
-                title="Receive payment for ${name}"
-              >
-                <i class="bi bi-credit-card-fill" aria-hidden="true"></i>
-                <span>Receive Payment</span>
-              </button>
               ${
                 remainingBalance > 0
                   ? `<button
+                      type="button"
+                      class="btn btn-sm cashier-btn-pay btn-student-pay"
+                      data-registration-id="${regId}"
+                      title="Receive payment for ${name}"
+                    >
+                      <i class="bi bi-credit-card-fill" aria-hidden="true"></i>
+                      <span>Receive Payment</span>
+                    </button>
+                    <button
                       type="button"
                       class="btn btn-sm cashier-btn-notice btn-student-notice"
                       data-registration-id="${regId}"
@@ -491,7 +491,10 @@ function renderTable(filteredStudents, page) {
                     >
                       <i class="bi bi-envelope-paper" aria-hidden="true"></i>
                     </button>`
-                  : ""
+                  : `<span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 fw-medium d-inline-flex align-items-center gap-1">
+                      <i class="bi bi-check-circle-fill"></i>
+                      <span>Paid in Full</span>
+                    </span>`
               }
             </div>
           </td>
