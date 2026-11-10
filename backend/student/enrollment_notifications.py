@@ -1,7 +1,7 @@
 """Enrollment-related portal notifications (student ↔ registrar)."""
 
 from backend.core.models import PortalNotification
-from backend.core.notification_service import create_notification, notify_users, registrar_users
+from backend.core.notification_service import cashier_users, create_notification, notify_users, registrar_users
 from backend.student.enrollment_requirements import REQUIREMENT_SPECS
 from backend.student.models import StudentEnrollmentProfile
 
@@ -9,6 +9,7 @@ STUDENT_PENDING_URL = "/dashboard/student/enrollment/pending/"
 STUDENT_REQUIREMENTS_URL = "/dashboard/student/enrollment/requirements/"
 STUDENT_PAYMENTS_URL = "/dashboard/student/payments/"
 REGISTRAR_ENROLLMENT_URL = "/registrar/enrollment/"
+CASHIER_STUDENTS_URL = "/cashier/students/"
 
 
 def _student_name(profile: StudentEnrollmentProfile) -> str:
@@ -138,7 +139,20 @@ def notify_student_documents_released(profile: StudentEnrollmentProfile):
         related_profile_id=profile.pk,
     )
 
-    # 3. Automatically send payment notice email to the student
+    # 3. Notify Cashier end
+    reg = getattr(profile, "registration", None)
+    program = profile.selected_program or (reg.selected_program if reg else "") or "Training Program"
+    student_id = profile.tsmis or (reg.reference_id if reg else "") or f"STU-{profile.pk}"
+    notify_users(
+        cashier_users(),
+        category=PortalNotification.Category.DOCUMENTS_RELEASED,
+        title=f"Student Released to Payment: {name}",
+        message=f"{name} ({student_id}) has been released for payment by the Registrar for {program}.",
+        link_url=CASHIER_STUDENTS_URL,
+        related_profile_id=profile.pk,
+    )
+
+    # 4. Automatically send payment notice email to the student
     send_payment_notice_email(profile)
 
 

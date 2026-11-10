@@ -72,6 +72,13 @@ def registrar_users():
     ).distinct()
 
 
+def cashier_users():
+    return User.objects.filter(
+        staff_profile__role=StaffProfile.Role.CASHIER,
+        is_active=True,
+    ).distinct()
+
+
 def mark_read(user, notification_id: int) -> bool:
     updated = PortalNotification.objects.filter(
         user=user, pk=notification_id, read_at__isnull=True
