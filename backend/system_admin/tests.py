@@ -195,3 +195,310 @@ class DynamicProgramCompetencyTests(TestCase):
         self.assertIn("Solar PV Installation NC II", updated.get("qualifications", []))
         self.assertIn("Welding NC II", updated.get("qualifications", []))
 
+
+class TrainerEvaluationScheduleTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from backend.system_admin.models import SystemSettings
+        from backend.student.models import StudentRegistration
+        from backend.core.models import StaffProfile
+
+        User = get_user_model()
+        self.settings = SystemSettings.load()
+        self.settings.evaluation_enabled = False
+        self.settings.evaluation_start_date = None
+        self.settings.evaluation_end_date = None
+        self.settings.save()
+
+        self.student_user = User.objects.create_user(
+            username="student_test@example.com",
+            email="student_test@example.com",
+            password="Password123!",
+            first_name="Maria",
+            last_name="Santos",
+        )
+        import datetime
+        from backend.student.models import StudentEnrollmentProfile, StudentScheduleOption
+
+        # Create approved registration so student is enrolled
+        StudentRegistration.objects.create(
+            user=self.student_user,
+            first_name="Maria",
+            last_name="Santos",
+            email="student_test@example.com",
+            phone_number="09171234567",
+            birth_date=datetime.date(2000, 1, 1),
+            status=StudentRegistration.Status.APPROVED,
+            selected_program="Welding NC II",
+        )
+
+        self.trainer_user = User.objects.create_user(
+            username="trainer_test@example.com",
+            email="trainer_test@example.com",
+            password="Password123!",
+            first_name="Pedro",
+            last_name="Penduko",
+        )
+        StaffProfile.objects.create(
+            user=self.trainer_user,
+            role=StaffProfile.Role.TRAINER,
+        )
+
+        # Batch the student by the registrar to assign Pedro Penduko
+        self.profile = StudentEnrollmentProfile.objects.create(
+            user=self.student_user,
+            last_name="Santos",
+            first_name="Maria",
+            email="student_test@example.com",
+            birth_date=datetime.date(2000, 1, 1),
+            entry_date=datetime.date.today(),
+            selected_program="Welding NC II",
+        )
+        self.sched_option = StudentScheduleOption.objects.create(
+            profile=self.profile,
+            label="AY 2026-2027 · Batch 1",
+            day="Monday – Friday",
+            time_from="08:00",
+            time_to="17:00",
+            batch_label="Batch 1",
+            course_name="Welding NC II",
+            trainer="Pedro Penduko",
+        )
+        self.profile.preferred_schedule = self.sched_option
+        self.profile.save()
+
+    def test_default_is_disabled(self):
+        from backend.system_admin.program_config import (
+            trainer_evaluation_is_open,
+            trainer_evaluation_status,
+        )
+        self.assertFalse(trainer_evaluation_is_open())
+        status = trainer_evaluation_status()
+        self.assertEqual(status["status"], "disabled")
+        self.assertFalse(status["is_open"])
+
+    def test_schedule_in_future_is_upcoming_and_disabled(self):
+        from django.utils import timezone
+        import datetime
+        from backend.system_admin.programs import update_system_settings
+        from backend.system_admin.program_config import (
+            trainer_evaluation_is_open,
+            trainer_evaluation_status,
+        )
+
+        today = timezone.localdate()
+        future_start = today + datetime.timedelta(days=5)
+        future_end = today + datetime.timedelta(days=12)
+
+        update_system_settings(
+            evaluation_enabled=True,
+            evaluation_start_date=future_start.isoformat(),
+            evaluation_end_date=future_end.isoformat(),
+        )
+
+        self.assertFalse(trainer_evaluation_is_open())
+        status = trainer_evaluation_status()
+        self.assertEqual(status["status"], "upcoming")
+        self.assertFalse(status["is_open"])
+        self.assertIn("scheduled to open", status["message"].lower())
+
+    def test_schedule_in_past_is_closed_and_disabled(self):
+        from django.utils import timezone
+        import datetime
+        from backend.system_admin.programs import update_system_settings
+        from backend.system_admin.program_config import (
+            trainer_evaluation_is_open,
+            trainer_evaluation_status,
+        )
+
+        today = timezone.localdate()
+        past_start = today - datetime.timedelta(days=14)
+        past_end = today - datetime.timedelta(days=2)
+
+        update_system_settings(
+            evaluation_enabled=True,
+            evaluation_start_date=past_start.isoformat(),
+            evaluation_end_date=past_end.isoformat(),
+        )
+
+        self.assertFalse(trainer_evaluation_is_open())
+        status = trainer_evaluation_status()
+        self.assertEqual(status["status"], "closed")
+        self.assertFalse(status["is_open"])
+        self.assertIn("ended on", status["message"].lower())
+
+    def test_schedule_hits_current_date_is_open_and_enabled(self):
+        from django.utils import timezone
+        import datetime
+        from backend.system_admin.programs import update_system_settings
+        from backend.system_admin.program_config import (
+            trainer_evaluation_is_open,
+            trainer_evaluation_status,
+        )
+        from backend.student.services import _student_sidebar_menu
+
+        today = timezone.localdate()
+        active_start = today - datetime.timedelta(days=1)
+        active_end = today + datetime.timedelta(days=5)
+
+        update_system_settings(
+            evaluation_enabled=True,
+            evaluation_start_date=active_start.isoformat(),
+            evaluation_end_date=active_end.isoformat(),
+        )
+
+        self.assertTrue(trainer_evaluation_is_open())
+        status = trainer_evaluation_status()
+        self.assertEqual(status["status"], "open")
+        self.assertTrue(status["is_open"])
+
+        # Check student sidebar menu reflects enabled state
+        menu = _student_sidebar_menu(self.student_user)
+        eval_item = next(item for item in menu if item["route_name"] == "student_trainer_evaluation")
+        self.assertFalse(eval_item["is_disabled"])
+        self.assertNotEqual(eval_item["route"], "#")
+
+    def test_sidebar_locked_when_schedule_not_hit(self):
+        from django.utils import timezone
+        import datetime
+        from backend.system_admin.programs import update_system_settings
+        from backend.student.services import _student_sidebar_menu
+
+        today = timezone.localdate()
+        future_start = today + datetime.timedelta(days=3)
+        future_end = today + datetime.timedelta(days=10)
+
+        update_system_settings(
+            evaluation_enabled=True,
+            evaluation_start_date=future_start.isoformat(),
+            evaluation_end_date=future_end.isoformat(),
+        )
+
+        menu = _student_sidebar_menu(self.student_user)
+        eval_item = next(item for item in menu if item["route_name"] == "student_trainer_evaluation")
+        self.assertTrue(eval_item["is_disabled"])
+        self.assertEqual(eval_item["route"], "#")
+        self.assertTrue(len(eval_item["disabled_reason"]) > 0)
+
+    def test_submission_blocked_when_schedule_disabled(self):
+        from backend.trainer.evaluation import save_student_trainer_evaluation
+
+        with self.assertRaises(ValueError) as cm:
+            save_student_trainer_evaluation(
+                self.student_user,
+                {"trainer_id": str(self.trainer_user.pk), "q1": 5, "q2": 5, "q3": 5},
+            )
+        self.assertIn("disabled", str(cm.exception).lower())
+
+    def test_submission_allowed_when_schedule_hit(self):
+        from django.utils import timezone
+        import datetime
+        from backend.system_admin.programs import update_system_settings
+        from backend.trainer.evaluation import save_student_trainer_evaluation
+
+        today = timezone.localdate()
+        update_system_settings(
+            evaluation_enabled=True,
+            evaluation_start_date=(today - datetime.timedelta(days=1)).isoformat(),
+            evaluation_end_date=(today + datetime.timedelta(days=2)).isoformat(),
+        )
+
+        eval_record = save_student_trainer_evaluation(
+            self.student_user,
+            {"trainer_id": str(self.trainer_user.pk), "q1": 5, "q2": 4, "q3": 5, "comments": "Great trainer!"},
+        )
+        self.assertIsNotNone(eval_record)
+        self.assertEqual(eval_record.trainer, self.trainer_user)
+        self.assertEqual(eval_record.student, self.student_user)
+
+    def test_notification_sent_and_eval_pending_prompt(self):
+        from django.utils import timezone
+        import datetime
+        from django.test import RequestFactory
+        from backend.system_admin.programs import update_system_settings
+        from backend.core.models import PortalNotification
+        from backend.student.services import _student_portal_base
+        from backend.trainer.evaluation import save_student_trainer_evaluation
+
+        today = timezone.localdate()
+        update_system_settings(
+            evaluation_enabled=True,
+            evaluation_start_date=(today - datetime.timedelta(days=1)).isoformat(),
+            evaluation_end_date=(today + datetime.timedelta(days=3)).isoformat(),
+        )
+
+        # 1. Enrolled student should have received an in-app portal notification
+        notifs = PortalNotification.objects.filter(user=self.student_user)
+        self.assertTrue(notifs.exists())
+        self.assertIn("Trainer Evaluation", notifs.first().title)
+
+        # 2. Student portal context should report eval_pending=True
+        rf = RequestFactory()
+        req = rf.get("/dashboard/student/")
+        req.user = self.student_user
+        ctx = _student_portal_base(req, "Dashboard", "Dashboard", "")
+        self.assertTrue(ctx["eval_pending"])
+        self.assertEqual(ctx["pending_trainer_name"], "Pedro Penduko")
+
+        # 3. Once student submits evaluation, eval_pending becomes False
+        save_student_trainer_evaluation(
+            self.student_user,
+            {"trainer_id": str(self.trainer_user.pk), "q1": 5, "q2": 5, "q3": 5},
+        )
+        ctx_after = _student_portal_base(req, "Dashboard", "Dashboard", "")
+        self.assertFalse(ctx_after["eval_pending"])
+
+    def test_enrolled_student_without_batching_has_no_trainer_and_is_locked(self):
+        from django.contrib.auth import get_user_model
+        from django.utils import timezone
+        import datetime
+        from backend.student.models import StudentRegistration
+        from backend.system_admin.programs import update_system_settings
+        from backend.trainer.evaluation import resolve_student_evaluation_target
+        from backend.student.services import _student_sidebar_menu, _student_portal_base
+        from django.test import RequestFactory
+
+        User = get_user_model()
+        unbatched_user = User.objects.create_user(
+            username="unbatched@example.com",
+            email="unbatched@example.com",
+            password="Password123!",
+            first_name="Clara",
+            last_name="Reyes",
+        )
+        StudentRegistration.objects.create(
+            user=unbatched_user,
+            first_name="Clara",
+            last_name="Reyes",
+            email="unbatched@example.com",
+            phone_number="09181234567",
+            birth_date=datetime.date(2001, 2, 2),
+            status=StudentRegistration.Status.APPROVED,
+            selected_program="Welding NC II",
+        )
+
+        today = timezone.localdate()
+        update_system_settings(
+            evaluation_enabled=True,
+            evaluation_start_date=(today - datetime.timedelta(days=1)).isoformat(),
+            evaluation_end_date=(today + datetime.timedelta(days=5)).isoformat(),
+        )
+
+        # 1. Target resolution should NOT fall back to any random trainer
+        target = resolve_student_evaluation_target(unbatched_user)
+        self.assertIsNone(target["trainer_user"])
+        self.assertFalse(target["has_assigned_trainer"])
+
+        # 2. Sidebar should be locked with message explaining student is not yet batched
+        menu = _student_sidebar_menu(unbatched_user)
+        eval_item = next(item for item in menu if item["route_name"] == "student_trainer_evaluation")
+        self.assertTrue(eval_item["is_disabled"])
+        self.assertIn("assigned yet", eval_item["disabled_reason"].lower())
+
+        # 3. Should not pop up or trigger eval_pending
+        rf = RequestFactory()
+        req = rf.get("/dashboard/student/")
+        req.user = unbatched_user
+        ctx = _student_portal_base(req, "Dashboard", "Dashboard", "")
+        self.assertFalse(ctx["eval_pending"])
+

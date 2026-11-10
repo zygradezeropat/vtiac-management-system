@@ -43,6 +43,48 @@
     </div>
   </article>
 
+  <article class="admin-settings-card mb-4">
+    <div class="admin-settings-card__head d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h2 class="admin-settings-card__title">
+          <i class="bi bi-calendar2-check admin-settings-card__icon" aria-hidden="true"></i>
+          Trainer Evaluation Schedule
+        </h2>
+        <p class="admin-settings-card__description">Configure when student trainer evaluations are open or disabled based on date schedule</p>
+      </div>
+      <div id="evaluationStatusBadgeContainer">
+        <span class="badge bg-secondary px-3 py-2 fs-7" id="evaluationStatusBadge">Disabled</span>
+      </div>
+    </div>
+    <div class="admin-settings-card__body">
+      <form id="evaluationScheduleForm" class="admin-form-grid">
+        <div class="admin-form-field">
+          <label class="admin-form-label" for="evaluationStartDate">Evaluation Start Date</label>
+          <input type="date" class="form-control admin-form-input" id="evaluationStartDate" />
+          <small class="text-muted mt-1 d-block fs-8">Opens on this date for student submissions</small>
+        </div>
+        <div class="admin-form-field">
+          <label class="admin-form-label" for="evaluationEndDate">Evaluation End Date</label>
+          <input type="date" class="form-control admin-form-input" id="evaluationEndDate" />
+          <small class="text-muted mt-1 d-block fs-8">Closes after this date (last day to submit)</small>
+        </div>
+        <div class="admin-form-field admin-form-field--full">
+          <label class="admin-form-label" for="evaluationInstructions">Evaluation Instructions / Announcement (optional)</label>
+          <input type="text" class="form-control admin-form-input" id="evaluationInstructions" placeholder="e.g. Please evaluate your trainers for Midterm AY 2026-2027." />
+        </div>
+      </form>
+      <div class="admin-card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="text-muted fs-8" id="evaluationScheduleSummary">
+          <i class="bi bi-info-circle me-1"></i><span>Loading schedule status...</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="clearEvaluationScheduleBtn">Clear Schedule Dates</button>
+          <button type="button" class="btn admin-save-button" id="saveEvaluationScheduleBtn">Save Evaluation Schedule</button>
+        </div>
+      </div>
+    </div>
+  </article>
+
   <article class="admin-settings-card">
     <div class="admin-settings-card__head d-flex flex-wrap justify-content-between align-items-start gap-3">
       <div>

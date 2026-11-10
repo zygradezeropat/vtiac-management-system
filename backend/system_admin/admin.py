@@ -13,7 +13,15 @@ class NcProgramAdmin(admin.ModelAdmin):
 
 @admin.register(SystemSettings)
 class SystemSettingsAdmin(admin.ModelAdmin):
-    list_display = ("fiscal_year_label", "registration_fee", "enrollment_open", "updated_at")
+    list_display = (
+        "fiscal_year_label",
+        "registration_fee",
+        "enrollment_open",
+        "evaluation_enabled",
+        "evaluation_start_date",
+        "evaluation_end_date",
+        "updated_at",
+    )
     readonly_fields = ("singleton_key",)
 
     def has_add_permission(self, request):

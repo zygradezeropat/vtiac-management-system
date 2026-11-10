@@ -280,14 +280,94 @@
       </div>
     </form>
     {% else %}
-    <!-- Empty State (Matches Screenshot 2) -->
+    <!-- Evaluation Inactive / Schedule Notice -->
     <div class="card shadow-sm border-0 rounded-4 text-center py-5">
-      <div class="card-body p-5">
+      <div class="card-body p-4 p-md-5">
+        {% if eval_status.status == 'upcoming' %}
+        <div class="bg-info-subtle text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 72px; height: 72px;">
+          <i class="bi bi-calendar-event fs-1"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-2">Trainer Evaluation Scheduled</h4>
+        <p class="text-secondary fs-7 mx-auto mb-3" style="max-width: 520px;">
+          {{ eval_status.message }}
+        </p>
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill bg-light border mb-4">
+          <i class="bi bi-clock-history text-primary"></i>
+          <span class="fs-8 fw-semibold text-dark">Schedule: {{ eval_status.formatted_period }}</span>
+        </div>
+        <p class="fs-8 text-muted mb-0">Trainer evaluations will automatically unlock when the scheduled date arrives.</p>
+
+        {% elif eval_status.status == 'closed' %}
+        <div class="bg-danger-subtle text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 72px; height: 72px;">
+          <i class="bi bi-calendar-x fs-1"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-2">Evaluation Period Closed</h4>
+        <p class="text-secondary fs-7 mx-auto mb-3" style="max-width: 520px;">
+          {{ eval_status.message }}
+        </p>
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill bg-light border mb-4">
+          <i class="bi bi-calendar-check text-muted"></i>
+          <span class="fs-8 fw-semibold text-muted">Period: {{ eval_status.formatted_period }}</span>
+        </div>
+        <div>
+          <button
+            type="button"
+            class="btn btn-outline-primary px-4 py-2 rounded-3 fw-semibold fs-7"
+            onclick="document.getElementById('evaluation-history-tab').click();"
+          >
+            <i class="bi bi-clock-history me-1"></i>View Past Evaluation History
+          </button>
+        </div>
+
+        {% elif not eval_is_open %}
+        <div class="bg-secondary-subtle text-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 72px; height: 72px;">
+          <i class="bi bi-lock-fill fs-1"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-2">Trainer Evaluation Disabled</h4>
+        <p class="text-secondary fs-7 mx-auto mb-4" style="max-width: 540px;">
+          Trainer evaluation is currently disabled. Submissions will automatically open once an evaluation schedule is configured and initiated by the administration.
+        </p>
+        <div>
+          <button
+            type="button"
+            class="btn btn-outline-primary px-4 py-2 rounded-3 fw-semibold fs-7"
+            onclick="document.getElementById('evaluation-history-tab').click();"
+          >
+            <i class="bi bi-clock-history me-1"></i>View Past Evaluation History
+          </button>
+        </div>
+
+        {% elif not has_assigned_trainer %}
+        <div class="bg-warning-subtle text-warning-emphasis rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-sm" style="width: 72px; height: 72px;">
+          <i class="bi bi-person-x fs-1 text-warning"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-2">No Trainer Assigned Yet</h4>
+        <p class="text-secondary fs-7 mx-auto mb-3" style="max-width: 540px;">
+          Trainer Evaluation is currently open, but your batch/section has not yet been assigned a trainer by the Registrar Office.
+        </p>
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill bg-light border mb-4">
+          <i class="bi bi-info-circle text-primary"></i>
+          <span class="fs-8 fw-semibold text-muted">You will be able to evaluate your trainer once the Registrar finalizes your batch assignment.</span>
+        </div>
+        {% if history_total %}
+        <div>
+          <button
+            type="button"
+            class="btn btn-outline-primary px-4 py-2 rounded-3 fw-semibold fs-7"
+            onclick="document.getElementById('evaluation-history-tab').click();"
+          >
+            <i class="bi bi-clock-history me-1"></i>View Past Evaluation History
+          </button>
+        </div>
+        {% endif %}
+
+        {% else %}
         <div class="bg-light text-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 70px; height: 70px;">
           <i class="bi bi-clipboard-x fs-1"></i>
         </div>
         <h5 class="text-secondary fw-normal mb-1">No evaluations available at this time.</h5>
         <p class="fs-8 text-muted mb-0">Evaluations will appear here when your training period opens.</p>
+        {% endif %}
       </div>
     </div>
     {% endif %}

@@ -187,6 +187,10 @@ RESTRICTED_PRE_ENROLLMENT_ROUTES = frozenset({
 def _student_sidebar_menu(user=None):
     from django.urls import reverse
 
+    from backend.system_admin.program_config import (
+        trainer_evaluation_is_open,
+        trainer_evaluation_status,
+    )
     from .my_profile import can_access_my_profile
 
     enrolled = (
@@ -196,6 +200,8 @@ def _student_sidebar_menu(user=None):
     )
     show_my_profile = can_access_my_profile(user)
     is_assessment = is_assessment_only_user(user)
+    eval_open = trainer_evaluation_is_open()
+    eval_status = trainer_evaluation_status()
 
     menu = []
     for item in STUDENT_SIDEBAR:
@@ -212,13 +218,34 @@ def _student_sidebar_menu(user=None):
         if not enrolled and route_name == "student_my_profile":
             continue
 
-        is_disabled = bool(not enrolled and route_name in RESTRICTED_PRE_ENROLLMENT_ROUTES)
+        is_disabled = False
+        disabled_reason = ""
+
+        if not enrolled and route_name in RESTRICTED_PRE_ENROLLMENT_ROUTES:
+            is_disabled = True
+            disabled_reason = "Restricted until your enrollment is officially confirmed."
+        elif enrolled and route_name == "student_trainer_evaluation":
+            from backend.trainer.evaluation import resolve_student_evaluation_target
+
+            target_info = resolve_student_evaluation_target(user)
+            has_trainer = bool(target_info.get("trainer_user"))
+
+            if not eval_open:
+                is_disabled = True
+                disabled_reason = eval_status.get("message") or "Trainer Evaluation is currently disabled."
+            elif not has_trainer:
+                is_disabled = True
+                disabled_reason = "No trainer assigned yet. Available once batched by the Registrar."
+            else:
+                is_disabled = False
+                disabled_reason = ""
+
         route = reverse(route_name) if (route_name and not is_disabled) else "#"
         menu.append({
             **item,
             "route": route,
             "is_disabled": is_disabled,
-            "disabled_reason": "Restricted until your enrollment is officially confirmed." if is_disabled else "",
+            "disabled_reason": disabled_reason,
         })
     return menu
 
@@ -258,9 +285,40 @@ def _registration_snapshot(user):
 
 
 def _student_portal_base(request, active_menu, page_title, page_subtitle, **extra):
+    from backend.system_admin.program_config import (
+        trainer_evaluation_is_open,
+        trainer_evaluation_status,
+    )
+
     user = request.user if request and request.user.is_authenticated else None
     snapshot = _registration_snapshot(user) if user else {}
     progress_percent = snapshot.get("progress_percent", 25)
+
+    eval_open = trainer_evaluation_is_open()
+    eval_status = trainer_evaluation_status()
+    eval_pending = False
+    pending_trainer_name = ""
+    pending_program_name = ""
+
+    if user and eval_open and registration_is_enrolled(user):
+        try:
+            from backend.trainer.evaluation import resolve_student_evaluation_target
+            from backend.trainer.models import TrainerEvaluation
+
+            target_info = resolve_student_evaluation_target(user)
+            trainer_target = target_info.get("trainer_user")
+            if trainer_target:
+                already_evaluated = TrainerEvaluation.objects.filter(
+                    student=user,
+                    trainer=trainer_target,
+                ).exists()
+                if not already_evaluated:
+                    eval_pending = True
+                    pending_trainer_name = target_info.get("trainer_name") or "Assigned Trainer"
+                    pending_program_name = target_info.get("program") or ""
+        except Exception:
+            pass
+
     return {
         "page_title": page_title,
         "page_subtitle": page_subtitle,
@@ -268,6 +326,11 @@ def _student_portal_base(request, active_menu, page_title, page_subtitle, **extr
         "sidebar_menu": _student_sidebar_menu(user),
         "notification_count": 0,
         "progress_percent": progress_percent,
+        "eval_is_open": eval_open,
+        "eval_status": eval_status,
+        "eval_pending": eval_pending,
+        "pending_trainer_name": pending_trainer_name,
+        "pending_program_name": pending_program_name,
         **snapshot,
         **extra,
     }
@@ -1071,6 +1134,10 @@ def student_trainer_evaluation_context(request):
     """
     Context for the Student Trainer Evaluation page (DNSC-FPS inspired layout).
     """
+    from backend.system_admin.program_config import (
+        trainer_evaluation_is_open,
+        trainer_evaluation_status,
+    )
     from backend.trainer.evaluation import (
         EVALUATION_CRITERIA,
         get_student_evaluation_history,
@@ -1086,6 +1153,9 @@ def student_trainer_evaluation_context(request):
 
     active_tab = request.GET.get("tab", "evaluation") if request else "evaluation"
     user = getattr(request, "user", None) if request and request.user.is_authenticated else None
+
+    eval_open = trainer_evaluation_is_open()
+    eval_status = trainer_evaluation_status()
 
     target_info = resolve_student_evaluation_target(user)
     history_list = get_student_evaluation_history(user)
@@ -1105,7 +1175,8 @@ def student_trainer_evaluation_context(request):
         )
         already_evaluated = existing_eval is not None
 
-    has_active_evaluation = bool(target_info.get("trainer_user")) and not already_evaluated
+    has_assigned_trainer = bool(target_info.get("trainer_user"))
+    has_active_evaluation = eval_open and has_assigned_trainer and not already_evaluated
 
     from django.core.paginator import Paginator
 
@@ -1115,6 +1186,9 @@ def student_trainer_evaluation_context(request):
 
     return {
         "active_tab": active_tab,
+        "eval_is_open": eval_open,
+        "eval_status": eval_status,
+        "has_assigned_trainer": has_assigned_trainer,
         "has_active_evaluation": has_active_evaluation,
         "already_evaluated": already_evaluated,
         "existing_eval": existing_eval,

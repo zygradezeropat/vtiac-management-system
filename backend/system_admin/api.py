@@ -160,6 +160,10 @@ def system_settings_update(request):
             fiscal_year_label=data.get("fiscal_year_label"),
             registration_fee=data.get("registration_fee"),
             enrollment_open=data.get("enrollment_open"),
+            evaluation_enabled=data.get("evaluation_enabled"),
+            evaluation_start_date=data.get("evaluation_start_date"),
+            evaluation_end_date=data.get("evaluation_end_date"),
+            evaluation_instructions=data.get("evaluation_instructions"),
             user=request.user,
         )
     except ValueError as exc:

@@ -90,6 +90,8 @@ def resolve_student_evaluation_target(student_user):
     """
     Resolve the assigned trainer and class information for the student.
     Returns a dict with trainer User, trainer display name, program, batch, and schedule.
+    Note: Students do not have a default trainer upon enrollment; a trainer is only
+    associated once the student has been batched by the Registrar.
     """
     from backend.core.models import StaffProfile
     from backend.student.services import get_enrollment_profile
@@ -126,8 +128,9 @@ def resolve_student_evaluation_target(student_user):
                 course_name = reg.selected_program
 
     # Resolve trainer User object
-    # 1. Match by trainer_name if available
     trainer_candidates = User.objects.filter(staff_profile__role=StaffProfile.Role.TRAINER)
+
+    # 1. Match by trainer_name if available on preferred_schedule
     if trainer_name:
         for t_user in trainer_candidates:
             full_name = t_user.get_full_name() or ""
@@ -138,36 +141,44 @@ def resolve_student_evaluation_target(student_user):
                 trainer_user = t_user
                 break
 
-    # 2. If no direct name match, look up trainer from schedule template
-    if not trainer_user and profile and course_name:
-        from backend.registrar.models import RegistrarScheduleTemplate
-        template = RegistrarScheduleTemplate.objects.filter(
-            course_name=course_name,
-            status__in=[
-                RegistrarScheduleTemplate.Status.ACTIVE,
-                RegistrarScheduleTemplate.Status.COMPLETED,
-            ],
-        ).order_by("-finalized_at").first()
-        if template and template.trainer_name:
-            trainer_name = template.trainer_name
-            for t_user in trainer_candidates:
-                if t_user.get_full_name().strip().lower() == trainer_name.strip().lower():
-                    trainer_user = t_user
-                    break
+    # 2. Check if the student is assigned in any active/completed batch template roster
+    if not trainer_user and profile:
+        try:
+            from backend.registrar.models import RegistrarScheduleTemplate
+            from backend.registrar.batch_schedule_sync import profile_in_template_snapshot
 
-    # 3. Fallback to first trainer in DB
-    if not trainer_user:
-        first_trainer = trainer_candidates.first()
-        if first_trainer:
-            trainer_user = first_trainer
-            trainer_name = first_trainer.get_full_name() or first_trainer.email
-        else:
-            trainer_user = None
-            trainer_name = "Unassigned Trainer"
+            templates = RegistrarScheduleTemplate.objects.filter(
+                status__in=[
+                    RegistrarScheduleTemplate.Status.ACTIVE,
+                    RegistrarScheduleTemplate.Status.COMPLETED,
+                ],
+            ).order_by("-finalized_at", "-updated_at")
+
+            for tmpl in templates:
+                if profile_in_template_snapshot(profile, tmpl):
+                    if not batch_label and tmpl.batch_label:
+                        batch_label = tmpl.batch_label
+                    if not course_name and tmpl.course_name:
+                        course_name = tmpl.course_name
+                    if tmpl.trainer_name:
+                        trainer_name = tmpl.trainer_name
+                        for t_user in trainer_candidates:
+                            full_name = t_user.get_full_name() or ""
+                            if (
+                                full_name.strip().lower() == trainer_name.strip().lower()
+                                or trainer_name.strip().lower() in full_name.strip().lower()
+                            ):
+                                trainer_user = t_user
+                                break
+                    if trainer_user:
+                        break
+        except Exception:
+            pass
 
     return {
         "trainer_user": trainer_user,
-        "trainer_name": trainer_name,
+        "trainer_name": trainer_name if trainer_user else "",
+        "has_assigned_trainer": bool(trainer_user),
         "trainer_id": str(trainer_user.pk) if trainer_user else "",
         "program": course_name,
         "batch": batch_label,
@@ -184,6 +195,18 @@ def save_student_trainer_evaluation(student_user, post_data):
     """
     if not student_user or not getattr(student_user, "is_authenticated", False):
         raise ValueError("Authenticated student user is required.")
+
+    from backend.system_admin.program_config import (
+        trainer_evaluation_is_open,
+        trainer_evaluation_status,
+    )
+
+    if not trainer_evaluation_is_open():
+        status = trainer_evaluation_status()
+        raise ValueError(
+            status.get("message")
+            or "Trainer evaluation is currently disabled. Submissions are only accepted during the scheduled evaluation period."
+        )
 
     target_info = resolve_student_evaluation_target(student_user)
     trainer_user = target_info["trainer_user"]

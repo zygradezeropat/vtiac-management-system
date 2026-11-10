@@ -94,6 +94,10 @@ class SystemSettings(models.Model):
         default=DEFAULT_REGISTRATION_FEE,
     )
     enrollment_open = models.BooleanField(default=True)
+    evaluation_enabled = models.BooleanField(default=False)
+    evaluation_start_date = models.DateField(null=True, blank=True)
+    evaluation_end_date = models.DateField(null=True, blank=True)
+    evaluation_instructions = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -108,6 +112,82 @@ class SystemSettings(models.Model):
 
     def __str__(self):
         return "Portal system settings"
+
+    @property
+    def is_evaluation_open(self) -> bool:
+        """
+        Trainer Evaluation is enabled whenever the admin has set a schedule (start_date and end_date)
+        AND the current date falls between start_date and end_date (inclusive).
+        Otherwise it is disabled.
+        """
+        if not self.evaluation_start_date or not self.evaluation_end_date:
+            return False
+        from django.utils import timezone
+        today = timezone.localdate()
+        return self.evaluation_start_date <= today <= self.evaluation_end_date
+
+    def get_evaluation_status(self) -> dict:
+        """
+        Return comprehensive evaluation schedule status dictionary based directly on scheduled dates.
+        """
+        from django.utils import timezone
+        today = timezone.localdate()
+        start = self.evaluation_start_date
+        end = self.evaluation_end_date
+
+        if not start or not end:
+            return {
+                "is_open": False,
+                "status": "disabled",
+                "badge_class": "bg-secondary",
+                "badge_text": "No Schedule Set",
+                "message": "Trainer evaluation is currently disabled. Please set an evaluation schedule.",
+                "start_date": "",
+                "end_date": "",
+                "formatted_period": "No schedule set",
+                "enabled": False,
+            }
+
+        start_str = start.strftime("%B %d, %Y")
+        end_str = end.strftime("%B %d, %Y")
+        period_str = f"{start_str} – {end_str}"
+
+        if today < start:
+            return {
+                "is_open": False,
+                "status": "upcoming",
+                "badge_class": "bg-info text-dark",
+                "badge_text": "Upcoming",
+                "message": f"Trainer evaluation is scheduled to open on {start_str}.",
+                "start_date": start.isoformat(),
+                "end_date": end.isoformat(),
+                "formatted_period": period_str,
+                "enabled": True,
+            }
+        elif today > end:
+            return {
+                "is_open": False,
+                "status": "closed",
+                "badge_class": "bg-danger",
+                "badge_text": "Closed",
+                "message": f"Trainer evaluation period ended on {end_str}.",
+                "start_date": start.isoformat(),
+                "end_date": end.isoformat(),
+                "formatted_period": period_str,
+                "enabled": True,
+            }
+        else:
+            return {
+                "is_open": True,
+                "status": "open",
+                "badge_class": "bg-success",
+                "badge_text": "Open / Active",
+                "message": f"Trainer evaluation is currently open until {end_str}.",
+                "start_date": start.isoformat(),
+                "end_date": end.isoformat(),
+                "formatted_period": period_str,
+                "enabled": True,
+            }
 
     @classmethod
     def load(cls):

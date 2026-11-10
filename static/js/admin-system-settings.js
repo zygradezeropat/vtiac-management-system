@@ -187,6 +187,81 @@ function fillGeneralSettings(settings) {
   document.getElementById("fiscalYearLabel").value = settings.fiscalYearLabel || "";
   document.getElementById("registrationFee").value = settings.registrationFee ?? "";
   document.getElementById("enrollmentOpen").checked = settings.enrollmentOpen !== false;
+  fillEvaluationSettings(settings);
+}
+
+function fillEvaluationSettings(settings) {
+  const startInput = document.getElementById("evaluationStartDate");
+  const endInput = document.getElementById("evaluationEndDate");
+  const instrInput = document.getElementById("evaluationInstructions");
+
+  if (startInput) startInput.value = settings.evaluationStartDate || "";
+  if (endInput) endInput.value = settings.evaluationEndDate || "";
+  if (instrInput) instrInput.value = settings.evaluationInstructions || "";
+
+  updateEvaluationStatusDisplay(settings);
+}
+
+function updateEvaluationStatusDisplay(settings) {
+  const badgeContainer = document.getElementById("evaluationStatusBadgeContainer");
+  const summaryEl = document.getElementById("evaluationScheduleSummary");
+
+  const badgeClass = settings.evaluationBadgeClass || "bg-secondary";
+  const badgeText = settings.evaluationBadgeText || "No Schedule Set";
+  const message = settings.evaluationMessage || "Trainer evaluation is currently disabled.";
+  const period = settings.evaluationFormattedPeriod;
+
+  if (badgeContainer) {
+    badgeContainer.innerHTML = `<span class="badge ${badgeClass} px-3 py-2 fs-7">${escapeHtml(badgeText)}</span>`;
+  }
+
+  if (summaryEl) {
+    let summaryText = escapeHtml(message);
+    if (period && period !== "No schedule set") {
+      summaryText += ` (Schedule: ${escapeHtml(period)})`;
+    }
+    summaryEl.innerHTML = `<i class="bi bi-info-circle me-1"></i><span>${summaryText}</span>`;
+  }
+}
+
+async function saveEvaluationSchedule() {
+  const startDate = document.getElementById("evaluationStartDate")?.value || "";
+  const endDate = document.getElementById("evaluationEndDate")?.value || "";
+  const instructions = document.getElementById("evaluationInstructions")?.value.trim() || "";
+
+  if (startDate && endDate && startDate > endDate) {
+    showAlert("Evaluation start date cannot be after end date.", "danger");
+    return;
+  }
+
+  const payload = {
+    evaluation_start_date: startDate,
+    evaluation_end_date: endDate,
+    evaluation_instructions: instructions,
+  };
+
+  try {
+    const res = await apiRequest("/admin/api/system-settings/update/", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    showAlert("Trainer evaluation schedule saved successfully.");
+    if (res?.settings) {
+      fillEvaluationSettings(res.settings);
+    } else {
+      await loadSettings();
+    }
+  } catch (error) {
+    showAlert(error.message, "danger");
+  }
+}
+
+function clearEvaluationSchedule() {
+  const startInput = document.getElementById("evaluationStartDate");
+  const endInput = document.getElementById("evaluationEndDate");
+  if (startInput) startInput.value = "";
+  if (endInput) endInput.value = "";
+  showAlert("Evaluation schedule dates cleared. Click 'Save Evaluation Schedule' to apply.", "info");
 }
 
 // -----------------------------------------------------------------------------
@@ -1212,6 +1287,8 @@ async function saveGeneralSettings() {
 
 function initSystemSettings() {
   document.getElementById("saveGeneralSettingsBtn")?.addEventListener("click", saveGeneralSettings);
+  document.getElementById("saveEvaluationScheduleBtn")?.addEventListener("click", saveEvaluationSchedule);
+  document.getElementById("clearEvaluationScheduleBtn")?.addEventListener("click", clearEvaluationSchedule);
   document.getElementById("addProgramButton")?.addEventListener("click", () => openProgramModal());
   document.getElementById("saveProgramButton")?.addEventListener("click", saveProgram);
   document.getElementById("addScheduleButton")?.addEventListener("click", () => openScheduleModal());

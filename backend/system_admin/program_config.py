@@ -81,6 +81,20 @@ def enrollment_is_open() -> bool:
     return SystemSettings.load().enrollment_open
 
 
+def trainer_evaluation_is_open() -> bool:
+    """Check if Trainer Evaluation is currently enabled and within scheduled dates."""
+    from .models import SystemSettings
+
+    return SystemSettings.load().is_evaluation_open
+
+
+def trainer_evaluation_status() -> dict:
+    """Get the current evaluation schedule status details."""
+    from .models import SystemSettings
+
+    return SystemSettings.load().get_evaluation_status()
+
+
 def resolve_program(program: str) -> str | None:
     """Map stored program text to a canonical program name."""
     raw = (program or "").strip()

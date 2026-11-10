@@ -526,6 +526,10 @@ def settings(request):
 @login_required
 def trainer_evaluation(request):
     from backend.student.services import registration_is_enrolled, student_trainer_evaluation_context
+    from backend.system_admin.program_config import (
+        trainer_evaluation_is_open,
+        trainer_evaluation_status,
+    )
     
     denied = require_portal_access(request, STUDENT_ROLE)
     if denied:
@@ -538,7 +542,17 @@ def trainer_evaluation(request):
         )
         return redirect("student_dashboard")
 
+    eval_open = trainer_evaluation_is_open()
+    eval_status = trainer_evaluation_status()
+
     if request.method == "POST":
+        if not eval_open:
+            messages.error(
+                request,
+                f"Trainer Evaluation is currently closed. {eval_status.get('message', '')}",
+            )
+            return redirect("student_trainer_evaluation")
+
         try:
             from backend.student.services import save_student_trainer_evaluation
             save_student_trainer_evaluation(request.user, request.POST)

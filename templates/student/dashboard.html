@@ -13,6 +13,30 @@
   <p id="student-clock" class="student-clock mb-0" aria-live="polite"></p>
 </header>
 
+{% if eval_pending %}
+<div class="alert alert-warning border border-warning shadow-sm rounded-4 p-3 d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4" role="alert">
+  <div class="d-flex align-items-center gap-3">
+    <div class="bg-warning text-dark rounded-circle p-2.5 d-flex align-items-center justify-content-center shadow-2xs flex-shrink-0" style="width: 48px; height: 48px;">
+      <i class="bi bi-person-check-fill fs-3"></i>
+    </div>
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-danger text-white rounded-pill fs-9 fw-bold text-uppercase px-2 py-0.5">Action Required</span>
+        <h6 class="fw-bold text-dark mb-0 fs-6">Trainer Evaluation is Open!</h6>
+      </div>
+      <p class="fs-7 text-secondary mb-0">
+        Please evaluate your trainer <strong class="text-dark">{{ pending_trainer_name }}</strong>{% if pending_program_name %} for <strong class="text-dark">{{ pending_program_name }}</strong>{% endif %}. The evaluation window is open until <strong>{{ eval_status.formatted_period }}</strong>.
+      </p>
+    </div>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{% url 'student_trainer_evaluation' %}" class="btn btn-warning fw-bold px-4 py-2 rounded-3 text-dark shadow-sm">
+      <i class="bi bi-pencil-square me-1"></i>Evaluate Trainer Now
+    </a>
+  </div>
+</div>
+{% endif %}
+
 <div class="row g-3">
   <div class="col-lg-8 d-flex flex-column gap-3">
     <section class="student-panel">

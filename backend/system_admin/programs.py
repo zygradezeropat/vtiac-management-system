@@ -64,11 +64,25 @@ def _serialize_program(row: NcProgram, include_competencies: bool = False) -> di
     return data
 
 
+import datetime
+
+
 def _serialize_settings(settings: SystemSettings) -> dict:
+    status_info = settings.get_evaluation_status()
     return {
         "fiscalYearLabel": settings.fiscal_year_label,
         "registrationFee": float(settings.registration_fee),
         "enrollmentOpen": settings.enrollment_open,
+        "evaluationEnabled": settings.evaluation_enabled,
+        "evaluationStartDate": settings.evaluation_start_date.isoformat() if settings.evaluation_start_date else "",
+        "evaluationEndDate": settings.evaluation_end_date.isoformat() if settings.evaluation_end_date else "",
+        "evaluationInstructions": settings.evaluation_instructions or "",
+        "evaluationIsOpen": status_info["is_open"],
+        "evaluationStatus": status_info["status"],
+        "evaluationBadgeClass": status_info.get("badge_class", "bg-secondary"),
+        "evaluationBadgeText": status_info.get("badge_text", "Disabled"),
+        "evaluationMessage": status_info["message"],
+        "evaluationFormattedPeriod": status_info.get("formatted_period", ""),
     }
 
 
@@ -90,7 +104,17 @@ def system_settings_payload() -> dict:
 
 
 @transaction.atomic
-def update_system_settings(*, fiscal_year_label=None, registration_fee=None, enrollment_open=None, user=None):
+def update_system_settings(
+    *,
+    fiscal_year_label=None,
+    registration_fee=None,
+    enrollment_open=None,
+    evaluation_enabled=None,
+    evaluation_start_date=None,
+    evaluation_end_date=None,
+    evaluation_instructions=None,
+    user=None,
+):
     settings = SystemSettings.load()
     update_fields = ["updated_at"]
 
@@ -109,13 +133,102 @@ def update_system_settings(*, fiscal_year_label=None, registration_fee=None, enr
         settings.enrollment_open = bool(enrollment_open)
         update_fields.append("enrollment_open")
 
+    if evaluation_start_date is not None:
+        if evaluation_start_date == "" or evaluation_start_date is False:
+            settings.evaluation_start_date = None
+        elif isinstance(evaluation_start_date, str):
+            clean_date = evaluation_start_date.strip()
+            settings.evaluation_start_date = datetime.date.fromisoformat(clean_date) if clean_date else None
+        elif isinstance(evaluation_start_date, datetime.date):
+            settings.evaluation_start_date = evaluation_start_date
+        update_fields.append("evaluation_start_date")
+
+    if evaluation_end_date is not None:
+        if evaluation_end_date == "" or evaluation_end_date is False:
+            settings.evaluation_end_date = None
+        elif isinstance(evaluation_end_date, str):
+            clean_date = evaluation_end_date.strip()
+            settings.evaluation_end_date = datetime.date.fromisoformat(clean_date) if clean_date else None
+        elif isinstance(evaluation_end_date, datetime.date):
+            settings.evaluation_end_date = evaluation_end_date
+        update_fields.append("evaluation_end_date")
+
+    if settings.evaluation_start_date and settings.evaluation_end_date:
+        if settings.evaluation_start_date > settings.evaluation_end_date:
+            raise ValueError("Evaluation start date cannot be after end date.")
+        settings.evaluation_enabled = True
+    else:
+        settings.evaluation_enabled = False
+    update_fields.append("evaluation_enabled")
+
+    if evaluation_instructions is not None:
+        settings.evaluation_instructions = (evaluation_instructions or "").strip()
+        update_fields.append("evaluation_instructions")
+
     if user is not None:
         settings.updated_by = user
         update_fields.append("updated_by")
 
     settings.save(update_fields=update_fields)
     clear_program_config_cache()
+
+    if settings.evaluation_enabled and settings.evaluation_start_date and settings.evaluation_end_date:
+        try:
+            notify_enrolled_students_of_evaluation_schedule(settings)
+        except Exception:
+            pass
+
     return _serialize_settings(settings)
+
+
+def notify_enrolled_students_of_evaluation_schedule(settings: SystemSettings):
+    """
+    Send an in-app portal notification to all enrolled students that trainer evaluation is scheduled / open.
+    """
+    if not settings.evaluation_enabled or not settings.evaluation_start_date or not settings.evaluation_end_date:
+        return
+
+    from django.contrib.auth import get_user_model
+    from backend.student.models import StudentRegistration
+    from backend.core.models import PortalNotification
+    from backend.core.notification_service import create_notification
+    from django.utils import timezone
+
+    User = get_user_model()
+    today = timezone.localdate()
+    start_str = settings.evaluation_start_date.strftime("%B %d, %Y")
+    end_str = settings.evaluation_end_date.strftime("%B %d, %Y")
+
+    if today >= settings.evaluation_start_date and today <= settings.evaluation_end_date:
+        title = "Action Required: Trainer Evaluation Open"
+        msg = f"The Trainer Evaluation period is now open until {end_str}. Please submit an evaluation for your assigned trainer."
+    else:
+        title = "Trainer Evaluation Schedule Announced"
+        msg = f"Trainer Evaluation is scheduled for {start_str} to {end_str}. Please prepare to evaluate your trainer during this period."
+
+    if settings.evaluation_instructions:
+        msg += f" Note: {settings.evaluation_instructions}"
+
+    link = "/dashboard/student/trainer-evaluation/"
+
+    enrolled_students = User.objects.filter(
+        registration_application__status=StudentRegistration.Status.APPROVED
+    ).distinct()
+
+    for student in enrolled_students:
+        exists = PortalNotification.objects.filter(
+            user=student,
+            title=title,
+            link_url=link,
+        ).exists()
+        if not exists:
+            create_notification(
+                student,
+                category=PortalNotification.Category.GENERAL,
+                title=title,
+                message=msg,
+                link_url=link,
+            )
 
 
 def auto_seed_standard_competencies(program: NcProgram):
