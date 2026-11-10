@@ -16,20 +16,39 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load local .env file if present (ignored by Git)
+_env_path = BASE_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip().strip("'\""))
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dma*ybm+(v5v=^iaifp3kzkjy6y*(u+_(6o65_n+^qo217h3n1'
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dma*ybm+(v5v=^iaifp3kzkjy6y*(u+_(6o65_n+^qo217h3n1")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "x76xgm7j-8000.asse.devtunnels.ms",
+    ".onrender.com",
+]
+if os.getenv("RENDER_EXTERNAL_HOSTNAME"):
+    ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://*.onrender.com",
+    "https://*.devtunnels.ms",
 ]
 
 
@@ -88,11 +107,24 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Default: PostgreSQL (docker-compose: db vtiac / user vtiac / pass vtiac).
-# Without Postgres: USE_SQLITE=1
+_database_url = os.environ.get("DATABASE_URL")
 _use_sqlite = os.environ.get("USE_SQLITE", "").lower() in ("1", "true", "yes")
 
-if _use_sqlite:
+if _database_url:
+    # Render / Supabase / Heroku standard connection string
+    import urllib.parse
+    _url = urllib.parse.urlparse(_database_url)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": _url.path.lstrip("/"),
+            "USER": _url.username,
+            "PASSWORD": _url.password,
+            "HOST": _url.hostname,
+            "PORT": _url.port or "5432",
+        }
+    }
+elif _use_sqlite:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -100,12 +132,13 @@ if _use_sqlite:
         }
     }
 else:
+    # Local PostgreSQL (credentials read from .env)
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.environ.get("POSTGRES_DB", "vtiac"),
             "USER": os.environ.get("POSTGRES_USER", "postgres"),
-            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "Lxgiwyl123!"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
             "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
             "PORT": os.environ.get("POSTGRES_PORT", "5432"),
         }
@@ -149,8 +182,38 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Media Storage Configuration:
+# - Local (Default): saves files to local disk under media/
+# - Production (Render + Supabase): set USE_SUPABASE_STORAGE=true in environment variables
+USE_SUPABASE_STORAGE = os.getenv("USE_SUPABASE_STORAGE", "false").lower() in ("true", "1", "yes")
+
+if USE_SUPABASE_STORAGE:
+    INSTALLED_APPS.append("storages")
+    SUPABASE_S3_ENDPOINT = os.getenv("SUPABASE_S3_ENDPOINT", "")
+    SUPABASE_S3_BUCKET = os.getenv("SUPABASE_S3_BUCKET", "media")
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "access_key": os.getenv("SUPABASE_S3_ACCESS_KEY"),
+                "secret_key": os.getenv("SUPABASE_S3_SECRET_KEY"),
+                "bucket_name": SUPABASE_S3_BUCKET,
+                "endpoint_url": SUPABASE_S3_ENDPOINT,
+                "region_name": os.getenv("SUPABASE_S3_REGION", "ap-southeast-1"),
+                "default_acl": None,
+                "querystring_auth": False,
+                "file_overwrite": False,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    MEDIA_URL = f"{SUPABASE_S3_ENDPOINT}/storage/v1/object/public/{SUPABASE_S3_BUCKET}/" if SUPABASE_S3_ENDPOINT else "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
+else:
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
@@ -167,7 +230,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True    
-EMAIL_HOST_USER = 'vtiac.iams.syst@gmail.com'       # Your Gmail address
-EMAIL_HOST_PASSWORD = 'vltk suca mobr ugsu'            # 16-character Google App Password
-DEFAULT_FROM_EMAIL = 'VTIAC Admissions <vtiac.iams.syst@gmail.com>'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'VTIAC Admissions <vtiac.iams.syst@gmail.com>')
 EMAIL_TIMEOUT = 25  # Increased to 25s for stable TLS handshake and HTML payload delivery on variable connections
