@@ -262,16 +262,26 @@ def submit_enrollment_requirements(profile):
 def enrollment_progress_percent(profile):
     if not profile:
         return 25
-    if profile.registration_id and profile.registration:
-        from .models import StudentRegistration
+    is_hard_submitted = bool(
+        profile.hard_copies_submitted
+        or (hasattr(profile, "registration") and profile.registration and profile.registration.hard_copies_submitted)
+        or (profile.user_id and getattr(profile.user, "registration_application", None) and profile.user.registration_application.hard_copies_submitted)
+    )
+    from .models import StudentRegistration
 
-        if profile.registration.status == StudentRegistration.Status.APPROVED:
-            return 100
+    reg = getattr(profile, "registration", None)
+    if not reg and profile.user_id:
+        reg = getattr(profile.user, "registration_application", None)
+
+    if reg and reg.status == StudentRegistration.Status.APPROVED:
+        # 100% when officially enrolled AND physical hard copies are passed; 95% if hard copies are still pending
+        return 100 if is_hard_submitted else 95
+
     if profile.requirements_submitted:
         from .payment_records import profile_has_payment
 
         if profile_has_payment(profile):
-            return 90
+            return 95 if is_hard_submitted else 90
         return 75
     if profile.profile_step_completed:
         return 50

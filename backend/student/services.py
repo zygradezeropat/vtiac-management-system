@@ -901,7 +901,10 @@ def student_dashboard_context(request=None):
 
     from backend.student.payments import payment_statement
 
-    progress_percent = base.get("progress_percent", 25)
+    if profile:
+        progress_percent = enrollment_progress_percent(profile)
+    else:
+        progress_percent = base.get("progress_percent", 25)
     ring_circ = round(2 * math.pi * 54, 2)
     ring_offset = round(ring_circ * (1 - progress_percent / 100), 2)
     statement = payment_statement(profile)
@@ -951,6 +954,8 @@ def student_dashboard_context(request=None):
         "announcements": announcements,
         **schedule_ctx,
         **base,
+        "progress_percent": progress_percent,
+        "progress_ring_offset": ring_offset,
     }
 
 
