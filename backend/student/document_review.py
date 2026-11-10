@@ -2,7 +2,7 @@
 
 from django.utils import timezone
 
-from .enrollment_requirements import REQUIREMENT_SPECS
+from .enrollment_requirements import REQUIREMENT_SPECS, REQUIRED_DOC_KEYS
 from .models import StudentEnrollmentDocument, StudentEnrollmentProfile
 
 REVIEW_PENDING = "pending"
@@ -11,12 +11,15 @@ REVIEW_REJECTED = "rejected"
 
 
 def reviewable_document_keys(profile: StudentEnrollmentProfile) -> list[str]:
+    """Enrollment document keys submitted by the student that registrar reviews."""
     if not profile:
         return []
+    uploaded = set(
+        profile.documents.filter(file__isnull=False)
+        .exclude(file="")
+        .values_list("document_type", flat=True)
+    )
     keys = []
-    if profile.photo:
-        keys.append("profile_photo")
-    uploaded = set(profile.documents.values_list("document_type", flat=True))
     for spec in REQUIREMENT_SPECS:
         if spec["key"] in uploaded:
             keys.append(spec["key"])
@@ -27,12 +30,23 @@ def get_document_review_status(profile: StudentEnrollmentProfile, document_key: 
     if document_key == "profile_photo":
         return profile.photo_registrar_status or REVIEW_PENDING
     doc = profile.documents.filter(document_type=document_key).first()
-    if not doc:
+    if not doc or not doc.file:
         return REVIEW_PENDING
     return doc.registrar_status or REVIEW_PENDING
 
 
 def all_reviewable_documents_approved(profile: StudentEnrollmentProfile) -> bool:
+    if not profile:
+        return False
+    uploaded = set(
+        profile.documents.filter(file__isnull=False)
+        .exclude(file="")
+        .values_list("document_type", flat=True)
+    )
+    # Every mandatory requirement document must be uploaded
+    if not REQUIRED_DOC_KEYS.issubset(uploaded):
+        return False
+
     keys = reviewable_document_keys(profile)
     if not keys:
         return False

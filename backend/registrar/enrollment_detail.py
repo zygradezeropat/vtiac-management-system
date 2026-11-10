@@ -102,44 +102,60 @@ def _doc_review_fields(profile: StudentEnrollmentProfile, document_key: str) -> 
 
 
 def _build_review_documents(profile: StudentEnrollmentProfile | None) -> list:
-    """Enrollment files registrar must approve before the student may pay."""
-    if not profile:
-        return []
+    """Enrollment requirement files registrar reviews.
 
+    Only the 5 student profile requirement documents are listed (1x1 photo is
+    part of the learner profile, not a document review item). Missing required
+    documents are included and flagged as missing without action buttons.
+    """
     items = []
-    doc_by_type = {d.document_type: d for d in profile.documents.all()}
-
-    if profile.photo:
-        items.append(
-            {
-                "key": "profile_photo",
-                "title": "1×1 Photo (Learner Profile)",
-                "filename": profile.photo.name.split("/")[-1],
-                "fileUrl": profile.photo.url,
-                "subtitle": "",
-                "uploadedAt": "",
-                **_doc_review_fields(profile, "profile_photo"),
-            }
-        )
+    doc_by_type = {}
+    if profile:
+        doc_by_type = {d.document_type: d for d in profile.documents.all()}
 
     for spec in REQUIREMENT_SPECS:
-        doc = doc_by_type.get(spec["key"])
-        if not doc or not doc.file:
-            continue
+        key = spec["key"]
+        doc = doc_by_type.get(key)
+        has_file = bool(doc and doc.file)
         subtitle = ""
-        if spec["key"] == StudentEnrollmentDocument.DocumentType.VALID_ID and doc.id_type:
+        if key == StudentEnrollmentDocument.DocumentType.VALID_ID and doc and doc.id_type:
             subtitle = _id_type_label(doc.id_type)
-        items.append(
-            {
-                "key": spec["key"],
-                "title": spec["title"],
-                "filename": doc.original_filename or doc.file.name.split("/")[-1],
-                "fileUrl": doc.file.url,
-                "subtitle": subtitle,
-                "uploadedAt": timezone.localtime(doc.uploaded_at).strftime("%b %d, %Y"),
-                **_doc_review_fields(profile, spec["key"]),
-            }
-        )
+
+        if profile and has_file:
+            review_info = _doc_review_fields(profile, key)
+            items.append(
+                {
+                    "key": key,
+                    "title": spec["title"],
+                    "filename": doc.original_filename or doc.file.name.split("/")[-1],
+                    "fileUrl": doc.file.url,
+                    "subtitle": subtitle,
+                    "uploadedAt": timezone.localtime(doc.uploaded_at).strftime("%b %d, %Y"),
+                    "required": spec["required"],
+                    "uploaded": True,
+                    "isMissing": False,
+                    "reviewStatus": review_info["reviewStatus"],
+                    "rejectionReason": review_info["rejectionReason"],
+                    "reviewable": True,
+                }
+            )
+        else:
+            items.append(
+                {
+                    "key": key,
+                    "title": spec["title"],
+                    "filename": "",
+                    "fileUrl": "",
+                    "subtitle": subtitle,
+                    "uploadedAt": "",
+                    "required": spec["required"],
+                    "uploaded": False,
+                    "isMissing": True,
+                    "reviewStatus": "missing",
+                    "rejectionReason": "",
+                    "reviewable": False,
+                }
+            )
 
     return items
 

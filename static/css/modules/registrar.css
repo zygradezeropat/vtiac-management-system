@@ -1483,6 +1483,17 @@
   border: 1px solid var(--registrar-border);
   border-radius: 0.5rem;
   background: #fff;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.registrar-doc-review__item--missing {
+  border-color: #fca5a5;
+  background-color: #fef2f2;
+}
+
+.registrar-doc-review__item--optional {
+  border-color: #e2e8f0;
+  background-color: #f8fafc;
 }
 
 .registrar-doc-review__tools {
@@ -1547,6 +1558,18 @@
 .registrar-doc-review__badge--rejected {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.registrar-doc-review__badge--missing {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.registrar-doc-review__badge--optional {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
 }
 
 .registrar-doc-review__reject-reason {

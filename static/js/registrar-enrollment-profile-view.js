@@ -5,18 +5,25 @@
 import { FILE_PREVIEW_ICON } from "./file-upload-preview.js";
 import { escapeHtml } from "./registrar-student-detail.js";
 
-function reviewStatusBadge(status, rejectionReason) {
+function reviewStatusBadge(status, rejectionReason, doc = {}) {
+  const isMissing = Boolean(doc.isMissing || !doc.uploaded || status === "missing");
+  if (isMissing) {
+    if (doc.required) {
+      return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--missing"><i class="bi bi-exclamation-circle me-1"></i>Missing (Required)</span>`;
+    }
+    return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--optional"><i class="bi bi-dash-circle me-1"></i>Not uploaded (Optional)</span>`;
+  }
   const s = status || "pending";
   if (s === "approved") {
-    return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--approved">Approved</span>`;
+    return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--approved"><i class="bi bi-check-circle me-1"></i>Approved</span>`;
   }
   if (s === "rejected") {
     const reason = rejectionReason
       ? `<p class="registrar-doc-review__reject-reason mb-0 mt-1"><strong>Reason:</strong> ${escapeHtml(rejectionReason)}</p>`
       : "";
-    return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--rejected">Rejected</span>${reason}`;
+    return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--rejected"><i class="bi bi-x-circle me-1"></i>Rejected</span>${reason}`;
   }
-  return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--pending">Pending review</span>`;
+  return `<span class="badge registrar-doc-review__badge registrar-doc-review__badge--pending"><i class="bi bi-clock me-1"></i>Pending review</span>`;
 }
 
 function docReviewActions(doc, released) {
@@ -52,27 +59,56 @@ function docReviewActions(doc, released) {
 function renderDocumentRows(docs, released) {
   return docs
     .map((doc) => {
-      const meta = [doc.filename, doc.subtitle, doc.uploadedAt ? `Uploaded ${doc.uploadedAt}` : ""]
-        .filter(Boolean)
-        .join(" · ");
-      return `<li class="registrar-doc-review__item" data-doc-key="${escapeHtml(doc.key)}">
-        <div class="registrar-doc-review__info">
-          <p class="registrar-doc-review__title mb-0">${escapeHtml(doc.title)}</p>
-          <p class="registrar-doc-review__meta mb-0">${escapeHtml(meta)}</p>
-          ${reviewStatusBadge(doc.reviewStatus, doc.rejectionReason)}
-        </div>
-        <div class="registrar-doc-review__tools">
-          ${docReviewActions(doc, released)}
-          <button
+      const isMissing = Boolean(doc.isMissing || !doc.uploaded || doc.reviewStatus === "missing");
+      const isRequired = Boolean(doc.required);
+
+      let metaHtml = "";
+      if (isMissing) {
+        metaHtml = isRequired
+          ? `<span class="text-danger fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>Required document not uploaded by student</span>`
+          : `<span class="text-muted"><i class="bi bi-info-circle me-1"></i>Optional document — not uploaded</span>`;
+      } else {
+        const metaParts = [doc.filename, doc.subtitle, doc.uploadedAt ? `Uploaded ${doc.uploadedAt}` : ""]
+          .filter(Boolean);
+        metaHtml = escapeHtml(metaParts.join(" · "));
+      }
+
+      const itemClass = isMissing && isRequired
+        ? "registrar-doc-review__item registrar-doc-review__item--missing"
+        : isMissing
+        ? "registrar-doc-review__item registrar-doc-review__item--optional"
+        : "registrar-doc-review__item";
+
+      const titleSuffix = isRequired
+        ? '<span class="text-danger ms-1 fw-bold" title="Required">*</span>'
+        : '<span class="text-muted fw-normal small ms-1">(optional)</span>';
+
+      // Action buttons and view button ONLY appear when document is uploaded
+      const actions = (!isMissing && doc.reviewable) ? docReviewActions(doc, released) : "";
+      const previewBtn = (!isMissing && doc.fileUrl)
+        ? `<button
             type="button"
             class="file-preview-btn"
             data-preview-url="${escapeHtml(doc.fileUrl)}"
             data-preview-name="${escapeHtml(doc.filename || doc.title)}"
             aria-label="Preview ${escapeHtml(doc.title)}"
+            title="View ${escapeHtml(doc.title)}"
           >
             ${FILE_PREVIEW_ICON}
-          </button>
+          </button>`
+        : "";
+
+      const toolsHtml = (actions || previewBtn)
+        ? `<div class="registrar-doc-review__tools">${actions}${previewBtn}</div>`
+        : `<div class="registrar-doc-review__tools"><span class="badge bg-light text-muted border text-2xs px-2 py-1">No file attached</span></div>`;
+
+      return `<li class="${itemClass}" data-doc-key="${escapeHtml(doc.key)}">
+        <div class="registrar-doc-review__info">
+          <p class="registrar-doc-review__title mb-0">${escapeHtml(doc.title)} ${titleSuffix}</p>
+          <p class="registrar-doc-review__meta mb-0">${metaHtml}</p>
+          ${reviewStatusBadge(doc.reviewStatus, doc.rejectionReason, doc)}
         </div>
+        ${toolsHtml}
       </li>`;
     })
     .join("");
@@ -208,6 +244,7 @@ export function updateEnrollmentDocReviewFooter(detail) {
   if (!nextBtn) return;
   const docs = detail?.uploadedDocuments || [];
   const hasReviewable = docs.some((d) => d.reviewable !== false);
+  const hasMissingRequired = docs.some((d) => d.required && (d.isMissing || !d.uploaded));
   const allApproved = Boolean(detail?.allDocumentsApproved);
   const released = Boolean(detail?.documentsReviewReleased);
 
@@ -219,9 +256,13 @@ export function updateEnrollmentDocReviewFooter(detail) {
 
   nextBtn.classList.remove("d-none");
   nextBtn.disabled = !allApproved;
-  nextBtn.title = allApproved
-    ? "Release student to the payment step"
-    : "Approve every document before releasing to payment";
+  if (hasMissingRequired) {
+    nextBtn.title = "Cannot release: required document(s) not uploaded by student";
+  } else if (!allApproved) {
+    nextBtn.title = "Approve every uploaded document before releasing to payment";
+  } else {
+    nextBtn.title = "Release student to the payment step";
+  }
 }
 
 function fieldRow(label, value, cols = "col-md-4") {

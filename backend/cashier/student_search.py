@@ -255,15 +255,18 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
 
 
 def _iter_cashier_students():
-    """Pending + approved registrations (deduped by registration pk)."""
+    """Pending (only if released to payment by registrar) + approved registrations (deduped)."""
     seen: set = set()
 
     for reg in pending_registration_queryset():
         if reg.pk in seen:
             continue
-        seen.add(reg.pk)
         profile = _profile_for_registration(reg)
-        if profile and not hasattr(profile, "_proof_count"):
+        # Pending enrollees must be released to payment by registrar before appearing in cashier
+        if not profile or not profile.documents_review_released:
+            continue
+        seen.add(reg.pk)
+        if not hasattr(profile, "_proof_count"):
             profile = (
                 StudentEnrollmentProfile.objects.filter(pk=profile.pk)
                 .prefetch_related("payment_proofs", "cashier_payments", "scholarship_grants")
@@ -459,6 +462,11 @@ def get_student_fees(registration_id: str) -> dict | None:
     except (StudentRegistration.DoesNotExist, ValueError):
         return None
     profile = _profile_for_registration(reg)
+    # Pending applicants cannot access fees or be paid if not released by registrar
+    if reg.status != StudentRegistration.Status.APPROVED and (
+        not profile or not profile.documents_review_released
+    ):
+        return None
     if profile:
         program = profile.selected_program or reg.selected_program or ""
     else:

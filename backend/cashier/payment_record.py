@@ -94,6 +94,11 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
         registration_id=payload.get("registrationId") or payload.get("registration_id"),
     )
 
+    if (reg and reg.status != StudentRegistration.Status.APPROVED) and (
+        not profile.documents_review_released
+    ):
+        raise ValueError("This student has not yet been released to payment by the registrar.")
+
     control_number = (payload.get("controlNumber") or "").strip()
     if not control_number:
         raise ValueError("Control number is required.")
