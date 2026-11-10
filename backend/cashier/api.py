@@ -111,6 +111,52 @@ def student_fees(request):
 
 
 @login_required(login_url="/")
+@require_http_methods(["POST"])
+def send_payment_notice(request):
+    denied = require_portal_access(request, CASHIER_ROLE)
+    if denied:
+        return denied
+
+    registration_id = request.POST.get("registration_id") or request.POST.get("registrationId")
+    profile_id = request.POST.get("profile_id") or request.POST.get("studentId")
+
+    from backend.student.enrollment_notifications import send_payment_notice_email
+    from backend.student.models import StudentEnrollmentProfile, StudentRegistration
+
+    profile = None
+    if profile_id:
+        try:
+            profile = StudentEnrollmentProfile.objects.select_related("registration", "user").get(pk=int(profile_id))
+        except (StudentEnrollmentProfile.DoesNotExist, ValueError):
+            profile = None
+
+    if not profile and registration_id:
+        try:
+            reg = StudentRegistration.objects.get(pk=registration_id)
+            from backend.registrar.pending_enrollment import _profile_for_registration
+            profile = _profile_for_registration(reg)
+        except (StudentRegistration.DoesNotExist, ValueError):
+            profile = None
+
+    if not profile:
+        return JsonResponse({"error": "Student profile not found."}, status=404)
+
+    recipient = profile.email or (profile.user.email if profile.user else "")
+    if not recipient and hasattr(profile, "registration") and profile.registration:
+        recipient = profile.registration.email
+
+    try:
+        send_payment_notice_email(profile)
+        return JsonResponse({
+            "success": True,
+            "message": f"Payment notice sent to {recipient or 'student'}.",
+            "recipient": recipient,
+        })
+    except Exception as exc:
+        return JsonResponse({"error": f"Failed to send email: {exc}"}, status=500)
+
+
+@login_required(login_url="/")
 @require_GET
 def fee_schedule(request):
     denied = require_portal_access(request, CASHIER_ROLE)

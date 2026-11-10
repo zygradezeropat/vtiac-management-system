@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VTIAC Student Payment Notice</title>
+</head>
+<body style="margin: 0; padding: 40px 15px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6; color: #1e293b;">
+  
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);">
+    
+    <!-- BRANDED HEADER -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #00563B 0%, #0d7a54 100%); padding: 36px 30px; text-align: center;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td align="center">
+              <div style="display: inline-block; background-color: rgba(255, 255, 255, 0.18); padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; border: 1px solid rgba(255, 255, 255, 0.3);">
+                <span style="color: #ffffff; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">&#128179; Student Payment Notice</span>
+              </div>
+              <h1 style="margin: 0 0 6px 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: 0.5px;">VTIAC</h1>
+              <p style="margin: 0 0 4px 0; color: #d1fae5; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;">Valiant Technical Institute &amp; Assessment Center</p>
+              <p style="margin: 0; color: #a7f3d0; font-size: 12px; font-weight: 400;">Cashier &amp; Finance Office</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- MAIN BODY -->
+    <tr>
+      <td style="padding: 36px 32px 28px 32px;">
+        
+        <p style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: #0f172a;">
+          Dear {{ student_name }},
+        </p>
+        
+        <p style="margin: 0 0 12px 0; font-size: 15px; color: #475569; line-height: 1.6;">
+          Greetings from Valiant Technical Institute &amp; Assessment Center (VTIAC) Cashier Office!
+        </p>
+
+        <p style="margin: 0 0 24px 0; font-size: 15px; color: #475569; line-height: 1.6;">
+          Your enrollment documents have been approved by the Registrar, and your account has been released for payment. Below is your official Statement of Fees for the qualification:
+          <strong style="color: #0f172a; display: block; margin-top: 4px;">{{ program }} (Student ID: {{ reference_id }})</strong>
+        </p>
+
+        <!-- STATEMENT OF FEES CARD -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+          <tr>
+            <td style="padding: 20px 22px;">
+              <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; font-weight: 800; color: #00563B; letter-spacing: 0.8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+                Statement of Fees
+              </h3>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Total Assessed Amount:</td>
+                  <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #0f172a; font-size: 15px;">{{ total_assessed }}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-size: 14px;">Total Amount Paid:</td>
+                  <td style="padding: 8px 0; text-align: right; font-weight: 700; color: #059669; font-size: 15px;">{{ total_paid }}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0; border-top: 1px dashed #cbd5e1; font-weight: 800; color: #0f172a; font-size: 15px;">Outstanding Balance:</td>
+                  <td style="padding: 12px 0; border-top: 1px dashed #cbd5e1; text-align: right; font-weight: 800; color: #dc2626; font-size: 18px;">{{ total_remaining }}</td>
+                </tr>
+                <tr>
+                  <td style="padding-top: 8px; color: #64748b; font-size: 13px;">Payment Due Date:</td>
+                  <td style="padding-top: 8px; text-align: right; font-weight: 600; color: #0284c7; font-size: 13px;">{{ due_date }}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- INSTRUCTIONS BOX -->
+        <div style="background-color: #f0fdf4; border-left: 4px solid #00563B; border-radius: 0 8px 8px 0; padding: 16px 18px; margin-bottom: 24px;">
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #166534; line-height: 1.6;">
+            Please settle your balance at the VTIAC Cashier Office or contact our finance department if you have any questions regarding installment arrangements.
+          </p>
+          <p style="margin: 0; font-size: 13px; color: #166534; font-weight: 700;">
+            Official Cashier Hours:<br>
+            <span style="font-weight: 400;">Monday – Friday: 8:00 AM – 5:00 PM</span>
+          </p>
+        </div>
+
+        <p style="margin: 0 0 16px 0; font-size: 14px; color: #475569;">
+          Thank you for your prompt attention.
+        </p>
+
+        <p style="margin: 0; font-size: 14px; color: #475569;">
+          Warm regards,<br>
+          <strong style="color: #0f172a;">Cashier Office</strong><br>
+          <span style="font-size: 13px; color: #64748b;">Valiant Technical Institute and Assessment Center, Inc.</span>
+        </p>
+
+      </td>
+    </tr>
+
+    <!-- FOOTER -->
+    <tr>
+      <td style="background-color: #f8fafc; padding: 22px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="margin: 0 0 6px 0; font-size: 12px; color: #94a3b8;">
+          This is an automated notification from the VTIAC Cashier &amp; Finance System.
+        </p>
+        <p style="margin: 0; font-size: 11px; color: #cbd5e1;">
+          &copy; 2026 VTIAC — Valiant Technical Institute &amp; Assessment Center, Inc. All rights reserved.
+        </p>
+      </td>
+    </tr>
+
+  </table>
+
+</body>
+</html>
+

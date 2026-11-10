@@ -23,6 +23,11 @@ urlpatterns = [
         name="cashier_student_fees",
     ),
     path(
+        "cashier/api/students/send-payment-notice/",
+        api.send_payment_notice,
+        name="cashier_send_payment_notice",
+    ),
+    path(
         "cashier/api/fees/schedule/",
         api.fee_schedule,
         name="cashier_fee_schedule",

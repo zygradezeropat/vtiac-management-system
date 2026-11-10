@@ -4,6 +4,7 @@
 {% block body %}
 {% include "components/cashier/layout_start.html" %}
 {% include "components/cashier/page_header.html" %}
+{% csrf_token %}
 
 <!-- =========================================================================
      Aging of Receivables & Overdue Tracking Module
@@ -339,11 +340,11 @@
       <div class="modal-footer border-top py-2 px-4 d-flex justify-content-between">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
         <div class="d-flex gap-2">
-          <a href="#" class="btn btn-sm cashier-btn-outline d-inline-flex align-items-center gap-1"
-            id="followupEmailLink" target="_blank" rel="noopener">
-            <i class="bi bi-envelope-fill" aria-hidden="true"></i>
-            <span>Open Email</span>
-          </a>
+          <button type="button" class="btn btn-sm cashier-btn-outline d-inline-flex align-items-center gap-1"
+            id="sendNoticeEmailBtn">
+            <i class="bi bi-send-fill" aria-hidden="true"></i>
+            <span>Send Email</span>
+          </button>
           <button type="button" class="btn btn-sm cashier-btn-primary d-inline-flex align-items-center gap-1"
             id="copyNoticeBtn">
             <i class="bi bi-clipboard-check" aria-hidden="true"></i>

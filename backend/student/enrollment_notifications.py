@@ -138,10 +138,97 @@ def notify_student_documents_released(profile: StudentEnrollmentProfile):
         related_profile_id=profile.pk,
     )
 
+    # 3. Automatically send payment notice email to the student
+    send_payment_notice_email(profile)
+
 
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+
+
+def send_payment_notice_email(profile: StudentEnrollmentProfile):
+    """Automatically send payment follow-up notice email to student once released to payment."""
+    recipient_email = profile.email
+    if not recipient_email and profile.user:
+        recipient_email = profile.user.email
+    if not recipient_email and hasattr(profile, "registration") and profile.registration:
+        recipient_email = profile.registration.email
+
+    if not recipient_email:
+        return
+
+    name = _student_name(profile)
+    reg = getattr(profile, "registration", None)
+    program = profile.selected_program or (reg.selected_program if reg else "") or "Training Program"
+    student_id = profile.tsmis or (reg.reference_id if reg else "") or f"STU-{profile.pk}"
+
+    from backend.cashier.balance import fee_balance_for_profile
+    balance = fee_balance_for_profile(profile, program)
+    total_assessed = balance.get("totalAssessed", 0.0)
+    total_paid = balance.get("totalPaid", 0.0)
+    total_remaining = balance.get("totalRemaining", 0.0)
+
+    from datetime import timedelta
+    from django.utils import timezone
+    today = timezone.localtime(timezone.now()).date()
+    entry_date = profile.entry_date or (reg.created_at.date() if reg and reg.created_at else today)
+    due_date = entry_date + timedelta(days=30)
+    due_date_str = due_date.strftime("%b %d, %Y")
+
+    assessed_str = f"₱{total_assessed:,.2f}"
+    paid_str = f"₱{total_paid:,.2f}"
+    remaining_str = f"₱{total_remaining:,.2f}"
+
+    subject = f"Payment Follow-up Notice — VTIAC ({student_id})"
+
+    message = (
+        f"Dear {name},\n\n"
+        f"Greetings from Valiant Technical Institute & Assessment Center (VTIAC) Cashier Office!\n\n"
+        f"This is a friendly reminder regarding your outstanding student account balance for the course:\n"
+        f"{program} (Student ID: {student_id})\n\n"
+        f"Statement of Fees:\n"
+        f"- Total Assessed Amount: {assessed_str}\n"
+        f"- Total Amount Paid:     {paid_str}\n"
+        f"- Outstanding Balance:   {remaining_str}\n\n"
+        f"Payment Due Date: {due_date_str}\n\n"
+        f"Please settle your balance at the VTIAC Cashier Office or contact our finance department if you have any questions regarding installment arrangements.\n\n"
+        f"Official Cashier Hours:\n"
+        f"Monday – Friday: 8:00 AM – 5:00 PM\n\n"
+        f"Thank you for your prompt attention.\n\n"
+        f"Warm regards,\n"
+        f"Cashier Office\n"
+        f"Valiant Technical Institute and Assessment Center, Inc."
+    )
+
+    context = {
+        "student_name": name,
+        "program": program,
+        "reference_id": student_id,
+        "total_assessed": assessed_str,
+        "total_paid": paid_str,
+        "total_remaining": remaining_str,
+        "due_date": due_date_str,
+    }
+
+    try:
+        html_message = render_to_string("emails/payment_notice.html", context)
+        send_mail(
+            subject=subject,
+            message=message,
+            html_message=html_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[recipient_email],
+            fail_silently=False,
+        )
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error(
+            "[EMAIL FAILED] Could not send payment notice email to %s: %s (Check Gmail SMTP settings in backend/settings.py)",
+            recipient_email,
+            exc,
+            exc_info=True,
+        )
 
 
 def send_enrollment_approved_email(profile: StudentEnrollmentProfile | None, reg=None):

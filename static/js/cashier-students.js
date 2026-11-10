@@ -25,6 +25,13 @@ const filterState = {
   sort: "name_asc",
 };
 
+function getCsrfToken() {
+  const input = document.querySelector("[name=csrfmiddlewaretoken]");
+  if (input?.value) return input.value;
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
 // Clipboard toast feedback
 function showToast(message) {
   const existing = document.getElementById("cashierToast");
@@ -637,7 +644,7 @@ function exportFilteredToCsv(students) {
  */
 function openFollowupNotice(student) {
   const noticeTextEl = document.getElementById("followupNoticeText");
-  const emailLinkEl = document.getElementById("followupEmailLink");
+  const sendEmailBtn = document.getElementById("sendNoticeEmailBtn");
   const copyBtn = document.getElementById("copyNoticeBtn");
   if (!noticeTextEl) return;
 
@@ -675,10 +682,51 @@ Valiant Technical Institute and Assessment Center, Inc.`;
 
   noticeTextEl.textContent = message;
 
-  if (emailLinkEl) {
-    const subject = encodeURIComponent(`Payment Follow-up Notice — VTIAC (${student.studentId || student.referenceId})`);
-    const body = encodeURIComponent(message);
-    emailLinkEl.href = `mailto:${encodeURIComponent(student.email || "")}?subject=${subject}&body=${body}`;
+  if (sendEmailBtn) {
+    sendEmailBtn.disabled = false;
+    sendEmailBtn.className = "btn btn-sm cashier-btn-outline d-inline-flex align-items-center gap-1";
+    sendEmailBtn.innerHTML = `<i class="bi bi-send-fill" aria-hidden="true"></i><span>Send Email</span>`;
+
+    sendEmailBtn.onclick = async () => {
+      sendEmailBtn.disabled = true;
+      sendEmailBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span><span>Sending...</span>`;
+
+      try {
+        const body = new URLSearchParams();
+        if (student.registrationId) body.set("registration_id", String(student.registrationId));
+        if (student.id != null) body.set("profile_id", String(student.id));
+
+        const res = await fetch("/cashier/api/students/send-payment-notice/", {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": getCsrfToken(),
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+          },
+          credentials: "same-origin",
+          body: body.toString(),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Failed to send email notice.");
+
+        sendEmailBtn.className = "btn btn-sm btn-success d-inline-flex align-items-center gap-1";
+        sendEmailBtn.innerHTML = `<i class="bi bi-check-circle-fill" aria-hidden="true"></i><span>Email Sent!</span>`;
+        showToast(data.message || `Payment notice sent to ${student.email || student.name}`);
+
+        setTimeout(() => {
+          if (sendEmailBtn) {
+            sendEmailBtn.className = "btn btn-sm cashier-btn-outline d-inline-flex align-items-center gap-1";
+            sendEmailBtn.innerHTML = `<i class="bi bi-send-fill" aria-hidden="true"></i><span>Send Email</span>`;
+            sendEmailBtn.disabled = false;
+          }
+        }, 3000);
+      } catch (err) {
+        window.alert(err.message || "Could not send payment notice email.");
+        sendEmailBtn.disabled = false;
+        sendEmailBtn.className = "btn btn-sm cashier-btn-outline d-inline-flex align-items-center gap-1";
+        sendEmailBtn.innerHTML = `<i class="bi bi-send-fill" aria-hidden="true"></i><span>Send Email</span>`;
+      }
+    };
   }
 
   if (copyBtn) {
