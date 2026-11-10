@@ -1,5 +1,6 @@
 """System admin JSON API."""
 
+import io
 import json
 
 from django.contrib.auth.decorators import login_required
@@ -224,6 +225,23 @@ def programs_update(request, program_id):
 
 
 @login_required(login_url="/")
+@require_http_methods(["DELETE", "POST"])
+def programs_delete(request, program_id):
+    from .programs import delete_program
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    try:
+        delete_program(program_id)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({"ok": True})
+
+
+@login_required(login_url="/")
 @require_http_methods(["GET", "POST", "PUT"])
 def program_competencies_manage(request, program_id):
     from .programs import list_program_competencies, save_program_competencies
@@ -356,4 +374,34 @@ def schedules_delete(request, schedule_id):
         return JsonResponse({"error": str(exc)}, status=400)
 
     return JsonResponse({"ok": True})
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def extract_competencies_from_pdf(request):
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    uploaded_file = request.FILES.get("pdf_file") or request.FILES.get("file")
+    if not uploaded_file:
+        return JsonResponse({"error": "No PDF file was uploaded."}, status=400)
+
+    filename = (uploaded_file.name or "").lower()
+    if not filename.endswith(".pdf"):
+        return JsonResponse({"error": "Uploaded file must be a valid PDF document (.pdf)."}, status=400)
+
+    if uploaded_file.size > 30 * 1024 * 1024:
+        return JsonResponse({"error": "PDF file is too large (maximum 30MB allowed)."}, status=400)
+
+    try:
+        from .pdf_extractor import extract_competencies_from_pdf_stream
+
+        file_bytes = io.BytesIO(uploaded_file.read())
+        extracted_data = extract_competencies_from_pdf_stream(file_bytes)
+        return JsonResponse({"ok": True, **extracted_data})
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except Exception as exc:
+        return JsonResponse({"error": f"Failed to parse PDF document: {str(exc)}"}, status=500)
 

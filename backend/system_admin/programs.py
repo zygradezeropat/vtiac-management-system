@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
-from .models import NcProgram, ProgramCompetency, SystemSettings, seed_default_programs
+from .models import NcProgram, ProgramCompetency, SystemSettings
 from .program_config import clear_program_config_cache
 
 
@@ -89,7 +89,6 @@ def _serialize_settings(settings: SystemSettings) -> dict:
 def system_settings_payload() -> dict:
     from .schedules import list_schedules
 
-    seed_default_programs()
     settings = SystemSettings.load()
     programs = [
         _serialize_program(row, include_competencies=True)
@@ -285,10 +284,8 @@ def create_program(*, name, training_fee, sort_order=None, is_active=True, compe
         is_active=bool(is_active),
     )
 
-    if competencies is not None and isinstance(competencies, list):
+    if competencies and isinstance(competencies, list):
         save_program_competencies(row.pk, competencies)
-    else:
-        auto_seed_standard_competencies(row)
 
     clear_program_config_cache()
     return _serialize_program(row, include_competencies=True)
@@ -331,6 +328,17 @@ def update_program(program_id, *, name=None, training_fee=None, sort_order=None,
 
     clear_program_config_cache()
     return _serialize_program(row, include_competencies=True)
+
+
+@transaction.atomic
+def delete_program(program_id: int) -> None:
+    try:
+        row = NcProgram.objects.get(pk=program_id)
+    except NcProgram.DoesNotExist as exc:
+        raise ValueError("Program not found.") from exc
+
+    row.delete()
+    clear_program_config_cache()
 
 
 def list_program_competencies(program_id: int) -> list[dict]:

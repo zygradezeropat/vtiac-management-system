@@ -870,9 +870,16 @@
   font-weight: 500;
 }
 
-.admin-save-button:hover {
+.admin-save-button:hover:not(:disabled) {
   background-color: var(--admin-emerald-700);
   color: #fff;
+}
+
+.admin-save-button:disabled,
+.admin-save-button.disabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  pointer-events: auto;
 }
 
 .admin-preferences-toggles {

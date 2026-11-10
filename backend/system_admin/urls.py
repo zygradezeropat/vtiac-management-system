@@ -25,6 +25,11 @@ urlpatterns = [
         name="admin_programs_update",
     ),
     path(
+        "admin/api/programs/<int:program_id>/delete/",
+        api.programs_delete,
+        name="admin_programs_delete",
+    ),
+    path(
         "admin/api/programs/<int:program_id>/competencies/",
         api.program_competencies_manage,
         name="admin_program_competencies_manage",
@@ -33,6 +38,11 @@ urlpatterns = [
         "admin/api/competencies/library/",
         api.competencies_library,
         name="admin_competencies_library",
+    ),
+    path(
+        "admin/api/competencies/extract-pdf/",
+        api.extract_competencies_from_pdf,
+        name="admin_extract_competencies_pdf",
     ),
     path("admin/api/schedules/", api.schedules_list, name="admin_schedules_list"),
     path("api/schedules/", api.public_schedules_list, name="public_schedules_list"),

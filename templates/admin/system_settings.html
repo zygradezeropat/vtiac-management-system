@@ -6,6 +6,33 @@
 {% include "components/admin/layout_start.html" %}
 {% include "components/admin/page_header.html" %}
 
+<style>
+  #progFormCompsTableContainer, #compUnitsTableContainer {
+    scrollbar-width: thin;
+    scrollbar-color: #adb5bd #f8f9fa;
+  }
+  #progFormCompsTableContainer::-webkit-scrollbar,
+  #compUnitsTableContainer::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  #progFormCompsTableContainer::-webkit-scrollbar-track,
+  #compUnitsTableContainer::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 4px;
+  }
+  #progFormCompsTableContainer::-webkit-scrollbar-thumb,
+  #compUnitsTableContainer::-webkit-scrollbar-thumb {
+    background-color: #adb5bd;
+    border-radius: 4px;
+    border: 2px solid #f8f9fa;
+  }
+  #progFormCompsTableContainer::-webkit-scrollbar-thumb:hover,
+  #compUnitsTableContainer::-webkit-scrollbar-thumb:hover {
+    background-color: #6c757d;
+  }
+</style>
+
 <section class="admin-system-settings" aria-label="System settings">
   <div id="systemSettingsAlert" class="alert d-none mb-3" role="alert"></div>
 
@@ -165,7 +192,7 @@
 </section>
 
 <div class="modal fade" id="programFormModal" tabindex="-1" aria-labelledby="programFormModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
     <div class="modal-content rounded-4 border-0 shadow-lg">
       <div class="modal-header border-bottom py-3">
         <div>
@@ -213,16 +240,25 @@
                 <h6 class="mb-0 fw-bold text-dark">
                   <i class="bi bi-journal-check text-success me-2"></i>Basic, Common &amp; Core Competencies (Grading Sheet Basis)
                 </h6>
-                <small class="text-muted">Select from dropdown menu or enter manually to generate the trainer's grading sheets and reports.</small>
+                <small class="text-muted">Enter competencies manually below or scan a TESDA curriculum PDF to auto-populate.</small>
               </div>
               <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnProgFormPreloadStandard" title="Load standard TESDA 4 Basic and 3 Common units">
-                  <i class="bi bi-magic me-1"></i>Pre-fill Standard Basic &amp; Common
+                <input type="file" id="progFormPdfUpload" accept=".pdf,application/pdf" class="d-none" />
+                <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 shadow-sm" id="btnProgFormUploadPdf" title="Scan TESDA Training Regulations (TR) PDF file">
+                  <i class="bi bi-file-earmark-pdf-fill"></i>
+                  <span>Import from PDF</span>
                 </button>
               </div>
             </div>
 
             <div class="card-body p-3">
+              <div id="progFormPdfStatus" class="alert alert-info py-2 px-3 small d-none mb-3 align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="spinner-border spinner-border-sm text-primary d-none" id="progFormPdfSpinner" role="status"></span>
+                  <span id="progFormPdfStatusText">Scanning PDF...</span>
+                </div>
+                <button type="button" class="btn-close btn-close-sm" aria-label="Close" onclick="document.getElementById('progFormPdfStatus').classList.add('d-none')"></button>
+              </div>
               <!-- Category Filter & Counter Pills -->
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 bg-light p-2.5 rounded-3 border">
                 <div class="d-flex flex-wrap gap-1.5 align-items-center" id="progFormCatPills">
@@ -232,11 +268,11 @@
                   <span class="badge bg-warning-subtle text-dark border border-warning px-2.5 py-1.5 fs-8">Core: <strong id="progFormCountCore">0</strong></span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                  <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Choose from library or type custom units directly below</span>
+                  <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Enter competency units manually below</span>
                 </div>
               </div>
 
-              <!-- Unified Competency Unit Input Card (Type Manually OR Select from Dropdown) -->
+              <!-- Competency Unit Input Card (Fully Manual Entry) -->
               <div class="card border border-success-subtle shadow-sm rounded-3 mb-3 bg-white" id="progFormManualCard" style="border-left: 4px solid #198754 !important;">
                 <div class="card-header bg-success-subtle py-2 d-flex justify-content-between align-items-center">
                   <div class="d-flex align-items-center gap-2">
@@ -250,47 +286,30 @@
                 <div class="card-body p-3">
                   <input type="hidden" id="progFormManualEditIndex" value="-1" />
 
-                  <!-- Option A: Quick Select from Standard Library Dropdown -->
-                  <div class="row g-2 mb-2 pb-2 border-bottom align-items-center">
+                  <!-- Manual Unit Inputs -->
+                  <div class="row g-2 align-items-end">
                     <div class="col-md-3">
-                      <label class="form-label small fw-bold text-muted text-uppercase mb-1" for="progFormTargetCategory">Target Category</label>
+                      <label class="form-label small fw-bold text-muted text-uppercase mb-1" for="progFormTargetCategory">
+                        Category <span class="text-danger">*</span>
+                      </label>
                       <select class="form-select form-select-sm" id="progFormTargetCategory">
                         <option value="basic">Basic Competency</option>
                         <option value="common">Common Competency</option>
                         <option value="core" selected>Core Competency</option>
                       </select>
                     </div>
-                    <div class="col-md-9">
-                      <label class="form-label small fw-bold text-muted text-uppercase mb-1" for="progFormLibSelect">
-                        <i class="bi bi-bookmark-check text-primary me-1"></i>Select from Dropdown Menu (TESDA Library)
-                      </label>
-                      <div class="input-group input-group-sm">
-                        <select class="form-select form-select-sm" id="progFormLibSelect">
-                          <option value="">-- Choose competency from dropdown (auto-fills inputs below) --</option>
-                        </select>
-                        <button type="button" class="btn btn-primary fw-semibold" id="btnProgFormAddLib" title="Add selected unit directly">
-                          <i class="bi bi-plus-lg me-1"></i>Add from Dropdown
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Option B: Direct Typing / Custom Unit Inputs (Always Visible & Editable!) -->
-                  <div class="row g-2 align-items-end">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                       <label class="form-label small fw-bold mb-1" for="progFormManualCode">Unit Code</label>
-                      <input type="text" class="form-control form-control-sm" id="progFormManualCode" placeholder="e.g. CORE-01 / ALT723376" />
+                      <input type="text" class="form-control form-control-sm" id="progFormManualCode" placeholder="e.g. CORE-01" />
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                       <label class="form-label small fw-bold mb-1" for="progFormManualTitleInput">
                         Unit Title / Descriptor <span class="text-danger">*</span>
-                        <span class="fw-normal text-muted small">(type custom title)</span>
                       </label>
-                      <input type="text" class="form-control form-control-sm" id="progFormManualTitleInput" placeholder="Type competency title here..." list="progFormTitleDatalist" />
-                      <datalist id="progFormTitleDatalist"></datalist>
+                      <input type="text" class="form-control form-control-sm" id="progFormManualTitleInput" placeholder="Type competency title here..." />
                     </div>
-                    <div class="col-md-2">
-                      <label class="form-label small fw-bold mb-1" for="progFormManualHours">Nominal Hours</label>
+                    <div class="col-md-1">
+                      <label class="form-label small fw-bold mb-1" for="progFormManualHours">Hours</label>
                       <input type="number" class="form-control form-control-sm" id="progFormManualHours" min="0" value="40" />
                     </div>
                     <div class="col-md-2">
@@ -300,23 +319,27 @@
                     </div>
                   </div>
 
-                  <!-- Learning Outcomes Expansion -->
-                  <div class="mt-2 pt-1">
-                    <a class="small text-decoration-none text-secondary d-inline-flex align-items-center gap-1" data-bs-toggle="collapse" href="#progFormLoCollapse" role="button" aria-expanded="false" aria-controls="progFormLoCollapse">
-                      <i class="bi bi-chevron-down"></i> <span id="progFormLoToggleText">Optional: Add / Edit Learning Outcomes (LOs)</span>
-                    </a>
-                    <div class="collapse mt-2" id="progFormLoCollapse">
-                      <textarea class="form-control form-control-sm font-monospace" id="progFormManualOutcomes" rows="3" placeholder="LO 1. Prepare materials and tools&#10;LO 2. Perform task or operation&#10;LO 3. Restore work area and report"></textarea>
-                      <div class="form-text small text-muted">Each line will become a distinct learning outcome for trainer Sheet 1 (Encodable).</div>
+                  <!-- Learning Outcomes (LOs) Manual Input -->
+                  <div class="mt-3 pt-2 border-top">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                      <label class="form-label small fw-bold text-dark mb-0" for="progFormManualOutcomes">
+                        <i class="bi bi-list-check text-success me-1"></i>Learning Outcomes (LOs)
+                        <span class="badge bg-secondary-subtle text-secondary ms-1" id="progFormLoCountBadge">0 LOs</span>
+                      </label>
+                      <span class="small text-muted">Type or paste 1 outcome per line (optional)</span>
+                    </div>
+                    <textarea class="form-control form-control-sm font-monospace" id="progFormManualOutcomes" rows="3" placeholder="1. Communicate information about workplace processes&#10;2. Lead workplace discussions&#10;3. Identify and communicate issues arising in the workplace"></textarea>
+                    <div class="form-text small text-muted">
+                      Each line becomes a distinct Learning Outcome for the competency, used in trainer grading sheets (Sheet 1) and student evaluation.
                     </div>
                   </div>
                 </div>
               </div>
 
               <!-- Added Competencies Table -->
-              <div class="table-responsive border rounded-3 overflow-hidden" style="max-height: 280px; overflow-y: auto;">
+              <div class="table-responsive border rounded-3" id="progFormCompsTableContainer" style="max-height: 380px; overflow-y: auto !important; position: relative;">
                 <table class="table table-hover align-middle mb-0" id="progFormCompsTable">
-                  <thead class="table-light sticky-top">
+                  <thead class="table-light sticky-top" style="position: sticky; top: 0; z-index: 5; background-color: #f8f9fa;">
                     <tr class="small text-uppercase text-muted">
                       <th style="width: 5%;" class="text-center">#</th>
                       <th style="width: 15%;">Category</th>
@@ -329,7 +352,7 @@
                   </thead>
                   <tbody id="progFormCompsTableBody">
                     <tr>
-                      <td colspan="7" class="text-center text-muted py-4">No competencies added yet. Select from dropdown or enter manually above.</td>
+                      <td colspan="7" class="text-center text-muted py-4">No competencies added yet. Enter manually above.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -340,7 +363,7 @@
       </div>
       <div class="modal-footer border-top py-3">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn admin-save-button px-4" id="saveProgramButton">
+        <button type="button" class="btn admin-save-button px-4 disabled" id="saveProgramButton" disabled title="Please fill up all required fields: Program Name and Training Fee">
           <i class="bi bi-check-circle-fill me-1"></i>Save Program &amp; Competencies
         </button>
       </div>
@@ -350,7 +373,7 @@
 
 <!-- Dynamic Program Competencies Management Modal -->
 <div class="modal fade" id="competenciesModal" tabindex="-1" aria-labelledby="competenciesModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
     <div class="modal-content rounded-4 border-0 shadow-lg">
       <div class="modal-header border-bottom py-3">
         <div>
@@ -389,13 +412,26 @@
             </button>
           </div>
           <div class="d-flex align-items-center gap-2">
+            <input type="file" id="compModalPdfUpload" accept=".pdf,application/pdf" class="d-none" />
+            <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 shadow-sm" id="btnCompModalUploadPdf" title="Scan TESDA Training Regulations (TR) PDF file">
+              <i class="bi bi-file-earmark-pdf-fill"></i>
+              <span>Import from PDF</span>
+            </button>
             <button type="button" class="btn btn-sm btn-success px-3 fw-semibold" id="btnOpenAddCustomComp">
               <i class="bi bi-plus-circle-fill me-1"></i>Add Custom Unit
             </button>
           </div>
         </div>
 
-        <!-- Unified Competency Unit Input Card (Type Manually OR Select from Dropdown) -->
+        <div id="compModalPdfStatus" class="alert alert-info py-2 px-3 small d-none mb-3 align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <span class="spinner-border spinner-border-sm text-primary d-none" id="compModalPdfSpinner" role="status"></span>
+            <span id="compModalPdfStatusText">Scanning PDF...</span>
+          </div>
+          <button type="button" class="btn-close btn-close-sm" aria-label="Close" onclick="document.getElementById('compModalPdfStatus').classList.add('d-none')"></button>
+        </div>
+
+        <!-- Competency Unit Input Card (Fully Manual Entry) -->
         <div class="card border border-primary-subtle shadow-sm rounded-3 mb-3 bg-white" id="customCompCard" style="border-left: 4px solid #0d6efd !important;">
           <div class="card-header bg-primary-subtle py-2 d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
@@ -410,47 +446,30 @@
             <form id="customCompForm">
               <input type="hidden" id="editCompIndex" value="-1" />
 
-              <!-- Option A: Select from Library Dropdown -->
-              <div class="row g-2 mb-2 pb-2 border-bottom align-items-center">
+              <!-- Manual Unit Inputs -->
+              <div class="row g-2 align-items-end">
                 <div class="col-md-3">
-                  <label class="form-label small fw-bold text-muted text-uppercase mb-1" for="compQuickCategory">Target Category</label>
+                  <label class="form-label small fw-bold text-muted text-uppercase mb-1" for="compQuickCategory">
+                    Category <span class="text-danger">*</span>
+                  </label>
                   <select class="form-select form-select-sm" id="compQuickCategory">
                     <option value="basic">Basic Competency</option>
                     <option value="common">Common Competency</option>
                     <option value="core" selected>Core Competency</option>
                   </select>
                 </div>
-                <div class="col-md-9">
-                  <label class="form-label small fw-bold text-muted text-uppercase mb-1" for="compLibrarySelect">
-                    <i class="bi bi-bookmark-check text-primary me-1"></i>Select from Dropdown Menu (TESDA Library)
-                  </label>
-                  <div class="input-group input-group-sm">
-                    <select class="form-select form-select-sm" id="compLibrarySelect">
-                      <option value="">-- Choose competency from dropdown (auto-fills inputs below) --</option>
-                    </select>
-                    <button type="button" class="btn btn-primary fw-semibold" id="btnAddFromLibrary" title="Add directly to program">
-                      <i class="bi bi-plus-lg me-1"></i>Add from Dropdown
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Option B: Direct Typing / Custom Unit Inputs (Always Visible & Editable!) -->
-              <div class="row g-2 align-items-end">
-                <div class="col-md-3">
+                <div class="col-md-2">
                   <label class="form-label small fw-bold mb-1" for="customCompCode">Unit Code</label>
-                  <input type="text" class="form-control form-control-sm" id="customCompCode" placeholder="e.g. CORE-01 / ALT723376" />
+                  <input type="text" class="form-control form-control-sm" id="customCompCode" placeholder="e.g. CORE-01" />
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-4">
                   <label class="form-label small fw-bold mb-1" for="customCompName">
                     Unit Title / Descriptor <span class="text-danger">*</span>
-                    <span class="fw-normal text-muted small">(type custom title)</span>
                   </label>
-                  <input type="text" class="form-control form-control-sm" id="customCompName" placeholder="Type competency title here..." list="customCompTitleDatalist" required />
-                  <datalist id="customCompTitleDatalist"></datalist>
+                  <input type="text" class="form-control form-control-sm" id="customCompName" placeholder="Type competency title here..." required />
                 </div>
-                <div class="col-md-2">
-                  <label class="form-label small fw-bold mb-1" for="customCompHours">Nominal Hours</label>
+                <div class="col-md-1">
+                  <label class="form-label small fw-bold mb-1" for="customCompHours">Hours</label>
                   <input type="number" class="form-control form-control-sm" id="customCompHours" min="0" value="40" />
                 </div>
                 <div class="col-md-2">
@@ -460,14 +479,18 @@
                 </div>
               </div>
 
-              <!-- Learning Outcomes Expansion -->
-              <div class="mt-2 pt-1">
-                <a class="small text-decoration-none text-secondary d-inline-flex align-items-center gap-1" data-bs-toggle="collapse" href="#customCompLoCollapse" role="button" aria-expanded="false" aria-controls="customCompLoCollapse">
-                  <i class="bi bi-chevron-down"></i> <span>Optional: Add / Edit Learning Outcomes (LOs)</span>
-                </a>
-                <div class="collapse mt-2" id="customCompLoCollapse">
-                  <textarea class="form-control form-control-sm font-monospace" id="customCompOutcomes" rows="3" placeholder="LO 1. Identify specifications&#10;LO 2. Perform maintenance procedures&#10;LO 3. Restore work area"></textarea>
-                  <div class="form-text small text-muted">Each line will become an encodable learning outcome in Sheet 1 & 2.</div>
+              <!-- Learning Outcomes (LOs) Manual Input -->
+              <div class="mt-3 pt-2 border-top">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <label class="form-label small fw-bold text-dark mb-0" for="customCompOutcomes">
+                    <i class="bi bi-list-check text-primary me-1"></i>Learning Outcomes (LOs)
+                    <span class="badge bg-secondary-subtle text-secondary ms-1" id="customCompLoCountBadge">0 LOs</span>
+                  </label>
+                  <span class="small text-muted">Type or paste 1 outcome per line (optional)</span>
+                </div>
+                <textarea class="form-control form-control-sm font-monospace" id="customCompOutcomes" rows="3" placeholder="1. Communicate information about workplace processes&#10;2. Lead workplace discussions&#10;3. Identify and communicate issues arising in the workplace"></textarea>
+                <div class="form-text small text-muted">
+                  Each line becomes a distinct Learning Outcome for the competency, used in trainer grading sheets (Sheet 1) and student evaluation.
                 </div>
               </div>
             </form>
@@ -475,10 +498,10 @@
         </div>
 
         <!-- Competencies Table -->
-        <div class="card border shadow-sm rounded-3 overflow-hidden">
-          <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+        <div class="card border shadow-sm rounded-3">
+          <div class="table-responsive" id="compUnitsTableContainer" style="max-height: 420px; overflow-y: auto !important; position: relative;">
             <table class="table table-hover align-middle mb-0" id="compUnitsTable">
-              <thead class="table-light sticky-top">
+              <thead class="table-light sticky-top" style="position: sticky; top: 0; z-index: 5; background-color: #f8f9fa;">
                 <tr class="small text-uppercase text-muted">
                   <th style="width: 5%;" class="text-center">#</th>
                   <th style="width: 14%;">Category</th>

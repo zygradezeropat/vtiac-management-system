@@ -168,7 +168,8 @@ function renderProgramsTable() {
             <button type="button" class="btn btn-sm btn-outline-success me-1" data-manage-competencies="${program.id}" title="Configure Competencies">
               <i class="bi bi-journal-bookmark me-1"></i>Competencies
             </button>
-            <button type="button" class="btn btn-sm btn-light" data-edit-program="${program.id}">Edit</button>
+            <button type="button" class="btn btn-sm btn-light me-1" data-edit-program="${program.id}">Edit</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-delete-program="${program.id}" title="Delete Program">Delete</button>
           </td>
         </tr>`;
     })
@@ -178,9 +179,31 @@ function renderProgramsTable() {
     button.addEventListener("click", () => openProgramModal(Number(button.dataset.editProgram)));
   });
 
+  tbody.querySelectorAll("[data-delete-program]").forEach((button) => {
+    button.addEventListener("click", () => deleteProgram(Number(button.dataset.deleteProgram)));
+  });
+
   tbody.querySelectorAll("[data-manage-competencies]").forEach((button) => {
     button.addEventListener("click", () => openCompetenciesModal(Number(button.dataset.manageCompetencies)));
   });
+}
+
+async function deleteProgram(programId) {
+  const prog = programs.find((p) => p.id === programId);
+  const name = prog ? prog.name : "this program";
+  if (!confirm(`Are you sure you want to delete "${name}" and all its configured competencies?\n\nThis action cannot be undone.`)) {
+    return;
+  }
+  try {
+    await apiRequest(`/admin/api/programs/${programId}/delete/`, {
+      method: "POST",
+    });
+    programs = programs.filter((p) => p.id !== programId);
+    renderProgramsTable();
+    showAlert(`Program "${name}" deleted successfully.`);
+  } catch (error) {
+    showAlert(error.message, "danger");
+  }
 }
 
 function fillGeneralSettings(settings) {
@@ -285,106 +308,6 @@ function updateProgFormCompCounts() {
   if (elCore) elCore.textContent = coreCount;
 }
 
-function populateProgFormLibDropdown() {
-  const catSelect = document.getElementById("progFormTargetCategory");
-  const libSelect = document.getElementById("progFormLibSelect");
-  const datalist = document.getElementById("progFormTitleDatalist");
-  if (!catSelect || !libSelect) return;
-
-  const cat = catSelect.value || "core";
-  const items = competencyLibrary[cat] || [];
-
-  libSelect.innerHTML = `<option value="">-- Choose ${cat.toUpperCase()} competency from dropdown (auto-fills inputs below) --</option>`;
-  if (datalist) datalist.innerHTML = "";
-
-  items.forEach((item, idx) => {
-    const opt = document.createElement("option");
-    opt.value = String(idx);
-    const codePrefix = item.code ? `${item.code} — ` : "";
-    opt.textContent = `${codePrefix}${item.title} (${item.nominal_hours || 0} hrs)`;
-    libSelect.appendChild(opt);
-
-    if (datalist) {
-      const dlOpt = document.createElement("option");
-      dlOpt.value = item.title;
-      datalist.appendChild(dlOpt);
-    }
-  });
-}
-
-function onProgFormLibSelectChange() {
-  const catSelect = document.getElementById("progFormTargetCategory");
-  const libSelect = document.getElementById("progFormLibSelect");
-  if (!catSelect || !libSelect) return;
-
-  const cat = catSelect.value || "core";
-  const selectedIdx = parseInt(libSelect.value, 10);
-  if (Number.isNaN(selectedIdx)) return;
-
-  const items = competencyLibrary[cat] || [];
-  const selected = items[selectedIdx];
-  if (!selected) return;
-
-  const codeInput = document.getElementById("progFormManualCode");
-  const titleInput = document.getElementById("progFormManualTitleInput");
-  const hoursInput = document.getElementById("progFormManualHours");
-  const outcomesInput = document.getElementById("progFormManualOutcomes");
-
-  if (codeInput) codeInput.value = selected.code || "";
-  if (titleInput) titleInput.value = selected.title || "";
-  if (hoursInput) hoursInput.value = selected.nominal_hours || 40;
-  if (outcomesInput) {
-    const los = Array.isArray(selected.learning_outcomes) ? selected.learning_outcomes : [];
-    outcomesInput.value = los.join("\n");
-  }
-}
-
-function preloadStandardCompetenciesForNewProg() {
-  const basicItems = competencyLibrary.basic || [];
-  const commonItems = competencyLibrary.common || [];
-
-  const existingTitles = new Set(progFormCompetencies.map((c) => c.title.toLowerCase().trim()));
-  let addedCount = 0;
-
-  // Add 4 Basic
-  basicItems.slice(0, 4).forEach((item) => {
-    if (!existingTitles.has(item.title.toLowerCase().trim())) {
-      progFormCompetencies.push({
-        id: null,
-        category: "basic",
-        code: item.code || "",
-        title: item.title,
-        nominalHours: item.nominal_hours || 10,
-        learningOutcomes: Array.isArray(item.learning_outcomes) ? [...item.learning_outcomes] : [],
-        sortOrder: progFormCompetencies.length + 1,
-      });
-      existingTitles.add(item.title.toLowerCase().trim());
-      addedCount++;
-    }
-  });
-
-  // Add 3 Common
-  commonItems.slice(0, 3).forEach((item) => {
-    if (!existingTitles.has(item.title.toLowerCase().trim())) {
-      progFormCompetencies.push({
-        id: null,
-        category: "common",
-        code: item.code || "",
-        title: item.title,
-        nominalHours: item.nominal_hours || 20,
-        learningOutcomes: Array.isArray(item.learning_outcomes) ? [...item.learning_outcomes] : [],
-        sortOrder: progFormCompetencies.length + 1,
-      });
-      existingTitles.add(item.title.toLowerCase().trim());
-      addedCount++;
-    }
-  });
-
-  updateProgFormCompCounts();
-  renderProgFormCompsTable();
-  return addedCount;
-}
-
 function resetProgFormManualInputs() {
   const editIndex = document.getElementById("progFormManualEditIndex");
   if (editIndex) editIndex.value = -1;
@@ -399,49 +322,17 @@ function resetProgFormManualInputs() {
   const titleInput = document.getElementById("progFormManualTitleInput");
   const hoursInput = document.getElementById("progFormManualHours");
   const outcomesInput = document.getElementById("progFormManualOutcomes");
-  const libSelect = document.getElementById("progFormLibSelect");
 
   if (codeInput) codeInput.value = "";
   if (titleInput) titleInput.value = "";
   if (hoursInput) hoursInput.value = 40;
   if (outcomesInput) outcomesInput.value = "";
-  if (libSelect) libSelect.value = "";
-}
 
-function addProgFormUnitFromLib() {
-  const catSelect = document.getElementById("progFormTargetCategory");
-  const libSelect = document.getElementById("progFormLibSelect");
-  if (!catSelect || !libSelect) return;
+  updateProgFormLoCountBadge();
 
-  const cat = catSelect.value || "core";
-  const selectedIdx = parseInt(libSelect.value, 10);
-  if (Number.isNaN(selectedIdx)) {
-    const manualTitle = document.getElementById("progFormManualTitleInput")?.value?.trim();
-    if (manualTitle) {
-      applyProgFormManualUnit();
-      return;
-    }
-    alert("Please select a competency from the dropdown or type a custom title below.");
-    return;
+  if (typeof updateProgFormManualAddButtonState === "function") {
+    updateProgFormManualAddButtonState();
   }
-
-  const items = competencyLibrary[cat] || [];
-  const selected = items[selectedIdx];
-  if (!selected) return;
-
-  progFormCompetencies.push({
-    id: null,
-    category: cat,
-    code: selected.code || "",
-    title: selected.title || "",
-    nominalHours: selected.nominal_hours || 40,
-    learningOutcomes: Array.isArray(selected.learning_outcomes) ? [...selected.learning_outcomes] : [],
-    sortOrder: progFormCompetencies.length + 1,
-  });
-
-  resetProgFormManualInputs();
-  updateProgFormCompCounts();
-  renderProgFormCompsTable();
 }
 
 function showProgFormManualCard(comp = null, index = -1) {
@@ -457,7 +348,6 @@ function showProgFormManualCard(comp = null, index = -1) {
   const catSelect = document.getElementById("progFormTargetCategory");
   if (catSelect && comp?.category) {
     catSelect.value = comp.category;
-    populateProgFormLibDropdown();
   }
 
   const codeInput = document.getElementById("progFormManualCode");
@@ -475,6 +365,12 @@ function showProgFormManualCard(comp = null, index = -1) {
   if (outcomesInput) {
     const los = comp?.learningOutcomes || [];
     outcomesInput.value = Array.isArray(los) ? los.join("\n") : "";
+  }
+
+  updateProgFormLoCountBadge();
+
+  if (typeof updateProgFormManualAddButtonState === "function") {
+    updateProgFormManualAddButtonState();
   }
 
   const card = document.getElementById("progFormManualCard");
@@ -532,7 +428,7 @@ function renderProgFormCompsTable() {
   if (!progFormCompetencies.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center text-muted py-4">No competencies added yet. Select from dropdown or enter manually above.</td>
+        <td colspan="7" class="text-center text-muted py-4">No competencies added yet. Enter manually above.</td>
       </tr>`;
     return;
   }
@@ -557,7 +453,9 @@ function renderProgFormCompsTable() {
           <td><strong>${escapeHtml(comp.title)}</strong></td>
           <td class="text-center"><span class="badge bg-light text-dark border">${comp.nominalHours || 0} hrs</span></td>
           <td class="text-center">
-            <span class="badge bg-secondary-subtle text-secondary" style="cursor: help;" title="${loTooltip}">${loCount} LOs</span>
+            <button type="button" class="btn btn-sm p-0 border-0 bg-transparent" data-edit-prog-comp="${idx}" title="Click to view/edit LOs:&#10;${loTooltip}">
+              <span class="badge ${loCount > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary'}">${loCount} LOs</span>
+            </button>
           </td>
           <td class="text-end text-nowrap">
             <button type="button" class="btn btn-sm btn-link text-secondary p-1" data-move-prog-up="${idx}" title="Move Up" ${idx === 0 ? "disabled" : ""}>
@@ -623,8 +521,6 @@ async function openProgramModal(programId = null) {
   showProgramError("");
   resetProgFormManualInputs();
 
-  await ensureCompetencyLibraryLoaded();
-
   const title = document.getElementById("programFormModalLabel");
   const program = programs.find((row) => row.id === programId);
 
@@ -642,7 +538,6 @@ async function openProgramModal(programId = null) {
   // Set target category dropdown default
   const targetCatEl = document.getElementById("progFormTargetCategory");
   if (targetCatEl) targetCatEl.value = "core";
-  populateProgFormLibDropdown();
 
   if (programId) {
     // Editing existing program: load its competencies
@@ -661,14 +556,86 @@ async function openProgramModal(programId = null) {
       progFormCompetencies = [];
     }
   } else {
-    // Adding new program: auto-preload standard Basic & Common competencies
+    // Adding new program: starts completely empty for manual competency registration
     progFormCompetencies = [];
-    preloadStandardCompetenciesForNewProg();
   }
 
   updateProgFormCompCounts();
   renderProgFormCompsTable();
+  updateSaveProgramButtonState();
+  updateProgFormManualAddButtonState();
   programModal?.show();
+}
+
+function updateSaveProgramButtonState() {
+  const saveBtn = document.getElementById("saveProgramButton");
+  if (!saveBtn) return;
+
+  const name = (document.getElementById("programName")?.value || "").trim();
+  const fee = (document.getElementById("programTrainingFee")?.value || "").trim();
+  const order = (document.getElementById("programSortOrder")?.value || "").trim();
+
+  const isNameFilled = name.length > 0;
+  const isFeeFilled = fee.length > 0 && !isNaN(Number(fee)) && Number(fee) >= 0;
+  const isOrderFilled = order.length > 0 && !isNaN(Number(order)) && Number(order) >= 0;
+
+  const allFilled = isNameFilled && isFeeFilled && isOrderFilled;
+
+  saveBtn.disabled = !allFilled;
+
+  if (!allFilled) {
+    const missing = [];
+    if (!isNameFilled) missing.push("Program Name");
+    if (!isFeeFilled) missing.push("Training Fee (₱)");
+    if (!isOrderFilled) missing.push("Display Order");
+    saveBtn.title = `Please fill up all required fields: ${missing.join(", ")}`;
+    saveBtn.classList.add("disabled");
+  } else {
+    saveBtn.removeAttribute("title");
+    saveBtn.classList.remove("disabled");
+  }
+}
+
+function updateProgFormManualAddButtonState() {
+  const addBtn = document.getElementById("btnProgFormApplyManual");
+  if (!addBtn) return;
+  const title = (document.getElementById("progFormManualTitleInput")?.value || "").trim();
+  addBtn.disabled = !title;
+  if (!title) {
+    addBtn.classList.add("disabled");
+    addBtn.title = "Enter a competency title / descriptor first";
+  } else {
+    addBtn.classList.remove("disabled");
+    addBtn.removeAttribute("title");
+  }
+}
+
+function updateProgFormLoCountBadge() {
+  const val = document.getElementById("progFormManualOutcomes")?.value || "";
+  const lines = val.split("\n").map((s) => s.trim()).filter(Boolean);
+  const badge = document.getElementById("progFormLoCountBadge");
+  if (badge) {
+    badge.textContent = `${lines.length} LO${lines.length === 1 ? "" : "s"}`;
+    if (lines.length > 0) {
+      badge.className = "badge bg-success-subtle text-success border border-success-subtle ms-1";
+    } else {
+      badge.className = "badge bg-secondary-subtle text-secondary ms-1";
+    }
+  }
+}
+
+function updateCustomCompLoCountBadge() {
+  const val = document.getElementById("customCompOutcomes")?.value || "";
+  const lines = val.split("\n").map((s) => s.trim()).filter(Boolean);
+  const badge = document.getElementById("customCompLoCountBadge");
+  if (badge) {
+    badge.textContent = `${lines.length} LO${lines.length === 1 ? "" : "s"}`;
+    if (lines.length > 0) {
+      badge.className = "badge bg-primary-subtle text-primary border border-primary-subtle ms-1";
+    } else {
+      badge.className = "badge bg-secondary-subtle text-secondary ms-1";
+    }
+  }
 }
 
 async function saveProgram() {
@@ -765,60 +732,6 @@ function updateCategoryFilterButtons() {
   });
 }
 
-function populateLibraryDropdown() {
-  const catSelect = document.getElementById("compQuickCategory");
-  const libSelect = document.getElementById("compLibrarySelect");
-  const datalist = document.getElementById("customCompTitleDatalist");
-  if (!catSelect || !libSelect) return;
-
-  const cat = catSelect.value || "basic";
-  const items = competencyLibrary[cat] || [];
-
-  libSelect.innerHTML = `<option value="">-- Choose ${cat.toUpperCase()} unit from library (auto-fills inputs below) --</option>`;
-  if (datalist) datalist.innerHTML = "";
-
-  items.forEach((item, idx) => {
-    const opt = document.createElement("option");
-    opt.value = String(idx);
-    const codePrefix = item.code ? `${item.code} — ` : "";
-    opt.textContent = `${codePrefix}${item.title} (${item.nominal_hours || 0} hrs)`;
-    libSelect.appendChild(opt);
-
-    if (datalist) {
-      const dlOpt = document.createElement("option");
-      dlOpt.value = item.title;
-      datalist.appendChild(dlOpt);
-    }
-  });
-}
-
-function onCompLibrarySelectChange() {
-  const catSelect = document.getElementById("compQuickCategory");
-  const libSelect = document.getElementById("compLibrarySelect");
-  if (!catSelect || !libSelect) return;
-
-  const cat = catSelect.value || "basic";
-  const selectedIdx = parseInt(libSelect.value, 10);
-  if (Number.isNaN(selectedIdx)) return;
-
-  const items = competencyLibrary[cat] || [];
-  const selected = items[selectedIdx];
-  if (!selected) return;
-
-  const codeInput = document.getElementById("customCompCode");
-  const titleInput = document.getElementById("customCompName");
-  const hoursInput = document.getElementById("customCompHours");
-  const outcomesInput = document.getElementById("customCompOutcomes");
-
-  if (codeInput) codeInput.value = selected.code || "";
-  if (titleInput) titleInput.value = selected.title || "";
-  if (hoursInput) hoursInput.value = selected.nominal_hours || 40;
-  if (outcomesInput) {
-    const los = Array.isArray(selected.learning_outcomes) ? selected.learning_outcomes : [];
-    outcomesInput.value = los.join("\n");
-  }
-}
-
 function resetCustomCompInputs() {
   const editIndex = document.getElementById("editCompIndex");
   if (editIndex) editIndex.value = -1;
@@ -833,49 +746,13 @@ function resetCustomCompInputs() {
   const titleInput = document.getElementById("customCompName");
   const hoursInput = document.getElementById("customCompHours");
   const outcomesInput = document.getElementById("customCompOutcomes");
-  const libSelect = document.getElementById("compLibrarySelect");
 
   if (codeInput) codeInput.value = "";
   if (titleInput) titleInput.value = "";
   if (hoursInput) hoursInput.value = 40;
   if (outcomesInput) outcomesInput.value = "";
-  if (libSelect) libSelect.value = "";
-}
 
-function addFromLibrary() {
-  const catSelect = document.getElementById("compQuickCategory");
-  const libSelect = document.getElementById("compLibrarySelect");
-  if (!catSelect || !libSelect) return;
-
-  const cat = catSelect.value || "basic";
-  const selectedIdx = parseInt(libSelect.value, 10);
-  if (Number.isNaN(selectedIdx)) {
-    const manualTitle = document.getElementById("customCompName")?.value?.trim();
-    if (manualTitle) {
-      applyCustomComp();
-      return;
-    }
-    alert("Please select a competency from the dropdown or type a custom title below.");
-    return;
-  }
-
-  const items = competencyLibrary[cat] || [];
-  const selected = items[selectedIdx];
-  if (!selected) return;
-
-  currentCompetencies.push({
-    id: null,
-    category: cat,
-    code: selected.code || "",
-    title: selected.title || "",
-    nominalHours: selected.nominal_hours || 40,
-    learningOutcomes: Array.isArray(selected.learning_outcomes) ? [...selected.learning_outcomes] : [],
-    sortOrder: currentCompetencies.length + 1,
-  });
-
-  resetCustomCompInputs();
-  updateCompCountBadges();
-  renderCompetenciesTable();
+  updateCustomCompLoCountBadge();
 }
 
 function showCustomCompForm(comp = null, index = -1) {
@@ -891,7 +768,6 @@ function showCustomCompForm(comp = null, index = -1) {
   const catSelect = document.getElementById("compQuickCategory");
   if (catSelect && comp?.category) {
     catSelect.value = comp.category;
-    populateLibraryDropdown();
   }
 
   const codeInput = document.getElementById("customCompCode");
@@ -910,6 +786,8 @@ function showCustomCompForm(comp = null, index = -1) {
     const los = comp?.learningOutcomes || [];
     outcomesInput.value = Array.isArray(los) ? los.join("\n") : "";
   }
+
+  updateCustomCompLoCountBadge();
 
   const card = document.getElementById("customCompCard");
   card?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -971,7 +849,7 @@ function renderCompetenciesTable() {
     const filterLabel = activeCompCategoryFilter === "all" ? "competencies" : `${activeCompCategoryFilter} competencies`;
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center text-muted py-4">No ${filterLabel} configured yet. Click "+ Add Custom Unit" or select from the standard library above.</td>
+        <td colspan="7" class="text-center text-muted py-4">No ${filterLabel} configured yet. Enter unit details manually above.</td>
       </tr>`;
     return;
   }
@@ -1000,9 +878,11 @@ function renderCompetenciesTable() {
             <span class="badge bg-light text-dark border">${comp.nominalHours || 0} hrs</span>
           </td>
           <td class="text-center">
-            <span class="badge bg-secondary-subtle text-secondary" style="cursor: help;" title="${loTooltip}">
-              ${loCount} LOs
-            </span>
+            <button type="button" class="btn btn-sm p-0 border-0 bg-transparent" data-edit-comp="${originalIndex}" title="Click to view/edit LOs:&#10;${loTooltip}">
+              <span class="badge ${loCount > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary'}">
+                ${loCount} LOs
+              </span>
+            </button>
           </td>
           <td class="text-end text-nowrap">
             <button type="button" class="btn btn-sm btn-link text-secondary p-1" data-move-comp-up="${originalIndex}" title="Move Up" ${originalIndex === 0 ? "disabled" : ""}>
@@ -1074,8 +954,6 @@ async function openCompetenciesModal(programId) {
   resetCustomCompInputs();
   showCompAlert("");
 
-  await ensureCompetencyLibraryLoaded();
-
   try {
     const compData = await apiRequest(`/admin/api/programs/${programId}/competencies/`);
     currentCompetencies = (compData.competencies || []).map((c) => ({
@@ -1088,7 +966,6 @@ async function openCompetenciesModal(programId) {
       sortOrder: c.sortOrder || c.sort_order || 0,
     }));
 
-    populateLibraryDropdown();
     activeCompCategoryFilter = "all";
     updateCategoryFilterButtons();
     updateCompCountBadges();
@@ -1285,6 +1162,137 @@ async function saveGeneralSettings() {
   }
 }
 
+// -----------------------------------------------------------------------------
+// PDF Competency Curriculum Extractor Module
+// -----------------------------------------------------------------------------
+
+async function handlePdfUpload(file, isProgramFormModal = true) {
+  if (!file) return;
+
+  const prefix = isProgramFormModal ? "progFormPdf" : "compModalPdf";
+  const btnUpload = document.getElementById(isProgramFormModal ? "btnProgFormUploadPdf" : "btnCompModalUploadPdf");
+  const statusBox = document.getElementById(`${prefix}Status`);
+  const statusText = document.getElementById(`${prefix}StatusText`);
+  const spinner = document.getElementById(`${prefix}Spinner`);
+
+  if (statusBox) {
+    statusBox.className = "alert alert-info py-2 px-3 small d-flex mb-3 align-items-center justify-content-between";
+    if (spinner) spinner.classList.remove("d-none");
+    if (statusText) statusText.innerHTML = `<i class="bi bi-cpu me-1"></i>Scanning PDF curriculum for units of competency...`;
+  }
+  if (btnUpload) btnUpload.disabled = true;
+
+  try {
+    const formData = new FormData();
+    formData.append("pdf_file", file);
+
+    const response = await fetch("/admin/api/competencies/extract-pdf/", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": getCsrfToken(),
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Failed to extract competencies from the PDF.");
+    }
+
+    const extracted = data.competencies || [];
+    if (!extracted.length) {
+      throw new Error("No competencies were found in the uploaded PDF.");
+    }
+
+    if (isProgramFormModal) {
+      // Suggest Program Name if currently empty
+      const progNameInput = document.getElementById("programName");
+      if (progNameInput && !progNameInput.value.trim() && data.program_name) {
+        progNameInput.value = data.program_name;
+      }
+
+      let replaceExisting = true;
+      if (progFormCompetencies.length > 0) {
+        replaceExisting = confirm(
+          `Found ${data.count} competencies in the PDF.\n\n` +
+          `Click OK to REPLACE the existing ${progFormCompetencies.length} units,\n` +
+          `or click Cancel to APPEND these new units to the table.`
+        );
+      }
+
+      if (replaceExisting) {
+        progFormCompetencies = [];
+      }
+
+      extracted.forEach((c) => {
+        progFormCompetencies.push({
+          id: null,
+          category: c.category || "core",
+          code: c.code || "",
+          title: c.title || "",
+          nominalHours: c.nominal_hours || 40,
+          learningOutcomes: Array.isArray(c.learning_outcomes) ? c.learning_outcomes : [],
+          sortOrder: progFormCompetencies.length + 1,
+        });
+      });
+
+      updateProgFormCompCounts();
+      renderProgFormCompsTable();
+      updateSaveProgramButtonState();
+      setTimeout(() => {
+        document.getElementById("progFormCompsTableContainer")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } else {
+      let replaceExisting = true;
+      if (currentCompetencies.length > 0) {
+        replaceExisting = confirm(
+          `Found ${data.count} competencies in the PDF.\n\n` +
+          `Click OK to REPLACE the existing ${currentCompetencies.length} units,\n` +
+          `or click Cancel to APPEND these new units to the table.`
+        );
+      }
+
+      if (replaceExisting) {
+        currentCompetencies = [];
+      }
+
+      extracted.forEach((c) => {
+        currentCompetencies.push({
+          id: null,
+          category: c.category || "core",
+          code: c.code || "",
+          title: c.title || "",
+          nominalHours: c.nominal_hours || 40,
+          learningOutcomes: Array.isArray(c.learning_outcomes) ? c.learning_outcomes : [],
+          sortOrder: currentCompetencies.length + 1,
+        });
+      });
+
+      updateCompCountBadges();
+      renderCompetenciesTable();
+      setTimeout(() => {
+        document.getElementById("compUnitsTableContainer")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    }
+
+    if (statusBox) {
+      statusBox.className = "alert alert-success py-2 px-3 small d-flex mb-3 align-items-center justify-content-between";
+      if (spinner) spinner.classList.add("d-none");
+      if (statusText) {
+        statusText.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Successfully scanned <strong>${data.count} competencies</strong> (${data.basic_count || 0} Basic, ${data.common_count || 0} Common, ${data.core_count || 0} Core) from PDF!`;
+      }
+    }
+  } catch (err) {
+    if (statusBox) {
+      statusBox.className = "alert alert-danger py-2 px-3 small d-flex mb-3 align-items-center justify-content-between";
+      if (spinner) spinner.classList.add("d-none");
+      if (statusText) statusText.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>${escapeHtml(err.message)}`;
+    }
+  } finally {
+    if (btnUpload) btnUpload.disabled = false;
+  }
+}
+
 function initSystemSettings() {
   document.getElementById("saveGeneralSettingsBtn")?.addEventListener("click", saveGeneralSettings);
   document.getElementById("saveEvaluationScheduleBtn")?.addEventListener("click", saveEvaluationSchedule);
@@ -1294,14 +1302,40 @@ function initSystemSettings() {
   document.getElementById("addScheduleButton")?.addEventListener("click", () => openScheduleModal());
   document.getElementById("saveScheduleButton")?.addEventListener("click", saveSchedule);
 
-  // Program Form Modal Competency events
-  document.getElementById("progFormTargetCategory")?.addEventListener("change", populateProgFormLibDropdown);
-  document.getElementById("progFormLibSelect")?.addEventListener("change", onProgFormLibSelectChange);
-  document.getElementById("btnProgFormAddLib")?.addEventListener("click", addProgFormUnitFromLib);
-  document.getElementById("btnProgFormPreloadStandard")?.addEventListener("click", () => {
-    const added = preloadStandardCompetenciesForNewProg();
-    showAlert(`Pre-filled standard Basic & Common units (${added} added).`);
+  // Live Validation: Disable Save button until all fields are filled up
+  ["input", "change", "keyup"].forEach((evt) => {
+    document.getElementById("programName")?.addEventListener(evt, updateSaveProgramButtonState);
+    document.getElementById("programTrainingFee")?.addEventListener(evt, updateSaveProgramButtonState);
+    document.getElementById("programSortOrder")?.addEventListener(evt, updateSaveProgramButtonState);
+    document.getElementById("progFormManualTitleInput")?.addEventListener(evt, updateProgFormManualAddButtonState);
+    document.getElementById("progFormManualOutcomes")?.addEventListener(evt, updateProgFormLoCountBadge);
+    document.getElementById("customCompOutcomes")?.addEventListener(evt, updateCustomCompLoCountBadge);
   });
+
+  // PDF Upload Handlers
+  document.getElementById("btnProgFormUploadPdf")?.addEventListener("click", () => {
+    document.getElementById("progFormPdfUpload")?.click();
+  });
+  document.getElementById("progFormPdfUpload")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePdfUpload(file, true);
+    }
+    e.target.value = "";
+  });
+
+  document.getElementById("btnCompModalUploadPdf")?.addEventListener("click", () => {
+    document.getElementById("compModalPdfUpload")?.click();
+  });
+  document.getElementById("compModalPdfUpload")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePdfUpload(file, false);
+    }
+    e.target.value = "";
+  });
+
+  // Program Form Modal Competency events
   document.getElementById("btnProgFormClearInputs")?.addEventListener("click", resetProgFormManualInputs);
   document.getElementById("btnProgFormApplyManual")?.addEventListener("click", applyProgFormManualUnit);
 
@@ -1314,9 +1348,6 @@ function initSystemSettings() {
     });
   });
 
-  document.getElementById("compQuickCategory")?.addEventListener("change", populateLibraryDropdown);
-  document.getElementById("compLibrarySelect")?.addEventListener("change", onCompLibrarySelectChange);
-  document.getElementById("btnAddFromLibrary")?.addEventListener("click", addFromLibrary);
   document.getElementById("btnClearCustomComp")?.addEventListener("click", resetCustomCompInputs);
   document.getElementById("btnSaveCustomComp")?.addEventListener("click", applyCustomComp);
   document.getElementById("btnSaveProgramCompetencies")?.addEventListener("click", saveAllProgramCompetencies);

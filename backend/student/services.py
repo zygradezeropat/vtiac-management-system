@@ -736,14 +736,14 @@ def save_enrollment_profile(user, data, *, is_draft=False):
     reg = _registration_for_user(user)
     program_type = reg.program_type if reg else StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT
     profile_existing = get_enrollment_profile(user)
+    options = enrollment_program_options()
     selected_program = (
         data.get("selected_program", "").strip()
         or (profile_existing.selected_program if profile_existing else "")
         or (reg.selected_program if reg else "")
-        or enrollment_program_options()[0]
+        or (options[0] if options else "")
     )
-    options = enrollment_program_options()
-    if selected_program not in options:
+    if options and selected_program not in options:
         selected_program = reg.selected_program if reg else options[0]
     tsmis = data.get("tsmis") or (reg.reference_id if reg else "")
 

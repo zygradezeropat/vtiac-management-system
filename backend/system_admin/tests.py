@@ -111,19 +111,33 @@ class DynamicProgramCompetencyTests(TestCase):
         self.assertTrue(len(library["basic"]) >= 4)
         self.assertTrue(len(library["common"]) >= 3)
 
-    def test_create_program_auto_seeds_basic_and_common(self):
+    def test_create_program_defaults_to_manual_empty_competencies(self):
         created = create_program(
             name="Bread and Pastry Production NC II",
             training_fee=6500.00,
         )
         program_id = created["id"]
         comps = list_program_competencies(program_id)
-        # Should have seeded standard Basic (4) and Common (3) competencies automatically
-        self.assertGreaterEqual(len(comps), 7)
-        basic_count = sum(1 for c in comps if c["category"] == "basic")
-        common_count = sum(1 for c in comps if c["category"] == "common")
-        self.assertEqual(basic_count, 4)
-        self.assertEqual(common_count, 3)
+        # Fully manual: newly registered program starts with 0 competencies unless manually supplied
+        self.assertEqual(len(comps), 0)
+
+    def test_delete_program_removes_program_and_competencies(self):
+        from backend.system_admin.programs import delete_program
+
+        created = create_program(
+            name="Welding SMAW NC II",
+            training_fee=5000.00,
+            competencies=[
+                {"category": "core", "code": "WELD-01", "title": "Weld Carbon Steel Plates", "nominal_hours": 40}
+            ]
+        )
+        program_id = created["id"]
+        self.assertTrue(NcProgram.objects.filter(pk=program_id).exists())
+        self.assertTrue(ProgramCompetency.objects.filter(program_id=program_id).exists())
+
+        delete_program(program_id)
+        self.assertFalse(NcProgram.objects.filter(pk=program_id).exists())
+        self.assertFalse(ProgramCompetency.objects.filter(program_id=program_id).exists())
 
     def test_program_creation_with_explicit_competencies_and_trainer_correspondence(self):
         from backend.trainer.services import PROGRAM_QUALIFICATIONS, get_active_program_qualifications
@@ -501,4 +515,100 @@ class TrainerEvaluationScheduleTests(TestCase):
         req.user = unbatched_user
         ctx = _student_portal_base(req, "Dashboard", "Dashboard", "")
         self.assertFalse(ctx["eval_pending"])
+
+
+class TesdaPdfExtractionTests(TestCase):
+    def test_extract_qualification_name_and_competencies_from_text(self):
+        from backend.system_admin.pdf_extractor import (
+            extract_qualification_name,
+            parse_tesda_competencies,
+        )
+
+        sample_tr_text = """
+                  TRAINING REGULATIONS FOR
+      DRIVING (Passenger Bus/Straight Truck) NC III
+
+SECTION 1  DRIVING NC III QUALIFICATION
+
+   The Units of Competency comprising this Qualification include the following:
+
+   CODE NO.     BASIC COMPETENCIES
+   500311109    Lead Workplace Communication
+   500311110    Lead Small Teams
+   500311111    Develop and Practice Negotiation skills
+   500311112    Solve Problems Related to Work Activities
+   500311113    Use Mathematical Concepts and Techniques
+   500311114    Use Relevant Technologies
+
+   CODE         COMMON COMPETENCIES
+   ALT723201    Apply Appropriate Sealant/Adhesive
+   ALT311205    Interpret/Draw Technical Drawing
+   ALT723202    Move and Position Vehicle
+   ALT311204    Perform Job Estimate
+   ALT311202    Perform Mensuration and Calculation
+   ALT723203    Read, Interpret and Apply Specifications and Manuals
+   ALT723204    Use and Apply Lubricant/Coolant
+   ALT723205    Perform Shop Maintenance
+
+   CODE NO.     CORE COMPETENCIES
+   ALT723349    Perform Minor Maintenance and Servicing on Vehicles Classified
+                under LTO Restriction Codes 3 up to 5
+   ALT832305    Perform Pre-and Post Operation Procedures Vehicles Classified
+                under LTO Restriction Codes 3 up to 5
+   ALT832303    Obey and Observe Traffic Rules and Regulations
+   ALT832309    Observe Road Health and Safety Practices
+   ALT832304    Implement and Coordinate Accident-Emergency Procedures
+   ALT832306    Drive Passenger Bus
+   ALT832307    Drive Straight Truck
+
+A person who has achieved this Qualification is competent to be:
+         Passenger Bus Driver
+         Straight Truck Driver
+        """
+
+        # 1. Test qualification name extraction
+        prog_name = extract_qualification_name(sample_tr_text)
+        self.assertEqual(prog_name, "DRIVING (Passenger Bus/Straight Truck) NC III")
+
+        # 2. Test competencies parsed
+        comps = parse_tesda_competencies(sample_tr_text)
+        self.assertEqual(len(comps), 21)
+
+        basic_comps = [c for c in comps if c["category"] == "basic"]
+        common_comps = [c for c in comps if c["category"] == "common"]
+        core_comps = [c for c in comps if c["category"] == "core"]
+
+        self.assertEqual(len(basic_comps), 6)
+        self.assertEqual(len(common_comps), 8)
+        self.assertEqual(len(core_comps), 7)
+
+        # 3. Test multi-line wrapped title joining
+        alt723349 = next(c for c in core_comps if c["code"] == "ALT723349")
+        self.assertEqual(
+            alt723349["title"],
+            "Perform Minor Maintenance and Servicing on Vehicles Classified under LTO Restriction Codes 3 up to 5",
+        )
+
+        alt832307 = next(c for c in core_comps if c["code"] == "ALT832307")
+        self.assertEqual(alt832307["title"], "Drive Straight Truck")
+
+    def test_extract_pdf_api_endpoint_validation(self):
+        from django.contrib.auth.models import User
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from backend.core.models import StaffProfile
+        from backend.system_admin.services import ADMIN_ROLE
+
+        admin_user = User.objects.create_user(username="test_admin_pdf", password="password")
+        StaffProfile.objects.create(user=admin_user, role=StaffProfile.Role.ADMIN)
+        self.client.login(username="test_admin_pdf", password="password")
+        session = self.client.session
+        session["portal_role"] = ADMIN_ROLE
+        session.save()
+
+        # Non-pdf file should be rejected
+        txt_file = SimpleUploadedFile("curriculum.txt", b"plain text", content_type="text/plain")
+        resp = self.client.post("/admin/api/competencies/extract-pdf/", {"pdf_file": txt_file})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("must be a valid PDF", resp.json().get("error", ""))
+
 

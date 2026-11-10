@@ -21,16 +21,14 @@ def clear_program_config_cache():
 
 
 def _active_program_rows():
-    from .models import NcProgram, seed_default_programs
+    from .models import NcProgram
 
-    seed_default_programs()
     return list(NcProgram.objects.filter(is_active=True).order_by("sort_order", "name"))
 
 
 def _all_program_rows():
-    from .models import NcProgram, seed_default_programs
+    from .models import NcProgram
 
-    seed_default_programs()
     return list(NcProgram.objects.order_by("sort_order", "name"))
 
 
