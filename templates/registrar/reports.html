@@ -1,6 +1,94 @@
 {% extends "registrar/base.html" %}
 {% load static %}
 
+{% block extra_head %}
+{{ block.super }}
+<style>
+  @page {
+    size: landscape;
+    margin: 8mm 12mm;
+  }
+  @media print {
+    *, *::before, *::after {
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+    html, body {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #000000 !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .registrar-layout,
+    .registrar-main,
+    .min-w-0,
+    main,
+    #reports-root,
+    #reports-content,
+    #printable-report-area,
+    .card,
+    .content-wrapper,
+    .container-fluid,
+    .d-flex {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #000000 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .vh-100 {
+      height: auto !important;
+      min-height: 0 !important;
+    }
+    .table-responsive {
+      overflow: visible !important;
+      width: 100% !important;
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+    }
+    .official-vtiac-table,
+    .official-vtiac-table thead th,
+    .official-vtiac-table tbody td,
+    .official-vtiac-table tfoot td {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #000000 !important;
+    }
+    .official-vtiac-table {
+      width: 100% !important;
+      min-width: 100% !important;
+      table-layout: fixed !important;
+    }
+    .official-vtiac-table th {
+      white-space: nowrap !important;
+    }
+  }
+  .table-responsive {
+    overflow-x: auto;
+    width: 100%;
+  }
+  .official-vtiac-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+  .official-vtiac-table tbody td {
+    background-color: #ffffff !important;
+  }
+</style>
+{% endblock %}
 
 {% block body %}
 {% include "components/registrar/layout_start.html" %}
@@ -33,6 +121,100 @@
   </div>
 </header>
 
+<!-- Date Range, Year & Month Filter Toolbar (Hidden on Print) -->
+<section class="card border-0 shadow-sm rounded-4 p-3 mb-3 bg-white no-print" aria-label="Report period and date filter">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <div class="rounded-circle bg-success-subtle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+        <i class="bi bi-calendar-range text-success fs-5"></i>
+      </div>
+      <div>
+        <span class="fw-bold text-dark d-block" style="font-size: 0.95rem;">Filter Report Range</span>
+        <span class="text-muted small" style="font-size: 0.8rem;">Filter data by Year, Month, or custom Date Range</span>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <!-- Year Select -->
+      <div class="d-flex align-items-center gap-1">
+        <label class="small text-muted mb-0 fw-semibold" for="report-filter-year">Year:</label>
+        <select id="report-filter-year" class="form-select form-select-sm w-auto fw-semibold border-secondary-subtle">
+          <option value="">All Years</option>
+          <option value="2027">2027</option>
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
+          <option value="2021">2021</option>
+          <option value="2020">2020</option>
+          <option value="2019">2019</option>
+        </select>
+      </div>
+
+      <!-- Month Select -->
+      <div class="d-flex align-items-center gap-1">
+        <label class="small text-muted mb-0 fw-semibold" for="report-filter-month">Month:</label>
+        <select id="report-filter-month" class="form-select form-select-sm w-auto fw-semibold border-secondary-subtle">
+          <option value="">All Months</option>
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+      </div>
+
+      <div class="vr mx-1 d-none d-lg-block text-secondary" style="height: 24px;"></div>
+
+      <!-- Date Range (From & To) -->
+      <div class="d-flex align-items-center gap-1">
+        <label class="small text-muted mb-0 fw-semibold" for="report-start-date">From:</label>
+        <input type="date" id="report-start-date" class="form-control form-control-sm w-auto border-secondary-subtle">
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <label class="small text-muted mb-0 fw-semibold" for="report-end-date">To:</label>
+        <input type="date" id="report-end-date" class="form-control form-control-sm w-auto border-secondary-subtle">
+      </div>
+
+      <!-- Filter Buttons -->
+      <button type="button" class="btn btn-success btn-sm px-3 fw-semibold rounded-3 shadow-sm" id="report-apply-filter">
+        <i class="bi bi-funnel-fill me-1"></i>Apply
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm px-3 fw-semibold rounded-3" id="report-reset-filter">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+      </button>
+    </div>
+  </div>
+
+  <!-- Active Range indicator & Quick Presets -->
+  <div class="mt-2 pt-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-light text-dark border fw-normal" style="font-size: 0.8rem;">
+        <i class="bi bi-calendar-check text-success me-1"></i>Active Report Range: <strong id="active-report-range-text" class="text-dark">AY 2026–2027</strong>
+      </span>
+      <span id="active-report-filter-tag" class="badge bg-success-subtle text-success border border-success-subtle d-none">Filtered</span>
+    </div>
+    <div class="d-flex align-items-center gap-1 small">
+      <span class="text-muted small me-1">Quick Range:</span>
+      <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-success fw-semibold" id="preset-this-month">This Month</button>
+      <span class="text-muted">|</span>
+      <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-success fw-semibold" id="preset-last-month">Last Month</button>
+      <span class="text-muted">|</span>
+      <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-success fw-semibold" id="preset-this-year">This Year (2026)</button>
+      <span class="text-muted">|</span>
+      <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-secondary" id="preset-all-time">All Time</button>
+    </div>
+  </div>
+</section>
+
 <div id="reports-root" class="d-flex flex-column gap-3">
   <div id="reports-tabs" class="registrar-tabs" role="tablist" aria-label="Report periods"></div>
   <div id="reports-content"></div>
@@ -60,7 +242,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{% static 'js/registrar-reports.js' %}"></script>
+<script type="module" src="{% static 'js/registrar-reports.js' %}?v=20261112d"></script>
 <script type="module">
   import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
   initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");

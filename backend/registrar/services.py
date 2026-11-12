@@ -248,20 +248,54 @@ def module_page_context(module, request=None):
         from django.db.models import Count, Sum
 
         egace_rows = build_registrar_egace_rows()
-        templates_qs = RegistrarScheduleTemplate.objects.all()
+        templates_qs = RegistrarScheduleTemplate.objects.all().order_by("course_name", "id")
         batch_reports = []
         for t in templates_qs:
+            t_students = t.students_snapshot if isinstance(t.students_snapshot, list) else []
+            t_refs = {s.get("referenceId") for s in t_students if s.get("referenceId")}
+            t_names = {s.get("fullName", "").strip().lower() for s in t_students if s.get("fullName")}
+            matched_egace = [
+                r for r in egace_rows
+                if r.get("referenceId") in t_refs or r.get("studentName", "").strip().lower() in t_names
+            ]
+
+            # Modality: Scholars if any student has a scholarship / is scholar
+            has_scholar = any(
+                s.get("scholarship") or s.get("scholarshipType") or s.get("scholarship_type")
+                for s in t_students
+            )
+            modality = "SCHOLARS" if has_scholar else "NON-SCHOLARS"
+
+            clean_batch = t.batch_label or f"Batch {t.id}"
+            if "·" in clean_batch:
+                clean_batch = clean_batch.split("·")[-1].strip()
+
+            start_iso = t.available_from.strftime("%Y-%m-%d") if t.available_from else (t.created_at.strftime("%Y-%m-%d") if t.created_at else "")
+            end_iso = t.available_until.strftime("%Y-%m-%d") if t.available_until else ""
+            b_year = t.available_from.year if t.available_from else (t.created_at.year if t.created_at else 2026)
+            b_month = t.available_from.month if t.available_from else (t.created_at.month if t.created_at else 11)
+
             batch_reports.append({
                 "id": t.id,
                 "course_name": t.course_name,
-                "batch_label": t.batch_label or "Batch 1",
+                "batch_label": clean_batch,
+                "modality": modality,
                 "trainer_name": t.trainer_name or "Assigned Trainer",
                 "examiner_name": t.examiner_name or "TESDA Assessor",
-                "start_date": t.available_from.strftime("%b %d, %Y") if t.available_from else "—",
-                "end_date": t.available_until.strftime("%b %d, %Y") if t.available_until else "—",
-                "assessment_date": t.assessment_at.strftime("%b %d, %Y") if t.assessment_at else "TBA",
+                "start_date": t.available_from.strftime("%m/%d/%Y") if t.available_from else "—",
+                "end_date": t.available_until.strftime("%m/%d/%Y") if t.available_until else "—",
+                "start_date_iso": start_iso,
+                "end_date_iso": end_iso,
+                "year": b_year,
+                "month": b_month,
+                "academic_year": t.academic_year,
+                "assessment_date": t.assessment_at.strftime("%m/%d/%Y") if t.assessment_at else "TBA",
                 "status": t.get_status_display(),
-                "students_count": len(t.students_snapshot) if isinstance(t.students_snapshot, list) else 0,
+                "students_count": len(t_students),
+                "graduates": sum(1 for r in matched_egace if r.get("graduate")),
+                "assessed": sum(1 for r in matched_egace if r.get("assessment")),
+                "certified": sum(1 for r in matched_egace if r.get("certificate")),
+                "employed": sum(1 for r in matched_egace if r.get("employment")),
             })
 
         by_status = list(StudentRegistration.objects.values("status").annotate(count=Count("id")))

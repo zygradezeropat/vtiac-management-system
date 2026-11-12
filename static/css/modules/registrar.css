@@ -2763,32 +2763,143 @@
       flex: 1 0 auto;
     }
   }
-}
 
 /* =========================================================
-   Official Registrar Reports Print Media Styles
+   Official Registrar Reports Print Media Styles & Landscape
    ========================================================= */
+@page {
+  size: landscape;
+  margin: 8mm 12mm;
+}
+
 @media print {
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
+  *, *::before, *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
 
+  html, body, .registrar-layout, .registrar-main, .min-w-0, main, #reports-root, #reports-content, #printable-report-area, .card, .content-wrapper, .container-fluid, .d-flex {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .vh-100 {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  aside,
+  nav,
+  header,
   .registrar-sidebar,
   .registrar-topbar,
   .registrar-page-header,
   .registrar-tabs,
+  .module-tabs,
+  .btn,
+  .btn-group,
   .no-print,
-  button {
+  button,
+  .toast,
+  .modal,
+  select,
+  .form-select,
+  .alert {
     display: none !important;
+  }
+
+  .main-content,
+  .container-fluid,
+  .container,
+  .content-wrapper,
+  .p-4 {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   #printable-report-area {
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+
+  .table-responsive {
+    overflow: visible !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+  }
+
+  .official-vtiac-table th {
+    white-space: nowrap !important;
+  }
+
+  .official-vtiac-table {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border: 1.5px solid #000000 !important;
+    margin-top: 10px !important;
+    margin-bottom: 20px !important;
+    page-break-inside: auto;
+  }
+
+  .official-vtiac-table th,
+  .official-vtiac-table td {
+    border: 1px solid #000000 !important;
+    padding: 4px 6px !important;
+    font-size: 8pt !important;
+    color: #000000 !important;
+    text-align: center !important;
+  }
+
+  .official-vtiac-table thead th {
+    background-color: #ffffff !important;
+    font-weight: 700 !important;
+  }
+
+  .official-vtiac-table tbody td {
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .vh-100 {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .official-vtiac-table tbody td.col-plain {
+    background-color: #ffffff !important;
+  }
+
+  .official-vtiac-table tfoot td {
+    background-color: #ffffff !important;
+    font-weight: 700 !important;
+    border-top: 1.5px solid #000000 !important;
   }
 
   table {
@@ -2807,4 +2918,85 @@
   tfoot {
     display: table-footer-group;
   }
+
+  .official-editable-input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    display: block !important;
+    font-family: inherit !important;
+  }
+
+  .official-signature-section {
+    page-break-inside: avoid;
+    margin-top: 25px !important;
+  }
+}
+
+/* Screen styles for template-type editable inputs */
+.official-editable-input {
+  border: 1px dashed #b5c7d3;
+  border-radius: 4px;
+  background-color: #f8fafc;
+  padding: 3px 6px;
+  color: #1a1a1a;
+  transition: all 0.15s ease-in-out;
+}
+
+.official-editable-input:hover {
+  border-color: #00563B;
+  background-color: #f0fdf4;
+  cursor: text;
+}
+
+.official-editable-input:focus {
+  outline: none;
+  border-color: #00563B;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(0, 86, 59, 0.2);
+}
+
+/* Official VTIAC Report Tables (EGACE & Enrollment Report) */
+.official-vtiac-table {
+  width: 100%;
+  border-collapse: collapse !important;
+  border: 1.5px solid #000000 !important;
+  font-family: inherit;
+  margin-bottom: 1.5rem;
+}
+
+.official-vtiac-table th,
+.official-vtiac-table td {
+  border: 1px solid #000000 !important;
+  padding: 6px 10px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  font-size: 0.85rem !important;
+  color: #000000 !important;
+}
+
+.official-vtiac-table thead th {
+  background-color: #ffffff !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.official-vtiac-table tbody td {
+  background-color: #ffffff !important;
+  font-weight: 500;
+}
+
+.official-vtiac-table tbody td.col-plain {
+  background-color: #ffffff !important;
+}
+
+.official-vtiac-table tfoot td {
+  background-color: #ffffff !important;
+  font-weight: 700 !important;
+  border-top: 1.5px solid #000000 !important;
 }
