@@ -239,7 +239,12 @@ def dashboard_data(request):
     if denied:
         return denied
 
-    return JsonResponse(dashboard_stats())
+    return JsonResponse(
+        dashboard_stats(
+            start_date=request.GET.get("start_date"),
+            end_date=request.GET.get("end_date"),
+        )
+    )
 
 
 @login_required(login_url="/")

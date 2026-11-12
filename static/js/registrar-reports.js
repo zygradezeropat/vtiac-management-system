@@ -22,9 +22,17 @@ const DEFAULT_ARCHIVED = [];
 
 function loadJsonData(scriptId, fallback = []) {
   const el = document.getElementById(scriptId);
-  if (!el) return fallback;
+  if (!el?.textContent) return fallback;
   try {
-    return JSON.parse(el.textContent);
+    let parsed = JSON.parse(el.textContent);
+    if (typeof parsed === "string") {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {
+        // keep fallback
+      }
+    }
+    return parsed ?? fallback;
   } catch (err) {
     console.warn(`Failed to parse script #${scriptId}:`, err);
     return fallback;
@@ -49,6 +57,7 @@ function saveArchived(list) {
 }
 
 function aggregateEgaceByProgram(egaceRows) {
+  if (!Array.isArray(egaceRows)) return [];
   const map = {};
   egaceRows.forEach((r) => {
     const prog = r.course || "Unassigned Program";
@@ -65,7 +74,7 @@ function aggregateEgaceByProgram(egaceRows) {
   return Object.values(map).sort((a, b) => b.enrolled - a.enrolled);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function initRegistrarReports() {
   const tabsEl = document.getElementById("reports-tabs");
   const contentEl = document.getElementById("reports-content");
   const printBtn = document.getElementById("print-official-report-btn");
@@ -614,4 +623,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderTabs();
   renderContent();
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initRegistrarReports);
+} else {
+  initRegistrarReports();
+}

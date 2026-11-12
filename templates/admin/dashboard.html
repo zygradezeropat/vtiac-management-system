@@ -4,8 +4,33 @@
 
 {% block body %}
 {% include "components/admin/layout_start.html" %}
-{% include "components/admin/page_header.html" with show_clock=True show_fiscal_year=True %}
+{% include "components/admin/page_header.html" with show_clock=True show_fiscal_year=False %}
 {{ admin_dashboard_stats|json_script:"admin-dashboard-stats" }}
+
+<section class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white" aria-label="Date range filter">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-calendar-range text-primary fs-5"></i>
+      <span class="fw-semibold text-dark">Filter Dashboard by Date Range:</span>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0" for="admin-start-date">From:</label>
+        <input type="date" id="admin-start-date" class="form-control form-control-sm w-auto" value="{{ dashboard_filter_start }}">
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0" for="admin-end-date">To:</label>
+        <input type="date" id="admin-end-date" class="form-control form-control-sm w-auto" value="{{ dashboard_filter_end }}">
+      </div>
+      <button type="button" class="btn btn-primary btn-sm px-3" id="admin-apply-filter">
+        <i class="bi bi-funnel me-1"></i>Apply
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm px-3" id="admin-clear-filter">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+      </button>
+    </div>
+  </div>
+</section>
 
 <section class="admin-pending-summary" aria-label="System pending counts">
   <div class="admin-section-header">

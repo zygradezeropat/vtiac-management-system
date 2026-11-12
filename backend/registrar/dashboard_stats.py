@@ -76,14 +76,17 @@ def registrar_dashboard_stats(
     start_date=None,
     end_date=None,
 ) -> dict:
-    """Aggregates for monthly bar (year) and program pie (optional date range)."""
+    """Aggregates for monthly bar and program pie by optional date range."""
     now = timezone.localtime()
     start_date = _coerce_date(start_date)
     end_date = _coerce_date(end_date)
-    year = _coerce_year(year) or now.year
+    has_date_range = bool(start_date or end_date)
+    if start_date and not year:
+        year = start_date.year
+    elif not year:
+        year = _coerce_year(year) or now.year
 
     current_month_index = now.month - 1 if now.year == year else 0
-    has_pie_range = bool(start_date or end_date)
 
     approved_regs = StudentRegistration.objects.filter(
         status=StudentRegistration.Status.APPROVED,
@@ -99,15 +102,17 @@ def registrar_dashboard_stats(
         if dt:
             years_seen.add(dt.year)
 
-        # Monthly chart: year filter only
-        if dt and dt.year == year:
-            enrolled_by_month[dt.month] += 1
-
-        # Pie chart: optional From/To range; otherwise all approved
-        if has_pie_range:
+        # Apply date range filter to both monthly chart and program breakdown
+        if has_date_range:
             if not dt or not _in_date_range(dt, start_date, end_date):
                 continue
-        program_counts[_program_label(profile, reg)] += 1
+            enrolled_by_month[dt.month] += 1
+            program_counts[_program_label(profile, reg)] += 1
+        else:
+            # Default: current year for monthly trends, all approved for program counts
+            if dt and dt.year == year:
+                enrolled_by_month[dt.month] += 1
+            program_counts[_program_label(profile, reg)] += 1
 
     enrolled_series = _series_from_month_counts(enrolled_by_month)
     monthly_enrollment = [

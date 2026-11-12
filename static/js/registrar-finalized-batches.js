@@ -255,15 +255,10 @@ document.addEventListener(
     let termFilter = "";
 
     /*
-     * IMPORTANT:
-     * The backend now returns:
-     *
-     * "draft"
-     * "active"
-     *
-     * Therefore the default tab must be "active".
+     * Default tab is "All" ("") to automatically display all saved batches
+     * (both draft schedules and active/finalized batches) on initial load.
      */
-    let activeTab = "active";
+    let activeTab = "";
 
     /*
      * Fixed:
@@ -293,14 +288,22 @@ document.addEventListener(
            * Filter by active tab.
            *
            * Expected values:
-           * "active"
+           * "" (All)
            * "draft"
+           * "active"
+           * "completed"
            */
-          if (
-            activeTab &&
-            b.status !== activeTab
-          ) {
-            return false;
+          if (activeTab) {
+            if (activeTab === "active") {
+              if (
+                b.status !== "active" &&
+                b.status !== "finalized"
+              ) {
+                return false;
+              }
+            } else if (b.status !== activeTab) {
+              return false;
+            }
           }
 
 
@@ -500,30 +503,26 @@ document.addEventListener(
         return;
       }
 
-
       /*
-       * Backend statuses:
-       *
-       * active
-       * draft
+       * Overview statistics are computed from allBatches so the top metrics
+       * reflect total system state regardless of tab selection.
        */
+      const source = allBatches.length > 0 ? allBatches : (batches || []);
 
       const activeBatches =
-        batches.filter(
+        source.filter(
           (b) =>
-            b.status === "active"
+            b.status === "active" || b.status === "finalized"
         );
 
-
       const drafts =
-        batches.filter(
+        source.filter(
           (b) =>
             b.status === "draft"
         );
 
-
       const students =
-        batches.reduce(
+        source.reduce(
           (
             total,
             b
@@ -535,13 +534,12 @@ document.addEventListener(
           0
         );
 
-
       statsEl.innerHTML = `
 
         <div class="col-sm-3">
           <div class="registrar-finalized-stat">
             <span class="registrar-finalized-stat__value">
-              ${batches.length}
+              ${source.length}
             </span>
 
             <span class="registrar-finalized-stat__label">
@@ -549,7 +547,6 @@ document.addEventListener(
             </span>
           </div>
         </div>
-
 
         <div class="col-sm-3">
           <div class="registrar-finalized-stat">
@@ -563,7 +560,6 @@ document.addEventListener(
           </div>
         </div>
 
-
         <div class="col-sm-3">
           <div class="registrar-finalized-stat">
             <span class="registrar-finalized-stat__value">
@@ -575,7 +571,6 @@ document.addEventListener(
             </span>
           </div>
         </div>
-
 
         <div class="col-sm-3">
           <div class="registrar-finalized-stat">
@@ -1023,11 +1018,18 @@ document.addEventListener(
                 </td>
 
                 <td>
-                  ${
-                    s.override
-                      ? '<span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i class="bi bi-shield-lock me-1"></i>Manual Override</span>'
-                      : '<span class="badge text-bg-light text-muted border">Standard</span>'
-                  }
+                  <div class="d-inline-flex align-items-center gap-1">
+                    ${
+                      s.override
+                        ? '<span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle" title="Manual Override"><i class="bi bi-shield-lock me-1"></i>Override</span>'
+                        : ""
+                    }
+                    ${
+                      s.competencyStatus === "Competent" || s.competency_status === "Competent"
+                        ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Competent</span>'
+                        : '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-x-circle-fill me-1"></i>Incompetent</span>'
+                    }
+                  </div>
                 </td>
 
                 <td class="text-end">
@@ -1590,9 +1592,22 @@ document.addEventListener(
         }
 
 
-        emptyEl?.classList.remove(
-          "d-none"
-        );
+        if (emptyEl) {
+          const titleEl = emptyEl.querySelector(".fw-semibold");
+          const descEl = emptyEl.querySelector(".text-muted");
+          if (titleEl && descEl) {
+            if (allBatches.length > 0) {
+              titleEl.textContent = "No batches found";
+              descEl.textContent = "No batches match the selected tab or search criteria.";
+            } else {
+              titleEl.textContent = "No finalized batches yet";
+              descEl.textContent = "Save a schedule in Batching & Scheduling first — it will appear here as a draft.";
+            }
+          }
+          emptyEl.classList.remove(
+            "d-none"
+          );
+        }
 
         return;
       }

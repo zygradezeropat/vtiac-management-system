@@ -251,15 +251,31 @@ def _student_filter_options(students: list[dict]) -> dict:
     }
 
 
-def trainer_class_schedule_context(user) -> dict:
+def trainer_class_schedule_context(user, start_date=None, end_date=None) -> dict:
     """Shared batch + student data for dashboard and My Students."""
     trainer_req = trainer_account_request_for_user(user)
-    batches = list(
+    raw_batches = list(
         finalized_batches_for_trainer(
             trainer_req,
             user=user,
         )
     )
+
+    from django.utils.dateparse import parse_date
+    start_d = parse_date(str(start_date).strip()[:10]) if start_date else None
+    end_d = parse_date(str(end_date).strip()[:10]) if end_date else None
+
+    if start_d or end_d:
+        filtered = []
+        for b in raw_batches:
+            if start_d and b.end_date and b.end_date < start_d:
+                continue
+            if end_d and b.start_date and b.start_date > end_d:
+                continue
+            filtered.append(b)
+        batches = filtered
+    else:
+        batches = raw_batches
 
     batch_cards = [
         batch_to_dashboard_dict(batch)
@@ -392,10 +408,27 @@ def trainer_assigned_students(user) -> list[dict]:
     return trainer_class_schedule_context(user)["assigned_students"]
 
 
-def assigned_students_by_batch(user) -> tuple[list[dict], list[dict]]:
+def assigned_students_by_batch(user, start_date=None, end_date=None) -> tuple[list[dict], list[dict]]:
     """Per-batch student roster (no cross-batch dedupe) for record sheets."""
     trainer_req = trainer_account_request_for_user(user)
-    batches = list(finalized_batches_for_trainer(trainer_req, user=user))
+    raw_batches = list(finalized_batches_for_trainer(trainer_req, user=user))
+
+    from django.utils.dateparse import parse_date
+    start_d = parse_date(str(start_date).strip()[:10]) if start_date else None
+    end_d = parse_date(str(end_date).strip()[:10]) if end_date else None
+
+    if start_d or end_d:
+        filtered = []
+        for b in raw_batches:
+            if start_d and b.end_date and b.end_date < start_d:
+                continue
+            if end_d and b.start_date and b.start_date > end_d:
+                continue
+            filtered.append(b)
+        batches = filtered
+    else:
+        batches = raw_batches
+
     batch_cards = [batch_to_dashboard_dict(b) for b in batches]
     students: list[dict] = []
     for template, card in zip(batches, batch_cards):

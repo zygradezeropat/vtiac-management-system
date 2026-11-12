@@ -167,100 +167,110 @@
     </div>
 
 
-    <!-- Enrollment approval -->
+    <!-- Program Tabs for Selected / Checked Courses -->
+    <div id="batching-program-tabs-container" class="mb-4 d-none">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <span class="small fw-bold text-uppercase text-muted" style="letter-spacing: 0.5px;">
+          <i class="bi bi-collection me-1 text-primary"></i>Selected Programs (<span id="batching-program-tabs-count">0</span>)
+        </span>
+        <span class="text-muted small"><i class="bi bi-arrow-left-right me-1"></i>Click each tab to schedule separately</span>
+      </div>
+      <div
+        id="batching-program-tabs"
+        class="registrar-batch-tabs"
+        role="tablist"
+        aria-label="Selected programs tabs">
+      </div>
+    </div>
+
+
+    <!-- Enrolled Students (Ready for Batching) -->
     <section
-      id="batching-enrollment-approval"
-      class="registrar-batching-approval panel-light rounded-3 p-3 p-md-4 mb-4 d-none">
+      id="batching-enrolled-roster"
+      class="registrar-batching-roster panel-light rounded-3 p-3 p-md-4 mb-4">
 
       <div
-        class="registrar-batching-approval__head d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+        class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
 
         <div>
-
           <p class="registrar-schedule-template-form__eyebrow mb-1">
-            Enrollment approval
+            Enrolled Students Pool
           </p>
 
-          <h3 class="h6 fw-semibold mb-1">
-            Approve students for this program
+          <h3 class="h6 fw-semibold mb-1 d-flex align-items-center gap-2">
+            <span>Students Available for this Batch</span>
+            <span id="batching-enrolled-count-badge" class="badge bg-success-subtle text-success border border-success-subtle">
+              0 Ready
+            </span>
           </h3>
 
           <p class="text-muted small mb-0">
-            Select applicants who are ready to enroll.
-            Approved students become available for batching.
+            Approved students with verified requirements who have no batch assignment at the moment.
           </p>
-
         </div>
 
-        <button
-          type="button"
-          id="batching-bulk-approve-btn"
-          class="btn btn-success btn-sm fw-semibold px-3"
-          disabled>
-
-          <i
-            class="bi bi-check2-all me-1"
-            aria-hidden="true">
-          </i>
-
-          Approve selected
-          (<span id="batching-bulk-approve-count">0</span>)
-
-        </button>
+        <div class="d-flex align-items-center gap-2">
+          <div class="input-group input-group-sm" style="max-width: 240px;">
+            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+            <input
+              type="search"
+              id="batching-enrolled-search"
+              class="form-control border-start-0"
+              placeholder="Search student..."
+              autocomplete="off"
+            />
+          </div>
+        </div>
 
       </div>
-
 
       <div class="table-responsive">
-
         <table
-          class="table registrar-table registrar-batching-table registrar-batching-approval-table mb-0">
-
+          class="table registrar-table registrar-batching-table mb-0">
           <thead>
-
             <tr>
-
-              <th
-                scope="col"
-                class="registrar-batching-approval-table__check">
-
-                <input
-                  type="checkbox"
-                  id="batching-select-all"
-                  class="form-check-input"
-                  aria-label="Select all approvable students"
-                />
-
-              </th>
-
-              <th scope="col">
-                Student
-              </th>
-
-              <th scope="col">
-                Status
-              </th>
-
+              <th scope="col" style="width: 45px;">#</th>
+              <th scope="col">Student Name</th>
+              <th scope="col">Contact</th>
+              <th scope="col">Program Track</th>
+              <th scope="col">Preferred Schedule</th>
+              <th scope="col" class="text-center" style="width: 140px;">Status</th>
             </tr>
-
           </thead>
-
-          <tbody id="batching-pending-students"></tbody>
-
+          <tbody id="batching-enrolled-students"></tbody>
         </table>
-
       </div>
 
-
       <p
-        id="batching-pending-empty"
-        class="text-muted small text-center py-3 mb-0 d-none">
-
-        No pending enrollments for this program.
-
+        id="batching-enrolled-empty"
+        class="text-muted small text-center py-4 mb-0 d-none">
+        <i class="bi bi-people display-6 text-secondary opacity-50 d-block mb-2"></i>
+        No unassigned enrolled students found for this program at the moment.
       </p>
 
+      <!-- Informational banner for pending applicants in Enrollment module -->
+      <div id="batching-pending-notice" class="alert alert-info py-2 px-3 mt-3 mb-0 d-flex align-items-center justify-content-between d-none" style="font-size: 0.85rem;">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-info-circle-fill text-info flex-shrink-0"></i>
+          <span>
+            <strong id="batching-pending-notice-count">0</strong> applicant(s) still pending requirements verification in Enrollment module.
+          </span>
+        </div>
+        <a href="/registrar/enrollment/" class="btn btn-sm btn-outline-primary py-0 px-2 fw-semibold text-nowrap">
+          Go to Enrollment Module &rarr;
+        </a>
+      </div>
+
     </section>
+
+    <!-- Hidden compatibility container for legacy approval refs -->
+    <div id="batching-enrollment-approval" class="d-none" aria-hidden="true">
+      <button type="button" id="batching-bulk-approve-btn" disabled></button>
+      <span id="batching-bulk-approve-count">0</span>
+      <input type="checkbox" id="batching-select-all" />
+      <table><tbody id="batching-pending-students"></tbody></table>
+      <p id="batching-pending-empty"></p>
+    </div>
 
 
     <!-- Schedule form -->
@@ -549,16 +559,14 @@
 
 
       <!-- Date range -->
-      <div class="row g-3 mb-4">
+      <div class="row g-3 mb-2">
 
         <div class="col-sm-6">
 
           <label
             class="form-label fw-semibold"
             for="template-available-from">
-
-            Start Date
-
+            Start Date <span class="text-danger">*</span>
           </label>
 
           <input
@@ -572,13 +580,21 @@
 
         <div class="col-sm-6">
 
-          <label
-            class="form-label fw-semibold"
-            for="template-available-until">
-
-            End Date
-
-          </label>
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <label
+              class="form-label fw-semibold mb-0"
+              for="template-available-until">
+              End Date <span class="text-danger">*</span>
+            </label>
+            <button
+              type="button"
+              id="btn-auto-calc-end-date"
+              class="btn btn-link btn-sm p-0 text-decoration-none text-primary fw-semibold"
+              style="font-size: 0.8rem;"
+              title="Auto-calculate end date to match nominal course training days">
+              <i class="bi bi-magic me-1"></i>Auto-calculate (<span id="auto-calc-days-label">24</span> days)
+            </button>
+          </div>
 
           <input
             type="date"
@@ -588,6 +604,14 @@
 
         </div>
 
+      </div>
+
+      <!-- Live Dynamic Training Days Calculation Feedback -->
+      <div id="template-dates-dynamic-feedback" class="alert alert-info py-2 px-3 small d-none mb-3" role="status">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-calendar-check text-primary flex-shrink-0"></i>
+          <span id="template-dates-dynamic-text"></span>
+        </div>
       </div>
 
 
@@ -635,26 +659,37 @@
 
       <!-- Form buttons -->
       <div
-        class="d-flex flex-wrap justify-content-end gap-2 pt-2">
+        class="d-flex flex-wrap justify-content-end align-items-center gap-2 pt-2">
 
         <button
           type="button"
           id="schedule-template-cancel"
-          class="btn btn-outline-secondary px-4">
-
+          class="btn btn-outline-secondary px-3">
           Cancel
-
         </button>
 
         <button
           type="submit"
           id="schedule-template-save"
-          class="btn btn-outline-dark px-4 fw-semibold">
-
-          Save schedule
-
+          class="btn btn-outline-dark px-3 fw-semibold">
+          <i class="bi bi-floppy me-1"></i>Save schedule
         </button>
 
+        <button
+          type="button"
+          id="schedule-template-save-all"
+          class="btn btn-outline-primary px-3 fw-semibold d-none">
+          <i class="bi bi-check2-all me-1"></i>Save for all selected (<span id="schedule-save-all-count">0</span>)
+        </button>
+
+      </div>
+
+      <!-- Requirements warning / guidance hint -->
+      <div id="schedule-buttons-requirements-hint" class="small text-muted text-end w-100 mt-2 d-none">
+        <i class="bi bi-info-circle me-1 text-secondary"></i>
+        <span id="schedule-buttons-requirements-text">
+          Please complete required schedule fields to enable saving.
+        </span>
       </div>
 
     </form>

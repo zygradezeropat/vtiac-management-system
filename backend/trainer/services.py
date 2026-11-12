@@ -145,8 +145,14 @@ def module_page_context(module, request=None):
     }
     if module in ("dashboard", "students"):
         user = getattr(request, "user", None) if request else None
+        start = (request.GET.get("start_date") or "").strip() if request else ""
+        end = (request.GET.get("end_date") or "").strip() if request else ""
         if user and getattr(user, "is_authenticated", False):
-            batch_ctx = trainer_class_schedule_context(user)
+            batch_ctx = trainer_class_schedule_context(
+                user,
+                start_date=start or None,
+                end_date=end or None,
+            )
             ctx.update(batch_ctx)
             if module == "students":
                 from .attendance_print import attendance_print_payload
@@ -155,14 +161,17 @@ def module_page_context(module, request=None):
                 ctx["attendance_print_students"] = attendance["students"]
                 ctx["attendance_print_meta"] = attendance["meta"]
             if module == "dashboard":
-                total = (
-                    batch_ctx["total_assigned_students"]
-                    if batch_ctx["has_assigned_classes"]
-                    else 0
-                )
                 from .portal_metrics import trainer_dashboard_metrics
 
-                ctx.update(trainer_dashboard_metrics(user))
+                ctx.update(
+                    trainer_dashboard_metrics(
+                        user,
+                        start_date=start or None,
+                        end_date=end or None,
+                    )
+                )
+                ctx["dashboard_filter_start"] = start
+                ctx["dashboard_filter_end"] = end
         elif module == "dashboard":
             ctx.update(trainer_dashboard_stats())
         else:

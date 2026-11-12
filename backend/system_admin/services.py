@@ -114,7 +114,12 @@ def module_page_context(module, request=None):
     if module == "dashboard":
         from .dashboard_stats import admin_dashboard_stats
 
-        ctx["admin_dashboard_stats"] = admin_dashboard_stats()
+        start = (request.GET.get("start_date") or "").strip() if request else ""
+        end = (request.GET.get("end_date") or "").strip() if request else ""
+        stats = admin_dashboard_stats(start_date=start or None, end_date=end or None)
+        ctx["admin_dashboard_stats"] = stats
+        ctx["dashboard_filter_start"] = stats.get("filterStart") or start
+        ctx["dashboard_filter_end"] = stats.get("filterEnd") or end
     if module == "reports":
         from .institutional_reports import institutional_reports_payload
 

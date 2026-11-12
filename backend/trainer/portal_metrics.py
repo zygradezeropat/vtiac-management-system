@@ -12,8 +12,8 @@ from backend.trainer.egace_progress import (
 from backend.student.models import StudentRegistration
 
 
-def trainer_dashboard_metrics(user) -> dict:
-    students, batch_cards = assigned_students_by_batch(user)
+def trainer_dashboard_metrics(user, start_date=None, end_date=None) -> dict:
+    students, batch_cards = assigned_students_by_batch(user, start_date=start_date, end_date=end_date)
     total = len(students)
 
     if not total:

@@ -30,8 +30,6 @@ class NcProgram(models.Model):
 
 
 class ProgramCompetency(models.Model):
-    """Units of Competency (Basic, Common, Core) configured per NC Program."""
-
     class Category(models.TextChoices):
         BASIC = "basic", "Basic Competencies"
         COMMON = "common", "Common Competencies"
@@ -65,8 +63,6 @@ class ProgramCompetency(models.Model):
 
 
 class TrainingSchedule(models.Model):
-    """Training schedule option — managed from the admin portal and selected by students during registration."""
-
     name = models.CharField(max_length=200, unique=True)
     code = models.CharField(max_length=80, blank=True)
     days = models.CharField(max_length=120, blank=True)
@@ -84,8 +80,6 @@ class TrainingSchedule(models.Model):
 
 
 class SystemSettings(models.Model):
-    """Singleton row for portal-wide configuration."""
-
     singleton_key = models.CharField(max_length=1, default="X", unique=True, editable=False)
     fiscal_year_label = models.CharField(max_length=32, default=DEFAULT_FISCAL_YEAR_LABEL)
     registration_fee = models.DecimalField(
@@ -115,11 +109,6 @@ class SystemSettings(models.Model):
 
     @property
     def is_evaluation_open(self) -> bool:
-        """
-        Trainer Evaluation is enabled whenever the admin has set a schedule (start_date and end_date)
-        AND the current date falls between start_date and end_date (inclusive).
-        Otherwise it is disabled.
-        """
         if not self.evaluation_start_date or not self.evaluation_end_date:
             return False
         from django.utils import timezone
@@ -127,9 +116,6 @@ class SystemSettings(models.Model):
         return self.evaluation_start_date <= today <= self.evaluation_end_date
 
     def get_evaluation_status(self) -> dict:
-        """
-        Return comprehensive evaluation schedule status dictionary based directly on scheduled dates.
-        """
         from django.utils import timezone
         today = timezone.localdate()
         start = self.evaluation_start_date
@@ -196,7 +182,6 @@ class SystemSettings(models.Model):
 
 
 def seed_default_programs():
-    """Ensure default NC programs and their competencies exist (idempotent)."""
     for name, fee, sort_order in DEFAULT_PROGRAMS:
         program, _ = NcProgram.objects.get_or_create(
             name=name,
@@ -228,7 +213,6 @@ def seed_default_programs():
 
 
 def seed_default_schedules():
-    """Ensure default training schedule options exist (idempotent)."""
     if TrainingSchedule.objects.exists():
         return
     TrainingSchedule.objects.bulk_create(

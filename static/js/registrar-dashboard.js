@@ -229,14 +229,11 @@ function currentFilterParams() {
   const params = new URLSearchParams(window.location.search);
   const startEl = document.getElementById("start-date");
   const endEl = document.getElementById("end-date");
-  const yearEl = document.getElementById("dashboard-year-select");
 
   const next = new URLSearchParams();
-  const year = yearEl?.value || params.get("year");
   const start = startEl?.value || params.get("start_date") || "";
   const end = endEl?.value || params.get("end_date") || "";
 
-  if (year) next.set("year", year);
   if (start) next.set("start_date", start);
   if (end) next.set("end_date", end);
   return next;
@@ -249,30 +246,17 @@ function navigateWithParams(params) {
     : window.location.pathname;
 }
 
-function initYearFilter(chartStats) {
-  const yearEl = document.getElementById("dashboard-year-select");
-  if (!yearEl) return;
-
-  if (chartStats?.year) yearEl.value = String(chartStats.year);
-
-  yearEl.addEventListener("change", () => {
-    const params = currentFilterParams();
-    if (yearEl.value) params.set("year", yearEl.value);
-    else params.delete("year");
-    navigateWithParams(params);
-  });
-}
-
 function initDateFilter(chartStats) {
   const startEl = document.getElementById("start-date");
   const endEl = document.getElementById("end-date");
   const applyBtn = document.getElementById("apply-filter");
-  if (!startEl || !endEl || !applyBtn) return;
+  const clearBtn = document.getElementById("clear-filter");
+  if (!startEl || !endEl) return;
 
   if (!startEl.value && chartStats?.filterStart) startEl.value = chartStats.filterStart;
   if (!endEl.value && chartStats?.filterEnd) endEl.value = chartStats.filterEnd;
 
-  applyBtn.addEventListener("click", () => {
+  applyBtn?.addEventListener("click", () => {
     const start = startEl.value;
     const end = endEl.value;
 
@@ -288,6 +272,12 @@ function initDateFilter(chartStats) {
     else params.delete("end_date");
     navigateWithParams(params);
   });
+
+  clearBtn?.addEventListener("click", () => {
+    startEl.value = "";
+    endEl.value = "";
+    window.location.href = window.location.pathname;
+  });
 }
 
 function initRegistrarDashboard() {
@@ -296,7 +286,6 @@ function initRegistrarDashboard() {
 
   initMonthlyEnrollmentChart(chartStats.monthlyEnrollment || [], chartStats.currentMonthIndex ?? 0);
   initEnrollmentPieChart(chartStats.piePrograms || []);
-  initYearFilter(chartStats);
   initDateFilter(chartStats);
 }
 

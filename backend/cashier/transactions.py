@@ -158,17 +158,31 @@ def reports_summary(
     }
 
 
-def dashboard_stats() -> dict:
-    payments = list(CashierPayment.objects.order_by("-created_at"))
+def dashboard_stats(start_date: str | None = None, end_date: str | None = None) -> dict:
+    parsed_start = _parse_date_param(start_date)
+    parsed_end = _parse_date_param(end_date)
+    has_range = bool(parsed_start or parsed_end)
+
+    base_qs = CashierPayment.objects.order_by("-created_at")
+    if has_range:
+        qs = _payments_in_range(base_qs, parsed_start, parsed_end)
+    else:
+        qs = base_qs
+
+    payments = list(qs)
     now = timezone.localtime(timezone.now())
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=now.weekday())
 
     total_collections = sum((p.paid_amount for p in payments), 0)
-    today_count = sum(1 for p in payments if timezone.localtime(p.created_at) >= today_start)
-    weekly_total = sum(
-        p.paid_amount for p in payments if timezone.localtime(p.created_at) >= week_start
-    )
+    if has_range:
+        today_count = len(payments)
+        weekly_total = total_collections
+    else:
+        today_count = sum(1 for p in payments if timezone.localtime(p.created_at) >= today_start)
+        weekly_total = sum(
+            p.paid_amount for p in payments if timezone.localtime(p.created_at) >= week_start
+        )
 
     try:
         from .student_search import list_students_for_cashier
@@ -190,4 +204,7 @@ def dashboard_stats() -> dict:
         "weeklyTotal": float(weekly_total),
         "recentTransactions": [serialize_payment(p) for p in payments[:5]],
         "transactionCount": len(payments),
+        "filterStart": parsed_start.isoformat() if parsed_start else "",
+        "filterEnd": parsed_end.isoformat() if parsed_end else "",
+        "isFiltered": has_range,
     }

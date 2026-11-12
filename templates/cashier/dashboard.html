@@ -24,6 +24,31 @@
   </a>
 </section>
 
+<section class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white" aria-label="Date range filter">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <i class="bi bi-calendar-range text-success fs-5"></i>
+      <span class="fw-semibold text-dark">Filter Collections & Transactions by Date:</span>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0" for="cashier-start-date">From:</label>
+        <input type="date" id="cashier-start-date" class="form-control form-control-sm w-auto">
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0" for="cashier-end-date">To:</label>
+        <input type="date" id="cashier-end-date" class="form-control form-control-sm w-auto">
+      </div>
+      <button type="button" class="btn btn-success btn-sm px-3" id="cashier-apply-filter">
+        <i class="bi bi-funnel me-1"></i>Apply
+      </button>
+      <button type="button" class="btn btn-outline-secondary btn-sm px-3" id="cashier-clear-filter">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+      </button>
+    </div>
+  </div>
+</section>
+
 <section class="cashier-stats-grid" aria-label="Dashboard statistics">
   <a href="{% url 'cashier_module' module='history' %}" class="cashier-stat-card">
     <div class="cashier-stat-header">

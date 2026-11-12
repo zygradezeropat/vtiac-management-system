@@ -1,6 +1,6 @@
 """Registrar batching & scheduling API (DB-backed course cards and templates)."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 
 from backend.accounts.services import require_portal_access
 from backend.student.models import StudentRegistration
-from backend.trainer.models import TrainerAccountRequest
+from backend.trainer.models import TrainerAccountRequest, TrainerStudentGrade
 from backend.trainer.egace_progress import (
     grade_payload_for_registration,
     student_is_graduate,
@@ -95,11 +95,20 @@ def _course_catalog():
         .distinct()
     )
 
+    try:
+        from backend.system_admin.models import ProgramConfig
+        from_program_configs = list(
+            ProgramConfig.objects.filter(is_active=True).values_list("name", flat=True)
+        )
+    except Exception:
+        from_program_configs = []
+
     seen = set()
     out = []
 
     for name in [
         *DEFAULT_BATCHING_COURSES,
+        *from_program_configs,
         *from_registrations,
         *from_templates,
     ]:
@@ -133,15 +142,37 @@ def _course_id(
 
 
 def batching_courses_payload():
+    from backend.system_admin.models import NcProgram
     from .pending_enrollment import pending_programs_by_type
 
     pending_training, pending_assessment = (
         pending_programs_by_type()
     )
 
-    courses = []
+    # Fetch active programs directly from the NcProgram model
+    active_nc_programs = list(
+        NcProgram.objects.filter(is_active=True).order_by("sort_order", "name")
+    )
+    nc_prog_map = {p.name.strip(): p for p in active_nc_programs}
+
+    # Distinct list of program names: active NcPrograms first, then any catalog names
+    catalog_names = []
+    seen = set()
+    for p in active_nc_programs:
+        key = p.name.strip()
+        if key and key not in seen:
+            seen.add(key)
+            catalog_names.append(key)
 
     for name in _course_catalog():
+        key = name.strip()
+        if key and key not in seen:
+            seen.add(key)
+            catalog_names.append(key)
+
+    courses = []
+
+    for name in catalog_names:
 
         # ---------------------------------------------------------
         # TRAINING / INSTITUTIONAL
@@ -152,10 +183,9 @@ def batching_courses_payload():
             batch_kind=BatchKind.TRAINING,
         )
 
-        if (
-            training_students
-            or name in pending_training
-        ):
+        duration_days = COURSE_DURATIONS.get(name, 0)
+
+        if name not in {"Assessment", "Competency Assessment"}:
             courses.append(
                 {
                     "id": _course_id(
@@ -165,10 +195,7 @@ def batching_courses_payload():
                     "name": name,
                     "category": BATCHING_CATEGORY_INSTITUTIONAL,
                     "batchKind": BatchKind.TRAINING.value,
-                    "durationDays": COURSE_DURATIONS.get(
-                        name,
-                        0,
-                    ),
+                    "durationDays": duration_days,
                     "batches": [
                         {
                             "id": "b1",
@@ -255,6 +282,21 @@ def _format_optional_date(value) -> str:
         if parsed
         else str(value).strip()
     )
+
+
+def _calculate_scheduled_days(start_date: date | None, end_date: date | None, days: list | None) -> int | None:
+    if not start_date or not end_date or end_date < start_date:
+        return None
+    day_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+    selected_weekdays = {day_map[d.lower()] for d in days if isinstance(d, str) and d.lower() in day_map} if days else set()
+    count = 0
+    curr = start_date
+    one_day = timedelta(days=1)
+    while curr <= end_date:
+        if not selected_weekdays or curr.weekday() in selected_weekdays:
+            count += 1
+        curr += one_day
+    return count
 
 
 def _parse_template_db_id(
@@ -468,17 +510,29 @@ def _conflicting_active_batch(
     exclude_id: int | None = None,
 ):
     """
-    Find another ACTIVE batch using the same trainer
+    Find another batch (active or draft in another course) using the same trainer
     with an overlapping schedule.
     """
 
-    qs = RegistrarScheduleTemplate.objects.filter(
-        status=RegistrarScheduleTemplate.Status.ACTIVE,
+    qs = RegistrarScheduleTemplate.objects.exclude(
+        status=RegistrarScheduleTemplate.Status.COMPLETED,
     )
 
     if exclude_id:
         qs = qs.exclude(
             pk=exclude_id
+        )
+
+    # Exclude drafts for the exact same course if updating/saving a draft for that course
+    if template.course_id:
+        qs = qs.exclude(
+            course_id=template.course_id,
+            status=RegistrarScheduleTemplate.Status.DRAFT,
+        )
+    elif template.course_name:
+        qs = qs.exclude(
+            course_name__iexact=template.course_name,
+            status=RegistrarScheduleTemplate.Status.DRAFT,
         )
 
     trainer_name = (
@@ -589,20 +643,17 @@ def _students_for_template(
 def _add_competency_status_to_students(
     students: list[dict],
     course_name: str,
+    template_id: int | None = None,
 ) -> list[dict]:
     """
-    Add the student's actual institutional
-    competency status based on the latest
-    TrainerStudentGrade record and EGACE logic.
+    Add the student's actual institutional competency status
+    connected to the Trainer Record Sheet (TrainerStudentGrade)
+    and TESDA EGACE completion logic.
     """
-
     result = []
 
     for student in students:
-
-        student_data = dict(
-            student
-        )
+        student_data = dict(student)
 
         first_name = (
             student.get("firstName")
@@ -622,53 +673,92 @@ def _add_competency_status_to_students(
             or ""
         ).strip()
 
-        registration = (
-            StudentRegistration.objects.filter(
-                status=(
-                    StudentRegistration.Status.APPROVED
-                ),
-                selected_program=program,
-                first_name__iexact=first_name,
-                last_name__iexact=last_name,
+        ref = (
+            student.get("referenceId")
+            or student.get("reference_id")
+            or student.get("studentId")
+            or ""
+        ).strip()
+
+        student_id = student.get("id") or student.get("registrationId")
+
+        registration = None
+        if ref:
+            registration = StudentRegistration.objects.filter(
+                reference_id__iexact=ref
+            ).first()
+
+        if not registration and student_id:
+            try:
+                registration = StudentRegistration.objects.filter(
+                    pk=student_id
+                ).first()
+            except Exception:
+                pass
+
+        if not registration and first_name and last_name:
+            registration = (
+                StudentRegistration.objects.filter(
+                    status=StudentRegistration.Status.APPROVED,
+                    selected_program=program,
+                    first_name__iexact=first_name,
+                    last_name__iexact=last_name,
+                )
+                .order_by("-created_at")
+                .first()
             )
-            .order_by(
-                "-created_at"
-            )
-            .first()
-        )
 
-        if not registration:
-
-            student_data[
-                "competencyStatus"
-            ] = "Not Yet Competent"
-
-            result.append(
-                student_data
+        if not registration and first_name and last_name:
+            registration = (
+                StudentRegistration.objects.filter(
+                    status=StudentRegistration.Status.APPROVED,
+                    first_name__iexact=first_name,
+                    last_name__iexact=last_name,
+                )
+                .order_by("-created_at")
+                .first()
             )
 
-            continue
+        ref_id = (registration.reference_id if registration else ref) or ""
 
-        payload = grade_payload_for_registration(
-            registration
-        )
+        # Fetch grade payload from Trainer's Record Sheet
+        payload = None
+        if ref_id and template_id:
+            grade_rec = (
+                TrainerStudentGrade.objects.filter(
+                    student_key=f"{ref_id}|{template_id}"
+                )
+                .order_by("-updated_at")
+                .first()
+            )
+            if grade_rec and isinstance(grade_rec.payload, dict):
+                payload = grade_rec.payload
+
+        if payload is None and registration:
+            payload = grade_payload_for_registration(registration)
+
+        if payload is None and first_name and last_name:
+            grade_rec = (
+                TrainerStudentGrade.objects.filter(
+                    program=program,
+                    student_name__icontains=last_name,
+                )
+                .order_by("-updated_at")
+                .first()
+            )
+            if grade_rec and isinstance(grade_rec.payload, dict):
+                payload = grade_rec.payload
 
         is_competent = student_is_graduate(
             payload,
-            program,
+            program or (registration.selected_program if registration else ""),
         )
 
-        student_data[
-            "competencyStatus"
-        ] = (
-            "Competent"
-            if is_competent
-            else "Not Yet Competent"
+        student_data["competencyStatus"] = (
+            "Competent" if is_competent else "Incompetent"
         )
 
-        result.append(
-            student_data
-        )
+        result.append(student_data)
 
     return result
 
@@ -689,6 +779,7 @@ def _serialize_template(
     students = _add_competency_status_to_students(
         students,
         t.course_name,
+        template_id=t.pk,
     )
 
     return {
@@ -787,9 +878,25 @@ def _serialize_template(
             else ""
         ),
 
-        "durationDays": COURSE_DURATIONS.get(
+        "durationDays": (
+            _calculate_scheduled_days(
+                t.available_from,
+                t.available_until,
+                t.days if isinstance(t.days, list) else None,
+            )
+            or COURSE_DURATIONS.get(
+                t.course_name,
+                0,
+            )
+        ),
+        "nominalDurationDays": COURSE_DURATIONS.get(
             t.course_name,
             0,
+        ),
+        "scheduledDurationDays": _calculate_scheduled_days(
+            t.available_from,
+            t.available_until,
+            t.days if isinstance(t.days, list) else None,
         ),
 
         "studentCount": len(
@@ -1337,18 +1444,16 @@ def batching_template_upsert(request):
     ).strip()
 
     if not batch_label:
-        if name:
-            batch_label = f"{academic_year} · {term} · {name}"
-        else:
-            batch_label = f"{academic_year} · {term}"
+        batch_name = name if (name and len(name) <= 30) else "Batch 1"
+        batch_label = f"{academic_year} · {batch_name}"
 
-    obj.academic_year = academic_year
+    obj.academic_year = academic_year[:32]
 
-    obj.term = term
+    obj.term = term[:32]
 
-    obj.batch_label = batch_label
+    obj.batch_label = batch_label[:128].strip()
 
-    obj.name = name
+    obj.name = name[:200].strip()
 
     # ---------------------------------------------------------
     # SCHEDULE
@@ -1466,6 +1571,13 @@ def batching_template_upsert(request):
     # ---------------------------------------------------------
     # SAVE
     # ---------------------------------------------------------
+
+    if not obj.students_snapshot:
+        available_pool = available_students_for_course(
+            obj.course_name,
+            batch_kind=obj.batch_kind,
+        )
+        obj.students_snapshot = available_pool[:25]
 
     obj.save()
 

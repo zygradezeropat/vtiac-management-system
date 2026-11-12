@@ -1841,6 +1841,12 @@
   color: #047857;
 }
 
+.registrar-batch-card__status--closed {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
 .registrar-batch-card__alert {
   font-size: 0.75rem;
   color: #b45309;
@@ -1908,6 +1914,37 @@
   color: #64748b;
 }
 
+.registrar-batch-tab__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  padding: 0.125rem 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.registrar-batch-tab.is-active .registrar-batch-tab__status--ready {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.registrar-batch-tab:not(.is-active) .registrar-batch-tab__status--ready {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.registrar-batch-tab.is-active .registrar-batch-tab__status--incomplete {
+  background: rgba(255, 255, 255, 0.3);
+  color: #fef08a;
+}
+
+.registrar-batch-tab:not(.is-active) .registrar-batch-tab__status--incomplete {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 .registrar-batching-category-empty {
   border: 1px dashed var(--registrar-border);
   border-radius: 0.75rem;
@@ -1930,6 +1967,16 @@
 .registrar-batching-form input[readonly] {
   background: #f1f5f9;
   cursor: not-allowed;
+}
+
+#schedule-template-save:disabled,
+#schedule-template-save-all:disabled,
+#schedule-template-finalize:disabled,
+#schedule-template-finalize-all:disabled {
+  opacity: 0.42 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(40%);
+  pointer-events: auto !important;
 }
 
 .registrar-schedule-hint {

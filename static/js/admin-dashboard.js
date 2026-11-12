@@ -107,6 +107,39 @@ function initProgramTabs(programs) {
   });
 }
 
+function initAdminDateFilter(data) {
+  const startEl = document.getElementById("admin-start-date");
+  const endEl = document.getElementById("admin-end-date");
+  const applyBtn = document.getElementById("admin-apply-filter");
+  const clearBtn = document.getElementById("admin-clear-filter");
+  if (!startEl || !endEl) return;
+
+  if (!startEl.value && data?.filterStart) startEl.value = data.filterStart;
+  if (!endEl.value && data?.filterEnd) endEl.value = data.filterEnd;
+
+  applyBtn?.addEventListener("click", () => {
+    const start = startEl.value;
+    const end = endEl.value;
+
+    if (start && end && start > end) {
+      window.alert("From date must be on or before To date.");
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (start) params.set("start_date", start);
+    if (end) params.set("end_date", end);
+    const qs = params.toString();
+    window.location.href = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+  });
+
+  clearBtn?.addEventListener("click", () => {
+    startEl.value = "";
+    endEl.value = "";
+    window.location.href = window.location.pathname;
+  });
+}
+
 function initAdminDashboard() {
   const data = loadDashboardData();
   if (!data) return;
@@ -120,6 +153,7 @@ function initAdminDashboard() {
     titleNameId: "egace-qualification-name",
   });
   initProgramTabs(data.programs || []);
+  initAdminDateFilter(data);
 }
 
 if (document.readyState === "loading") {

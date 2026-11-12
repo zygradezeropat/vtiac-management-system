@@ -18,11 +18,21 @@ function renderDashboard(stats) {
   if (elActive) elActive.textContent = String(stats.activeStudents ?? 0);
   if (elWeek) elWeek.textContent = formatPeso(stats.weeklyTotal || 0);
 
+  const totalLabel = elTotal?.closest(".cashier-stat-card")?.querySelector(".cashier-stat-label");
+  const todayLabel = elToday?.closest(".cashier-stat-card")?.querySelector(".cashier-stat-label");
+  if (stats.isFiltered) {
+    if (totalLabel) totalLabel.textContent = "Collections in date range";
+    if (todayLabel) todayLabel.textContent = "Transactions in date range";
+  } else {
+    if (totalLabel) totalLabel.textContent = "Total amount collected";
+    if (todayLabel) todayLabel.textContent = "Payments processed today";
+  }
+
   if (!elRecent) return;
 
   const recent = stats.recentTransactions || [];
   if (!recent.length) {
-    elRecent.innerHTML = `<p class="text-muted small mb-0">No transactions yet. Click <strong>New Payment</strong> to process one.</p>`;
+    elRecent.innerHTML = `<p class="text-muted small mb-0">${stats.isFiltered ? "No transactions found in this date range." : "No transactions yet. Click <strong>New Payment</strong> to process one."}</p>`;
     return;
   }
 
@@ -50,9 +60,14 @@ function renderDashboard(stats) {
     .join("");
 }
 
-async function fetchDashboard() {
+async function fetchDashboard(startDate = "", endDate = "") {
   try {
-    const res = await fetch("/cashier/api/dashboard/", { credentials: "same-origin" });
+    const params = new URLSearchParams();
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    const qs = params.toString();
+    const url = qs ? `/cashier/api/dashboard/?${qs}` : "/cashier/api/dashboard/";
+    const res = await fetch(url, { credentials: "same-origin" });
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -68,8 +83,16 @@ export function initCashierDashboard() {
     openPaymentModal();
   });
 
+  const startEl = document.getElementById("cashier-start-date");
+  const endEl = document.getElementById("cashier-end-date");
+  const applyBtn = document.getElementById("cashier-apply-filter");
+  const clearBtn = document.getElementById("cashier-clear-filter");
+
+  let currentStart = "";
+  let currentEnd = "";
+
   const refresh = async () => {
-    const stats = await fetchDashboard();
+    const stats = await fetchDashboard(currentStart, currentEnd);
     if (stats) {
       renderDashboard(stats);
     } else {
@@ -82,6 +105,28 @@ export function initCashierDashboard() {
       });
     }
   };
+
+  applyBtn?.addEventListener("click", () => {
+    const start = startEl?.value || "";
+    const end = endEl?.value || "";
+
+    if (start && end && start > end) {
+      window.alert("From date must be on or before To date.");
+      return;
+    }
+
+    currentStart = start;
+    currentEnd = end;
+    refresh();
+  });
+
+  clearBtn?.addEventListener("click", () => {
+    if (startEl) startEl.value = "";
+    if (endEl) endEl.value = "";
+    currentStart = "";
+    currentEnd = "";
+    refresh();
+  });
 
   refresh();
   window.addEventListener("cashier:transaction-saved", refresh);

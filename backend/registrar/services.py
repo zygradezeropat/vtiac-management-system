@@ -278,10 +278,10 @@ def module_page_context(module, request=None):
             "count": payments_agg["count"] or 0,
         }
 
-        ctx["reports_egace_data_json"] = json.dumps(egace_rows)
-        ctx["reports_batches_data_json"] = json.dumps(batch_reports)
-        ctx["reports_enrollment_data_json"] = json.dumps(enrollment_stats)
-        ctx["reports_payments_data_json"] = json.dumps(payment_stats)
+        ctx["reports_egace_data_json"] = egace_rows
+        ctx["reports_batches_data_json"] = batch_reports
+        ctx["reports_enrollment_data_json"] = enrollment_stats
+        ctx["reports_payments_data_json"] = payment_stats
 
     if module == "egace-table":
         from django.urls import reverse

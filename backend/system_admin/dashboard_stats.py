@@ -1,6 +1,10 @@
 """Admin dashboard aggregates — NC program cards, EGACE summary, pending counts."""
 
 from collections import defaultdict
+from datetime import date
+
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from backend.cashier.balance import fee_balance_for_profile
 from backend.cashier.fees import resolve_program
@@ -40,7 +44,29 @@ def _empty_metrics() -> dict:
     }
 
 
-def _enrolled_by_program() -> dict[str, int]:
+def _coerce_date(value) -> date | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    return parse_date(str(value).strip()[:10])
+
+
+def _in_date_range(dt, start_date: date | None, end_date: date | None) -> bool:
+    if not dt:
+        return False
+    day = dt.date() if hasattr(dt, "date") else dt
+    if start_date and day < start_date:
+        return False
+    if end_date and day > end_date:
+        return False
+    return True
+
+
+def _enrolled_by_program(
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict[str, int]:
     counts: dict[str, int] = defaultdict(int)
     approved_regs = StudentRegistration.objects.filter(
         status=StudentRegistration.Status.APPROVED,
@@ -48,6 +74,13 @@ def _enrolled_by_program() -> dict[str, int]:
 
     for reg in approved_regs:
         profile = _profile_for_registration(reg)
+        dt = (
+            timezone.localtime(profile.updated_at)
+            if profile and profile.updated_at
+            else (timezone.localtime(reg.created_at) if reg.created_at else None)
+        )
+        if (start_date or end_date) and not _in_date_range(dt, start_date, end_date):
+            continue
         program = resolve_program(_program_for_profile(profile, reg) or reg.selected_program or "")
         if program:
             counts[program] += 1
@@ -75,8 +108,11 @@ def _egace_metrics_by_course() -> dict[str, dict]:
     return by_course
 
 
-def _program_cards_payload() -> list[dict]:
-    enrolled_counts = _enrolled_by_program()
+def _program_cards_payload(
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[dict]:
+    enrolled_counts = _enrolled_by_program(start_date=start_date, end_date=end_date)
     egace_by_course = _egace_metrics_by_course()
     cards = []
 
@@ -290,10 +326,17 @@ def pending_counts_payload() -> list[dict]:
     return items
 
 
-def admin_dashboard_stats() -> dict:
+def admin_dashboard_stats(
+    start_date: str | date | None = None,
+    end_date: str | date | None = None,
+) -> dict:
+    start_d = _coerce_date(start_date)
+    end_d = _coerce_date(end_date)
     return {
         "pendingCounts": pending_counts_payload(),
-        "programs": _program_cards_payload(),
+        "programs": _program_cards_payload(start_date=start_d, end_date=end_d),
         "egaceSummary": _egace_summary_payload(),
         "egaceBatchReport": _egace_batch_report_payload(),
+        "filterStart": start_d.isoformat() if start_d else "",
+        "filterEnd": end_d.isoformat() if end_d else "",
     }

@@ -39,7 +39,7 @@ class RegistrarScheduleTemplate(models.Model):
         related_name="schedule_templates",
     )
     trainer_name = models.CharField(max_length=150, blank=True)
-    batch_label = models.CharField(max_length=64, default="AY 2026–2027 · Batch 1")
+    batch_label = models.CharField(max_length=128, default="AY 2026–2027 · Batch 1")
     academic_year = models.CharField(max_length=32, default="AY 2026–2027", db_index=True)
     term = models.CharField(max_length=32, blank=True, default="1st Semester")
     batch_kind = models.CharField(

@@ -20,7 +20,6 @@ def finalized_batched_keys_for_course(
     *,
     batch_kind: str = RegistrarScheduleTemplate.BatchKind.TRAINING,
 ) -> set[tuple[str, str]]:
-    """Students already in a finalized batch roster for this program and batch kind."""
     keys: set[tuple[str, str]] = set()
     for template in RegistrarScheduleTemplate.objects.filter(
         course_name=course_name,
@@ -44,7 +43,6 @@ def finalized_batched_keys_for_course(
 
 
 def _profiles_for_registration(reg: StudentRegistration):
-    """Enrollment profile(s) that may belong to this registration."""
     if reg.user_id:
         profile = StudentEnrollmentProfile.objects.filter(user_id=reg.user_id).first()
         if profile:
@@ -59,7 +57,6 @@ def _profiles_for_registration(reg: StudentRegistration):
 
 
 def registration_has_assigned_schedule(reg: StudentRegistration) -> bool:
-    """True when the student already has a class schedule for batching purposes."""
     for profile in _profiles_for_registration(reg):
         if profile.preferred_schedule_id:
             return True
@@ -114,12 +111,27 @@ def available_students_for_course(
         status=StudentRegistration.Status.APPROVED,
         selected_program=course_name,
     ).order_by("last_name", "first_name", "id")
+
+    pref_sched_map = dict(StudentRegistration.PreferredSchedule.choices)
+    prog_type_map = dict(StudentRegistration.ProgramType.choices)
+
     return [
         {
+            "id": str(row.id),
+            "referenceId": row.reference_id,
             "lastName": row.last_name,
             "firstName": row.first_name,
+            "middleName": row.middle_name or "",
+            "fullName": f"{row.last_name}, {row.first_name} {row.middle_name or ''}".strip(),
+            "email": row.email,
+            "phoneNumber": row.phone_number or "",
             "program": row.selected_program,
             "programType": row.program_type,
+            "programTypeDisplay": prog_type_map.get(row.program_type, row.program_type),
+            "preferredSchedule": pref_sched_map.get(
+                row.preferred_schedule, row.preferred_schedule or "Not specified"
+            ),
+            "status": "Enrolled",
         }
         for row in rows
         if is_student_available_for_batching(
