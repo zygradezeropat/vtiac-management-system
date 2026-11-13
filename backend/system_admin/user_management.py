@@ -18,7 +18,7 @@ from backend.trainer.services import (
 User = get_user_model()
 
 STAFF_ROLE_VALUES = {choice[0] for choice in StaffProfile.Role.choices}
-ACCOUNT_TYPES = ("staff", "student")
+ACCOUNT_TYPES = ("staff", "student", "graduate")
 PAGE_SIZE = 10
 
 
@@ -31,6 +31,9 @@ def _account_type_for(user):
     if hasattr(user, "staff_profile"):
         return "staff"
     if hasattr(user, "student_profile"):
+        from backend.student.services import student_is_user_graduated
+        if student_is_user_graduated(user):
+            return "graduate"
         return "student"
     return "other"
 
@@ -39,6 +42,8 @@ def _role_label(user):
     account_type = _account_type_for(user)
     if account_type == "staff":
         return user.staff_profile.get_role_display()
+    if account_type == "graduate":
+        return "Graduate"
     if account_type == "student":
         return "Student"
     return "—"
@@ -56,6 +61,34 @@ def serialize_user(user):
             treq = TrainerAccountRequest.objects.filter(email__iexact=user.email).first()
             if treq and isinstance(treq.qualifications, list):
                 qualifications = treq.qualifications
+
+    is_graduated = account_type == "graduate"
+    graduated_at_iso = ""
+    graduated_at_display = ""
+    days_remaining = None
+    days_passed = 0
+    retention_expired = False
+
+    if is_graduated:
+        role = "graduate"
+        reg = getattr(user, "registration_application", None)
+        g_dt = getattr(reg, "graduated_at", None) if reg else None
+        if not g_dt and reg:
+            g_dt = reg.created_at
+        if not g_dt:
+            g_dt = user.date_joined
+
+        from django.utils import timezone
+        if g_dt:
+            g_local = timezone.localtime(g_dt)
+            graduated_at_iso = g_local.isoformat()
+            graduated_at_display = g_local.strftime("%b %d, %Y")
+            days_passed = max(0, (timezone.localdate() - g_local.date()).days)
+            days_remaining = max(0, 365 - days_passed)
+            retention_expired = days_passed >= 365
+        else:
+            days_remaining = 365
+
     return {
         "id": user.id,
         "email": user.email,
@@ -69,6 +102,12 @@ def serialize_user(user):
         "qualifications": qualifications,
         "is_active": user.is_active,
         "is_staff": user.is_staff,
+        "is_graduated": is_graduated,
+        "graduated_at": graduated_at_iso,
+        "graduated_at_display": graduated_at_display,
+        "days_remaining": days_remaining,
+        "days_passed": days_passed,
+        "retention_expired": retention_expired,
         "date_joined": user.date_joined.isoformat() if user.date_joined else "",
     }
 
@@ -92,8 +131,15 @@ def list_users(*, search="", account_type="", role="", page=1):
     account_type = (account_type or "").strip().lower()
     if account_type == "staff":
         qs = qs.filter(staff_profile__isnull=False)
+    elif account_type == "graduate":
+        qs = qs.filter(
+            student_profile__isnull=False,
+            registration_application__is_graduated=True,
+        )
     elif account_type == "student":
-        qs = qs.filter(student_profile__isnull=False)
+        qs = qs.filter(
+            student_profile__isnull=False
+        ).exclude(registration_application__is_graduated=True)
 
     role = (role or "").strip().lower()
     if role in STAFF_ROLE_VALUES:
@@ -135,7 +181,7 @@ def _validate_email_unique(email, exclude_user_id=None):
 
 def create_user(*, account_type, email, first_name, last_name, password, role=""):
     account_type = (account_type or "").strip().lower()
-    if account_type not in ACCOUNT_TYPES:
+    if account_type not in ("staff", "student"):
         raise ValueError("Account type must be staff or student.")
 
     email = _validate_email_unique(email)

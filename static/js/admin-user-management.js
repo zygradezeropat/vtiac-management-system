@@ -78,15 +78,64 @@ function isTrainerCreateMode() {
   return accountType === "staff" && role === "trainer";
 }
 
-function accountTypeBadge(type) {
+function accountTypeBadge(user) {
+  const isGraduate = typeof user === "object" ? (user.account_type === "graduate" || Boolean(user.is_graduated)) : user === "graduate";
+  if (isGraduate) {
+    const daysLeft = typeof user === "object" && user.days_remaining != null ? user.days_remaining : 365;
+    const isExpired = typeof user === "object" && (user.retention_expired || daysLeft <= 0);
+    const isWarning = !isExpired && daysLeft <= 60;
+    const pillCls = isExpired
+      ? "admin-user-retention-pill--expired"
+      : isWarning
+      ? "admin-user-retention-pill--warning"
+      : "admin-user-retention-pill--ok";
+
+    const pillText = isExpired
+      ? `<i class="bi bi-exclamation-triangle-fill"></i> Expired (365d)`
+      : `<i class="bi bi-hourglass-split"></i> ${daysLeft}d remaining`;
+
+    const gradDateStr = typeof user === "object" && user.graduated_at_display ? `Grad: ${escapeHtml(user.graduated_at_display)}` : "Graduated";
+
+    return `
+      <div>
+        <span class="admin-user-badge admin-user-badge--graduate">
+          <i class="bi bi-mortarboard-fill me-1"></i>Graduate
+        </span>
+        <div class="admin-user-retention" title="Graduation 365-day active retention countdown">
+          <span class="admin-user-retention-pill ${pillCls}">
+            ${pillText}
+          </span>
+          <span class="admin-user-retention-date">${gradDateStr}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const type = typeof user === "object" ? user.account_type : user;
   const label = type === "staff" ? "Staff" : type === "student" ? "Student" : "Other";
   const cls = type === "staff" ? "admin-user-badge--staff" : "admin-user-badge--student";
   return `<span class="admin-user-badge ${cls}">${escapeHtml(label)}</span>`;
 }
 
-function statusBadge(active) {
+function statusBadge(user) {
+  const active = typeof user === "object" ? user.is_active : user;
+  const isGraduate = typeof user === "object" && (user.account_type === "graduate" || Boolean(user.is_graduated));
+  const isExpired = isGraduate && (user.retention_expired || (user.days_remaining != null && user.days_remaining <= 0));
+
   const cls = active ? "admin-user-badge--active" : "admin-user-badge--inactive";
   const label = active ? "Active" : "Inactive";
+
+  if (isGraduate && isExpired && active) {
+    return `
+      <div class="d-flex flex-column align-items-center gap-1">
+        <span class="admin-user-badge admin-user-badge--active">${label}</span>
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-1.5 py-0.5 text-2xs" style="font-size:0.65rem;" title="Account active period (365 days) has ended. Due for Inactive status.">
+          <i class="bi bi-exclamation-circle-fill me-0.5"></i>Due Inactive
+        </span>
+      </div>
+    `;
+  }
+
   return `<span class="admin-user-badge ${cls}">${label}</span>`;
 }
 
@@ -157,9 +206,9 @@ function renderUsersTable() {
     <tr data-user-id="${user.id}">
       <td>${escapeHtml(user.full_name)}</td>
       <td>${escapeHtml(user.email)}</td>
-      <td>${accountTypeBadge(user.account_type)}</td>
-      <td>${escapeHtml(user.role_label)}</td>
-      <td class="text-center">${statusBadge(user.is_active)}</td>
+      <td>${accountTypeBadge(user)}</td>
+      <td>${escapeHtml(user.role_label || (user.is_graduated ? "Graduate" : "—"))}</td>
+      <td class="text-center">${statusBadge(user)}</td>
       <td class="text-end">
         <div class="admin-users-actions">
           <button type="button" class="btn btn-sm btn-outline-secondary" data-action="edit" data-id="${user.id}">Edit</button>
@@ -434,6 +483,11 @@ function updateTrainerQualificationGrids(programs, selectedQuals = []) {
 function openCreateModal() {
   editingUserId = null;
   showFormError("");
+  const retCard = document.getElementById("userFormGraduateRetentionCard");
+  if (retCard) {
+    retCard.className = "d-none mb-3";
+    retCard.innerHTML = "";
+  }
   document.getElementById("userFormModalLabel").textContent = "Add User";
   document.getElementById("userFormId").value = "";
   document.getElementById("userFormFirstName").value = "";
@@ -467,6 +521,65 @@ function openEditModal(userId) {
 
   editingUserId = userId;
   showFormError("");
+
+  const retCard = document.getElementById("userFormGraduateRetentionCard");
+  if (retCard) {
+    const isGraduate = user.account_type === "graduate" || Boolean(user.is_graduated);
+    if (isGraduate) {
+      const daysLeft = user.days_remaining != null ? user.days_remaining : 365;
+      const isExpired = user.retention_expired || daysLeft <= 0;
+      const cardBorder = isExpired ? "alert-danger border-danger" : "alert-success border-success";
+      const badgeCls = isExpired ? "bg-danger text-white" : "bg-success text-white";
+      const statusText = isExpired ? "365-Day Period Expired" : `${daysLeft} Days Remaining`;
+
+      retCard.className = `alert ${cardBorder} p-3 rounded-3 mb-3`;
+      retCard.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <div class="fw-bold d-flex align-items-center gap-1.5 ${isExpired ? 'text-danger' : 'text-success'}">
+              <i class="bi bi-mortarboard-fill"></i> Graduated Student Account
+            </div>
+            <div class="small text-muted mt-0.5">
+              Graduation Date: <strong>${escapeHtml(user.graduated_at_display || "—")}</strong> · 365-Day Active Retention
+            </div>
+          </div>
+          <div>
+            <span class="badge ${badgeCls} px-2.5 py-1.5 rounded-pill fs-7">
+              <i class="bi bi-hourglass-split me-1"></i>${statusText}
+            </span>
+          </div>
+        </div>
+        <div class="mt-2 small text-secondary">
+          ${isExpired
+            ? 'This graduate account has exceeded the 365-day active retention period. Admin can specify this account to receive <strong>Inactive</strong> status below.'
+            : 'Graduated students retain active portal access for 365 days after graduation. Admin can adjust status to <strong>Inactive</strong> when appropriate.'}
+        </div>
+        <div class="mt-2 pt-2 border-top d-flex gap-2">
+          <button type="button" class="btn btn-sm ${user.is_active ? 'btn-outline-danger' : 'btn-outline-success'}" id="quickToggleActiveBtn">
+            <i class="bi ${user.is_active ? 'bi-person-x-fill' : 'bi-person-check-fill'} me-1"></i>${user.is_active ? 'Specify Status as Inactive' : 'Set Status as Active'}
+          </button>
+        </div>
+      `;
+      retCard.classList.remove("d-none");
+
+      document.getElementById("quickToggleActiveBtn")?.addEventListener("click", () => {
+        const activeSelect = document.getElementById("userFormActive");
+        if (activeSelect) {
+          activeSelect.value = activeSelect.value === "true" ? "false" : "true";
+          const isNowActive = activeSelect.value === "true";
+          const btn = document.getElementById("quickToggleActiveBtn");
+          if (btn) {
+            btn.className = `btn btn-sm ${isNowActive ? 'btn-outline-danger' : 'btn-outline-success'}`;
+            btn.innerHTML = `<i class="bi ${isNowActive ? 'bi-person-x-fill' : 'bi-person-check-fill'} me-1"></i>${isNowActive ? 'Specify Status as Inactive' : 'Set Status as Active'}`;
+          }
+        }
+      });
+    } else {
+      retCard.className = "d-none mb-3";
+      retCard.innerHTML = "";
+    }
+  }
+
   document.getElementById("userFormModalLabel").textContent = "Edit User";
   document.getElementById("userFormId").value = String(user.id);
   document.getElementById("userFormFirstName").value = user.first_name;

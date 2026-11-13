@@ -20,6 +20,7 @@
         <option value="">All account types</option>
         <option value="staff">Staff</option>
         <option value="student">Student</option>
+        <option value="graduate">Graduate</option>
       </select>
       <select id="userRoleFilter" class="form-select admin-form-input admin-users-filter">
         <option value="">All staff roles</option>
@@ -77,6 +78,7 @@
       </div>
       <div class="modal-body">
         <p id="userFormError" class="alert alert-danger d-none mb-3" role="alert"></p>
+        <div id="userFormGraduateRetentionCard" class="d-none mb-3"></div>
         <form id="userForm" novalidate>
           <input type="hidden" id="userFormId" value="" />
           <div class="admin-form-grid mb-3">
@@ -85,6 +87,7 @@
               <select class="form-select admin-form-input" id="userFormAccountType" required>
                 <option value="staff">Staff</option>
                 <option value="student">Student</option>
+                <option value="graduate">Graduate</option>
               </select>
             </div>
             <div class="admin-form-field" id="userFormRoleWrap">
