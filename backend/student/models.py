@@ -131,6 +131,12 @@ class StudentRegistration(models.Model):
         help_text="Whether required physical/hard copies have been submitted to the registrar.",
     )
     hard_copies_submitted_at = models.DateTimeField(null=True, blank=True)
+    is_graduated = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Whether the trainee has graduated from their course/qualification.",
+    )
+    graduated_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

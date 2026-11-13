@@ -6,7 +6,9 @@
 
   <nav class="student-nav flex-column flex-grow-1" aria-label="Student navigation">
     {% for item in sidebar_menu %}
-    {% if item.is_disabled %}
+    {% if item.label == 'Documents' and not is_graduated %}
+      {# Documents module is restricted and hidden until the student has officially graduated #}
+    {% elif item.is_disabled %}
     <div
       class="student-nav-link student-nav-link--disabled"
       role="button"

@@ -16,6 +16,7 @@ const FALLBACK_PROGRAMS = [
 const TABS = [
   { key: "training", label: "Training with Assessment" },
   { key: "assessment", label: "Assessment Only Clients" },
+  { key: "graduates", label: "Graduated Students" },
 ];
 
 function getCsrfToken() {
@@ -33,6 +34,7 @@ function loadRegistrarStudentsData() {
       modules: [
         { key: "training", title: "Training with Assessment", badgeLabel: "0 students", students: [] },
         { key: "assessment", title: "Assessment Only Clients", badgeLabel: "0 clients", students: [] },
+        { key: "graduates", title: "Graduated Students", badgeLabel: "0 graduates", students: [] },
       ],
     };
   }
@@ -64,6 +66,9 @@ function findStudent(moduleKey, studentId, registrationId) {
 
 function statusBadgeClass(status) {
   const s = (status || "").toLowerCase();
+  if (s.includes("graduat")) {
+    return "bg-success text-white border-0";
+  }
   if (s.includes("enrolled") || s.includes("verified") || s.includes("assessed")) {
     return "bg-success-subtle text-success";
   }
@@ -73,10 +78,10 @@ function statusBadgeClass(status) {
 
 document.addEventListener("DOMContentLoaded", () => {
   let activeTab = "training";
-  const filters = { training: "All Programs", assessment: "All Programs" };
-  const docFilters = { training: "all", assessment: "all" };
-  const searchQueries = { training: "", assessment: "" };
-  const pages = { training: 1, assessment: 1 };
+  const filters = { training: "All Programs", assessment: "All Programs", graduates: "All Programs" };
+  const docFilters = { training: "all", assessment: "all", graduates: "all" };
+  const searchQueries = { training: "", assessment: "", graduates: "" };
+  const pages = { training: 1, assessment: 1, graduates: 1 };
 
   const tabsEl = document.getElementById("module-tabs");
   const titleEl = document.getElementById("module-title");
@@ -335,15 +340,25 @@ document.addEventListener("DOMContentLoaded", () => {
       count === 0
         ? activeTab === "assessment"
           ? "0 clients"
+          : activeTab === "graduates"
+          ? "0 graduates"
           : "0 students"
         : activeTab === "assessment"
           ? `${count} client${count === 1 ? "" : "s"}`
+          : activeTab === "graduates"
+          ? `${count} graduate${count === 1 ? "" : "s"}`
           : `${count} student${count === 1 ? "" : "s"}`;
     badgeEl.className = "registrar-pill registrar-pill--primary";
 
     if (mod.students.length === 0) {
+      const emptyMsg =
+        activeTab === "graduates"
+          ? "No graduated students yet. Trainees appear here once all competency requirements are completed."
+          : activeTab === "assessment"
+          ? "No assessment-only clients enrolled yet."
+          : "No enrolled students yet. Students appear here after you approve their enrollment.";
       tableContainer.innerHTML =
-        '<div class="alert alert-light border text-center text-secondary mb-0">No enrolled students yet. Students appear here after you approve their enrollment.</div>';
+        `<div class="alert alert-light border text-center text-secondary mb-0">${emptyMsg}</div>`;
       paginationContainer.classList.add("d-none");
       return;
     }
@@ -367,6 +382,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const digitalBadge = `<span class="badge registrar-doc-badge ${s.digitalBadgeClass || 'registrar-doc-badge--uploaded'}"><i class="bi ${s.isDigitalUploaded ? 'bi-cloud-check-fill' : 'bi-cloud-arrow-up'} me-1"></i>${escapeHtml(s.digitalLabel || 'Uploaded')}</span>`;
         const hardBadge = `<span class="badge registrar-doc-badge ${s.hardCopyBadgeClass || (s.hardCopiesSubmitted ? 'registrar-doc-badge--hard-submitted' : 'registrar-doc-badge--hard-pending')}"><i class="bi ${s.hardCopiesSubmitted ? 'bi-file-earmark-check-fill' : 'bi-file-earmark-x'} me-1"></i>${escapeHtml(s.hardCopyLabel || (s.hardCopiesSubmitted ? 'Hard Copies: Submitted' : 'Hard Copies: Pending'))}</span>`;
 
+        const isGrad = activeTab === "graduates" || Boolean(s.isGraduated) || (s.status || "").toLowerCase().includes("graduat");
+        const statusBadge = isGrad
+          ? `<span class="badge bg-success text-white rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"><i class="bi bi-mortarboard-fill"></i>Graduated</span>`
+          : `<span class="badge ${statusBadgeClass(s.status)}">${escapeHtml(s.status)}</span>`;
+
+        const displayDate = (isGrad && s.graduatedAt && s.graduatedAt !== "—") ? s.graduatedAt : s.date;
+
         return `
       <tr>
         <td>${start + i + 1}</td>
@@ -374,18 +396,19 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="fw-semibold d-inline-flex align-items-center gap-1">
             <span>${escapeHtml(s.name)}</span>
             ${isScholar ? `<span class="badge rounded-pill ms-1" style="background-color:#ffc107 !important; color:#212529 !important; font-size:0.65rem;" title="Scholarship Beneficiary"><i class="bi bi-award-fill me-1"></i>Scholar</span>` : ""}
+            ${isGrad && activeTab !== "graduates" ? `<span class="badge bg-success-subtle text-success rounded-pill ms-1" style="font-size:0.65rem;" title="Graduated Trainee"><i class="bi bi-mortarboard-fill me-1"></i>Graduate</span>` : ""}
           </div>
           <div>${scholarBadge}</div>
         </td>
         <td class="text-secondary">${escapeHtml(s.program)}</td>
-        <td><span class="badge ${statusBadgeClass(s.status)}">${escapeHtml(s.status)}</span></td>
+        <td>${statusBadge}</td>
         <td>
           <div class="d-flex flex-column gap-1 align-items-start">
             ${digitalBadge}
             ${hardBadge}
           </div>
         </td>
-        <td class="text-secondary">${escapeHtml(s.date)}</td>
+        <td class="text-secondary">${escapeHtml(displayDate)}</td>
         <td class="text-center text-nowrap">
           <button type="button" class="btn registrar-table-action registrar-table-action--view btn-sm view-student-btn" data-module-key="${activeTab}" data-student-id="${s.id != null ? s.id : ""}" data-registration-id="${escapeHtml(s.registrationId || "")}" aria-label="View ${escapeHtml(s.name)}"><i class="bi bi-eye" aria-hidden="true"></i></button>
         </td>
@@ -403,7 +426,7 @@ document.addEventListener("DOMContentLoaded", () => {
               <th>Program</th>
               <th>Status</th>
               <th>Document Submissions</th>
-              <th>Date</th>
+              <th>${activeTab === "graduates" ? "Graduation Date" : "Date"}</th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>

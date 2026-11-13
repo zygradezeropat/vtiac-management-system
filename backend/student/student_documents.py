@@ -207,11 +207,17 @@ def submit_document_request(request):
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "Invalid request method."}, status=405)
 
-    from .services import registration_is_enrolled
+    from .services import registration_is_enrolled, student_is_user_graduated
 
     if not registration_is_enrolled(request.user):
         return JsonResponse(
             {"ok": False, "error": "Document requests are restricted until your enrollment is officially confirmed."},
+            status=403,
+        )
+
+    if not student_is_user_graduated(request.user):
+        return JsonResponse(
+            {"ok": False, "error": "Official document requests are only available for graduated students."},
             status=403,
         )
 

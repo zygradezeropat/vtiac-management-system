@@ -24,7 +24,12 @@ def _scholarship_label(scholarship_type: str) -> str:
     return "Scholar"
 
 
-def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnrollmentProfile | None) -> dict:
+def _serialize_approved_student(
+    reg: StudentRegistration,
+    profile: StudentEnrollmentProfile | None,
+    is_graduate: bool = False,
+    grade = None,
+) -> dict:
     if profile:
         first = profile.first_name
         last = profile.last_name
@@ -50,6 +55,12 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
         date_display = timezone.localtime(date_dt).strftime("%Y-%m-%d")
     else:
         date_display = "—"
+
+    graduated_at_display = "—"
+    if is_graduate:
+        g_dt = reg.graduated_at or getattr(grade, "updated_at", None) or date_dt
+        if g_dt:
+            graduated_at_display = timezone.localtime(g_dt).strftime("%Y-%m-%d")
 
     program_type = (
         profile.program_type if profile and profile.program_type else reg.program_type
@@ -82,7 +93,9 @@ def _serialize_approved_student(reg: StudentRegistration, profile: StudentEnroll
         "scholarship": scholar_label,
         "scholarshipType": scholarship_type or "",
         "scholarshipDetail": scholar_detail,
-        "status": "Enrolled",
+        "status": "Graduated" if is_graduate else "Enrolled",
+        "isGraduated": is_graduate,
+        "graduatedAt": graduated_at_display,
         "date": date_display,
         "birthDate": bday.strftime("%B %d, %Y") if bday else "—",
         "program": program or "—",
@@ -112,20 +125,40 @@ def approved_students_queryset():
 
 
 def registrar_students_module_data():
-    """Tabs payload for registrar student list (training vs assessment-only)."""
+    """Tabs payload for registrar student list (training, assessment-only, graduates)."""
     from .scholarship_api import sync_unlinked_scholar_grants
+    from backend.trainer.egace_progress import (
+        _latest_grades_index,
+        _grade_for_registration,
+        student_is_graduate,
+    )
 
     sync_unlinked_scholar_grants()
+    by_key, by_name_program = _latest_grades_index()
     training = []
     assessment = []
+    graduates = []
     programs = set(enrollment_program_options())
 
     for reg in approved_students_queryset():
         profile = _profile_for_registration(reg)
-        row = _serialize_approved_student(reg, profile)
+        prog = (profile.selected_program if profile else "") or reg.selected_program
+        grade = _grade_for_registration(reg, prog, by_key, by_name_program)
+        payload = grade.payload if grade and isinstance(grade.payload, dict) else None
+
+        is_grad = bool(reg.is_graduated or student_is_graduate(payload, prog))
+        if is_grad and not reg.is_graduated:
+            reg.is_graduated = True
+            reg.graduated_at = getattr(grade, "updated_at", None) or timezone.now()
+            reg.save(update_fields=["is_graduated", "graduated_at"])
+
+        row = _serialize_approved_student(reg, profile, is_graduate=is_grad, grade=grade)
         if row["program"]:
             programs.add(row["program"])
-        if reg.program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
+
+        if is_grad:
+            graduates.append(row)
+        elif reg.program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
             assessment.append(row)
         else:
             training.append(row)
@@ -136,6 +169,8 @@ def registrar_students_module_data():
         count = len(students)
         if key == "training":
             badge = f"{count} student{'s' if count != 1 else ''}"
+        elif key == "graduates":
+            badge = f"{count} graduate{'s' if count != 1 else ''}"
         else:
             badge = f"{count} client{'s' if count != 1 else ''}"
         return {
@@ -150,5 +185,6 @@ def registrar_students_module_data():
         "modules": [
             tab("training", "Training with Assessment", training),
             tab("assessment", "Assessment Only Clients", assessment),
+            tab("graduates", "Graduated Students", graduates),
         ],
     }

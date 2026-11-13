@@ -5,6 +5,7 @@ import re
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 
 from backend.student.enrollment_requirements import (
     REQUIREMENT_SPECS,
@@ -184,6 +185,39 @@ RESTRICTED_PRE_ENROLLMENT_ROUTES = frozenset({
 })
 
 
+def student_is_user_graduated(user) -> bool:
+    """True if student user has officially graduated from their qualification."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    reg = getattr(user, "registration_application", None)
+    if not reg:
+        return False
+    if getattr(reg, "is_graduated", False):
+        return True
+
+    # Check trainer competency grades
+    try:
+        from backend.trainer.egace_progress import (
+            _latest_grades_index,
+            _grade_for_registration,
+            student_is_graduate,
+        )
+        profile = get_enrollment_profile(user)
+        prog = (profile.selected_program if profile else "") or reg.selected_program
+        by_key, by_name_program = _latest_grades_index()
+        grade = _grade_for_registration(reg, prog, by_key, by_name_program)
+        payload = grade.payload if grade and isinstance(grade.payload, dict) else None
+        if student_is_graduate(payload, prog):
+            reg.is_graduated = True
+            reg.graduated_at = getattr(grade, "updated_at", None) or timezone.now()
+            reg.save(update_fields=["is_graduated", "graduated_at"])
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
 def _student_sidebar_menu(user=None):
     from django.urls import reverse
 
@@ -202,6 +236,7 @@ def _student_sidebar_menu(user=None):
     is_assessment = is_assessment_only_user(user)
     eval_open = trainer_evaluation_is_open()
     eval_status = trainer_evaluation_status()
+    is_graduated = student_is_user_graduated(user)
 
     menu = []
     for item in STUDENT_SIDEBAR:
@@ -216,6 +251,8 @@ def _student_sidebar_menu(user=None):
         if not show_my_profile and route_name == "student_my_profile":
             continue
         if not enrolled and route_name == "student_my_profile":
+            continue
+        if route_name == "student_documents" and not is_graduated:
             continue
 
         is_disabled = False
@@ -326,6 +363,7 @@ def _student_portal_base(request, active_menu, page_title, page_subtitle, **extr
         "sidebar_menu": _student_sidebar_menu(user),
         "notification_count": 0,
         "progress_percent": progress_percent,
+        "is_graduated": student_is_user_graduated(user),
         "eval_is_open": eval_open,
         "eval_status": eval_status,
         "eval_pending": eval_pending,
@@ -981,6 +1019,31 @@ def student_dashboard_context(request=None):
     if registration and registration.status == StudentRegistration.Status.APPROVED:
         app_status = "Enrolled"
 
+    is_graduated = False
+    graduation_date = None
+    if registration:
+        prog = (profile.selected_program if profile else "") or registration.selected_program
+        from backend.trainer.egace_progress import (
+            _latest_grades_index,
+            _grade_for_registration,
+            student_is_graduate,
+        )
+        by_key, by_name_program = _latest_grades_index()
+        grade = _grade_for_registration(registration, prog, by_key, by_name_program)
+        payload = grade.payload if grade and isinstance(grade.payload, dict) else None
+        if registration.is_graduated or student_is_graduate(payload, prog):
+            is_graduated = True
+            if not registration.is_graduated:
+                registration.is_graduated = True
+                registration.graduated_at = getattr(grade, "updated_at", None) or timezone.now()
+                registration.save(update_fields=["is_graduated", "graduated_at"])
+            g_dt = registration.graduated_at or getattr(grade, "updated_at", None)
+            if g_dt:
+                graduation_date = timezone.localtime(g_dt).strftime("%B %d, %Y")
+
+    if is_graduated:
+        app_status = "Officially Graduated"
+
     schedule_ctx = dashboard_schedule_context(profile, registration)
     user = request.user if request and request.user.is_authenticated else None
     show_upload_btn = show_upload_requirements_button(user, profile)
@@ -993,7 +1056,11 @@ def student_dashboard_context(request=None):
     doc_indicators = get_document_submission_indicators(profile, registration)
 
     return {
+        **base,
+        **schedule_ctx,
         "is_enrolled": registration_is_enrolled(user) if user else False,
+        "is_graduated": is_graduated,
+        "graduation_date": graduation_date,
         "progress_ring_circumference": ring_circ,
         "progress_ring_offset": ring_offset,
         "application_status": app_status,
@@ -1015,10 +1082,7 @@ def student_dashboard_context(request=None):
         "requirements": requirements,
         "enrollment_steps": enrollment_steps,
         "announcements": announcements,
-        **schedule_ctx,
-        **base,
         "progress_percent": progress_percent,
-        "progress_ring_offset": ring_offset,
     }
 
 
@@ -1116,6 +1180,7 @@ def candidate_dashboard_context(request):
         "requirements": requirements,
         "candidate_steps": candidate_steps,
         "announcements": announcements,
+        "is_graduated": bool(reg and getattr(reg, "is_graduated", False)),
         "progress_ring_circumference": ring_circ,
         "progress_ring_offset": ring_offset,
         "progress_percent": progress_percent,
