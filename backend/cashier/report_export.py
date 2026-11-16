@@ -524,7 +524,101 @@ def build_receivables_aging_workbook():
     return _workbook_to_buffer(wb), filename
 
 
-def build_report_workbook(report_type: str, *, day: date | None = None, year: int | None = None, month: int | None = None):
+def build_custom_range_workbook(start_date: date, end_date: date) -> tuple[BytesIO, str]:
+    payments = list(
+        _payments_queryset()
+        .filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+        .order_by("created_at")
+    )
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Custom Date Range"
+
+    headers = [
+        "S.No.",
+        "Date & Time",
+        "Control No.",
+        "OR No.",
+        "Student Name",
+        "Course / Program",
+        "Particulars",
+        "Total Payable",
+        "Amount Paid",
+        "Balance",
+        "Status",
+        "Recorded By",
+    ]
+    col_count = len(headers)
+    header_row = _write_title_block(
+        ws,
+        "CUSTOM DATE RANGE COLLECTION REPORT",
+        [
+            ("Date Range", f"{start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}"),
+            ("Generated On", timezone.localtime(timezone.now()).strftime("%B %d, %Y · %I:%M %p")),
+            ("Total Transactions", str(len(payments))),
+        ],
+        col_count,
+    )
+
+    for idx, label in enumerate(headers, start=1):
+        ws.cell(row=header_row, column=idx, value=label)
+    _style_header_row(ws, header_row, col_count)
+
+    total_paid = Decimal("0")
+    data_row = header_row + 1
+    for i, payment in enumerate(payments, start=1):
+        paid = _money(payment.paid_amount)
+        total_paid += paid
+        values = [
+            i,
+            _local_dt(payment.created_at).strftime("%b %d, %Y · %I:%M %p"),
+            payment.control_number,
+            payment.or_number or "—",
+            payment.student_name,
+            _program_for_payment(payment),
+            _particulars_summary(payment.particulars),
+            float(_money(payment.total_payable)),
+            float(paid),
+            float(_money(payment.remaining_balance)),
+            payment.status,
+            _cashier_name(payment),
+        ]
+        for col, value in enumerate(values, start=1):
+            ws.cell(row=data_row, column=col, value=value)
+            _style_data_cell(ws, data_row, col)
+        data_row += 1
+
+    if not payments:
+        ws.merge_cells(start_row=data_row, start_column=1, end_row=data_row, end_column=col_count)
+        ws.cell(row=data_row, column=1, value="No transactions recorded for this date range.")
+        data_row += 1
+
+    total_row = data_row
+    ws.cell(row=total_row, column=1, value="TOTAL").font = TOTAL_FONT
+    ws.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=8)
+    paid_cell = ws.cell(row=total_row, column=9, value=float(total_paid))
+    paid_cell.font = TOTAL_FONT
+    paid_cell.fill = TOTAL_FILL
+    for col in range(1, col_count + 1):
+        cell = ws.cell(row=total_row, column=col)
+        cell.fill = TOTAL_FILL
+        cell.border = THIN_BORDER
+        cell.font = TOTAL_FONT
+
+    _autosize_columns(ws, col_count)
+    filename = f"VTIAC_Custom_Collection_{start_date.isoformat()}_to_{end_date.isoformat()}.xlsx"
+    return _workbook_to_buffer(wb), filename
+
+
+def build_report_workbook(
+    report_type: str,
+    *,
+    day: date | None = None,
+    year: int | None = None,
+    month: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+):
     report_type = (report_type or "").strip().lower()
     today = timezone.localdate()
 
@@ -538,9 +632,15 @@ def build_report_workbook(report_type: str, *, day: date | None = None, year: in
     if report_type == "annual":
         y = year or today.year
         return build_annual_workbook(y)
+    if report_type in ("custom", "range"):
+        s = start_date or today
+        e = end_date or today
+        if s > e:
+            s, e = e, s
+        return build_custom_range_workbook(s, e)
     if report_type in ("aging", "receivables", "overdue"):
         return build_receivables_aging_workbook()
-    raise ValueError("Invalid report type. Use daily, monthly, annual, or aging.")
+    raise ValueError("Invalid report type. Use daily, monthly, annual, custom, or aging.")
 
 
 def _workbook_to_buffer(wb: Workbook) -> BytesIO:

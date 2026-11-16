@@ -167,6 +167,13 @@ export function initCashierReports() {
     triggerReportDownload(`/cashier/api/reports/export/?${params}`);
   });
 
+  document.getElementById("downloadCustomReportBtn")?.addEventListener("click", () => {
+    const start = document.getElementById("startDate")?.value || todayIsoDate();
+    const end = document.getElementById("endDate")?.value || todayIsoDate();
+    const params = new URLSearchParams({ type: "custom", start_date: start, end_date: end });
+    triggerReportDownload(`/cashier/api/reports/export/?${params}`);
+  });
+
   showFullBtn?.addEventListener("click", () => {
     showDetails("fullPaymentDetails", "partialPaymentDetails");
   });

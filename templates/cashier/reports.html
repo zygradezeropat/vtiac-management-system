@@ -81,37 +81,39 @@
           <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Download Annual Excel
         </button>
       </div>
-    </div>
-  </div>
-</article>
-
-<article class="cashier-panel">
-  <div class="cashier-panel__head cashier-panel__head--stack">
-    <h2 class="cashier-panel__title">Custom Date Range Report</h2>
-    <p class="cashier-panel__subtitle">Filter by specific date range</p>
-  </div>
-  <div class="cashier-panel__body">
-    <div class="cashier-date-range-form">
-      <div class="cashier-form-group">
-        <label class="cashier-form-label" for="startDate">Start Date</label>
-        <input type="date" class="form-control" id="startDate" />
-      </div>
-      <div class="cashier-form-group">
-        <label class="cashier-form-label" for="endDate">End Date</label>
-        <input type="date" class="form-control" id="endDate" />
-      </div>
-      <button type="button" class="btn cashier-btn-primary" id="filterByDateRangeBtn">
-        <i class="bi bi-search" aria-hidden="true"></i> Filter
-      </button>
-    </div>
-    <div class="cashier-range-result" id="customRangeResult">
-      <div class="cashier-result-row">
-        <span>Income for Selected Period:</span>
-        <span id="customRangeIncome">₱0.00</span>
-      </div>
-      <div class="cashier-result-row">
-        <span>Total Transactions:</span>
-        <span id="customRangeCount">0</span>
+      <div class="cashier-report-download-card">
+        <h3 class="cashier-report-download-card__title">Custom Date</h3>
+        <p class="cashier-report-download-card__text text-muted small mb-3">
+          Filter and export collections for any specific start and end date range.
+        </p>
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="cashier-form-label small mb-1" for="startDate">Start Date</label>
+            <input type="date" class="form-control form-control-sm" id="startDate" />
+          </div>
+          <div class="col-6">
+            <label class="cashier-form-label small mb-1" for="endDate">End Date</label>
+            <input type="date" class="form-control form-control-sm" id="endDate" />
+          </div>
+        </div>
+        <div class="d-flex gap-2 mb-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" id="filterByDateRangeBtn">
+            <i class="bi bi-search" aria-hidden="true"></i> Filter
+          </button>
+          <button type="button" class="btn cashier-btn-primary btn-sm flex-fill" id="downloadCustomReportBtn">
+            <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Excel
+          </button>
+        </div>
+        <div class="cashier-range-result p-2 rounded border bg-white small mt-2" id="customRangeResult">
+          <div class="d-flex justify-content-between text-xs mb-1">
+            <span class="text-muted">Income:</span>
+            <strong class="text-success" id="customRangeIncome">₱0.00</strong>
+          </div>
+          <div class="d-flex justify-content-between text-xs">
+            <span class="text-muted">Transactions:</span>
+            <strong id="customRangeCount">0</strong>
+          </div>
+        </div>
       </div>
     </div>
   </div>

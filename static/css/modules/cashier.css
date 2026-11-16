@@ -1020,8 +1020,14 @@
 
 .cashier-report-download-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
+}
+
+@media (min-width: 992px) {
+  .cashier-report-download-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .cashier-report-download-card {
@@ -1460,16 +1466,16 @@
 }
 
 .service-invoice__col-label {
-  width: 6.75rem;
+  width: 11rem;
 }
 
 .service-invoice__col-assessment-amt {
-  width: 3.35rem;
+  width: 4rem;
 }
 
 .service-invoice__col-payment,
 .service-invoice__col-balance {
-  width: 3.35rem;
+  width: 4rem;
 }
 
 .service-invoice__col-spacer {
@@ -1484,7 +1490,7 @@
 .service-invoice__table th,
 .service-invoice__table td {
   border: 1px solid var(--si-border);
-  padding: 0.12rem 0.2rem;
+  padding: 0.14rem 0.25rem;
   vertical-align: middle;
 }
 
@@ -1495,7 +1501,8 @@
 }
 
 .service-invoice__table tbody td {
-  height: 1.15rem;
+  min-height: 1.15rem;
+  height: auto;
   font-size: 0.6rem;
 }
 
@@ -1505,8 +1512,19 @@
 
 .service-invoice__assessment-label {
   font-weight: 600;
-  white-space: nowrap;
-  padding-right: 0.1rem;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  padding-right: 0.2rem;
+}
+
+.service-invoice__grant-subtext {
+  font-size: 0.54rem;
+  font-weight: normal;
+  color: #333;
+  line-height: 1.15;
+  margin-top: 0.08rem;
+  word-break: break-word;
 }
 
 .service-invoice__assessment-amt {
@@ -1612,12 +1630,12 @@
 }
 
 .service-invoice__change strong {
-  color: #047857;
+  color: #111;
 }
 
 .service-invoice__change-row td {
   font-weight: 700;
-  color: #047857;
+  color: #111;
 }
 
 .service-invoice__totals {

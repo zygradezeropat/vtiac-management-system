@@ -763,9 +763,54 @@ function formatInvoiceDate(txn) {
   });
 }
 
+function getTxnScholarVoucherInfo(txn) {
+  let voucherAmount = 0;
+  let voucherDescription = "";
+  let grantName = "";
+
+  const voucherParticular = (txn.particulars || []).find(
+    (p) => p.isVoucher || Number(p.amount) < 0 || /less:\s*scholar/i.test(p.description || "")
+  );
+
+  if (voucherParticular) {
+    voucherAmount = Math.abs(Number(voucherParticular.amount) || 0);
+    voucherDescription = voucherParticular.description || "";
+  }
+
+  if (!voucherAmount && (txn.isScholar || Number(txn.voucherAmount) > 0)) {
+    voucherAmount = Number(txn.voucherAmount) || 0;
+    grantName = txn.scholarCodeName || "Scholarship Grant";
+    voucherDescription = `Less: Scholar Grant Voucher (${grantName})`;
+  }
+
+  if (voucherParticular && !grantName) {
+    const match = voucherParticular.description?.match(/\(([^)]+)\)/);
+    grantName = match ? match[1] : (txn.scholarCodeName || "Scholarship Grant");
+  } else if (!grantName) {
+    grantName = txn.scholarCodeName || "Scholarship Grant";
+  }
+
+  return {
+    hasVoucher: voucherAmount > 0,
+    voucherAmount,
+    voucherDescription: voucherDescription || `Less: Scholar Grant Voucher (${grantName})`,
+    grantName,
+  };
+}
+
+function getTxnGrossAssessment(txn) {
+  const positiveParticulars = (txn.particulars || []).filter(
+    (p) => (Number(p.amount) || 0) > 0 && !p.isVoucher && !/less:\s*scholar/i.test(p.description || "")
+  );
+  const sum = positiveParticulars.reduce((acc, p) => acc + Number(p.amount), 0);
+  if (sum > 0) return sum;
+  const { voucherAmount } = getTxnScholarVoucherInfo(txn);
+  return (Number(txn.totalPayable) || 0) + voucherAmount;
+}
+
 function buildParticularLineItems(txn) {
   const particulars = (txn.particulars || []).filter(
-    (p) => (Number(p.amount) || 0) > 0 && String(p.description || "").trim()
+    (p) => (Number(p.amount) || 0) > 0 && !p.isVoucher && !/less:\s*scholar/i.test(p.description || "") && String(p.description || "").trim()
   );
   if (!particulars.length) return [];
 
@@ -803,6 +848,18 @@ function formatInvoiceMoney(amount) {
   return formatPeso(amount).replace(/^₱\s?/, "");
 }
 
+function formatInvoiceParticularLabel(label) {
+  if (!label) return "";
+  const trimmed = String(label).trim();
+  const match = trimmed.match(/^([^(]+)\s*(\([^)]+\)(?:\s+[A-Za-z0-9\s]+)?)$/);
+  if (match) {
+    const main = match[1].trim();
+    const sub = match[2].trim();
+    return `<div>${escapeHtml(main)}</div><div class="service-invoice__grant-subtext" style="font-size:0.56rem;font-weight:normal;color:#333;line-height:1.2;margin-top:0.06rem;">${escapeHtml(sub)}</div>`;
+  }
+  return `<div>${escapeHtml(trimmed)}</div>`;
+}
+
 const SERVICE_INVOICE_BLANK_ROWS = 6;
 
 function buildInvoiceBlankRows() {
@@ -821,6 +878,8 @@ function buildInvoiceBlankRows() {
 
 function buildServiceInvoiceHtml(txn) {
   const logos = getReceiptLogoUrls();
+  const voucherInfo = getTxnScholarVoucherInfo(txn);
+  const grossAssessment = getTxnGrossAssessment(txn);
   const lineItems = buildParticularLineItems(txn);
 
   const particularRows = lineItems.length
@@ -828,21 +887,35 @@ function buildServiceInvoiceHtml(txn) {
         .map(
           (row) => `
       <tr>
-        <td class="service-invoice__assessment-label">${escapeHtml(row.label)}</td>
-        <td class="service-invoice__money service-invoice__assessment-amt">${escapeHtml(formatInvoiceMoney(row.assessment))}</td>
-        <td class="service-invoice__money">${escapeHtml(formatInvoiceMoney(row.payment))}</td>
-        <td class="service-invoice__money">${escapeHtml(formatInvoiceMoney(row.balance))}</td>
+        <td class="service-invoice__assessment-label" style="white-space: normal; word-break: break-word; line-height: 1.25; overflow-wrap: break-word;">${formatInvoiceParticularLabel(row.label)}</td>
+        <td class="service-invoice__money service-invoice__assessment-amt" style="text-align: right; white-space: nowrap;">${escapeHtml(formatInvoiceMoney(row.assessment))}</td>
+        <td class="service-invoice__money" style="text-align: right; white-space: nowrap;">${escapeHtml(formatInvoiceMoney(row.payment))}</td>
+        <td class="service-invoice__money" style="text-align: right; white-space: nowrap;">${escapeHtml(formatInvoiceMoney(row.balance))}</td>
         <td class="service-invoice__spacer" aria-hidden="true"></td>
       </tr>`
         )
         .join("")
     : `
       <tr>
-        <td class="service-invoice__assessment-label" colspan="2">—</td>
+        <td class="service-invoice__assessment-label" colspan="2" style="white-space: normal;">—</td>
         <td></td>
         <td></td>
         <td class="service-invoice__spacer" aria-hidden="true"></td>
       </tr>`;
+
+  const voucherRowHtml = voucherInfo.hasVoucher
+    ? `
+      <tr class="service-invoice__voucher-row">
+        <td class="service-invoice__assessment-label" style="white-space: normal; word-break: break-word; line-height: 1.25; overflow-wrap: break-word;">
+          <div>Less: Scholar Voucher</div>
+          <div class="service-invoice__grant-subtext" style="font-size:0.56rem;font-weight:normal;color:#333;line-height:1.2;margin-top:0.06rem;">(${escapeHtml(voucherInfo.grantName)})</div>
+        </td>
+        <td class="service-invoice__money service-invoice__assessment-amt" style="text-align: right; white-space: nowrap;">-${escapeHtml(formatInvoiceMoney(voucherInfo.voucherAmount))}</td>
+        <td class="service-invoice__money" style="text-align: right; white-space: nowrap;">${escapeHtml(formatInvoiceMoney(voucherInfo.voucherAmount))}</td>
+        <td class="service-invoice__money" style="text-align: right; white-space: nowrap;">0.00</td>
+        <td class="service-invoice__spacer" aria-hidden="true"></td>
+      </tr>`
+    : "";
 
   const amountPaid = Number(txn.amountPaid ?? txn.paidAmount) || 0;
   const changeDue = Number(txn.changeDue) || 0;
@@ -889,18 +962,21 @@ function buildServiceInvoiceHtml(txn) {
 
       <section class="service-invoice__sold-to">
         <span class="service-invoice__sold-to-label">SOLD TO</span>
-        <p><span>Registered Name:</span> <strong>${escapeHtml(formatInvoiceStudentName(txn.studentName))}</strong></p>
+        <p>
+          <span>Registered Name:</span> <strong>${escapeHtml(formatInvoiceStudentName(txn.studentName))}</strong>
+        </p>
+        ${voucherInfo.hasVoucher ? `<p><span>Scholar Grant:</span> <strong>${escapeHtml(voucherInfo.grantName)}</strong></p>` : ""}
         <p><span>TIN:</span> <span class="service-invoice__line"></span></p>
         <p><span>Business Address:</span> <span class="service-invoice__line"></span></p>
       </section>
 
-      <table class="service-invoice__table">
+      <table class="service-invoice__table" style="table-layout: fixed; width: 100%;">
         <colgroup>
-          <col class="service-invoice__col-label" />
-          <col class="service-invoice__col-assessment-amt" />
-          <col class="service-invoice__col-payment" />
-          <col class="service-invoice__col-balance" />
-          <col class="service-invoice__col-spacer" />
+          <col class="service-invoice__col-label" style="width: 40%; min-width: 12rem;" />
+          <col class="service-invoice__col-assessment-amt" style="width: 15%; min-width: 3.5rem;" />
+          <col class="service-invoice__col-payment" style="width: 15%; min-width: 3.5rem;" />
+          <col class="service-invoice__col-balance" style="width: 15%; min-width: 3.5rem;" />
+          <col class="service-invoice__col-spacer" style="width: 15%;" />
         </colgroup>
         <thead>
           <tr>
@@ -912,6 +988,7 @@ function buildServiceInvoiceHtml(txn) {
         </thead>
         <tbody>
           ${particularRows}
+          ${voucherRowHtml}
           ${buildInvoiceBlankRows()}
         </tbody>
       </table>
@@ -921,7 +998,7 @@ function buildServiceInvoiceHtml(txn) {
           <p class="service-invoice__received">
             <span class="service-invoice__box" aria-hidden="true"></span>
             Received the amount of:
-            <span class="service-invoice__amount-line">${amountPaid > 0 ? escapeHtml(formatPeso(amountPaid)) : ""}</span>
+            <span class="service-invoice__amount-line">${amountPaid > 0 ? escapeHtml(formatPeso(amountPaid)) : "0.00"}</span>
           </p>
           ${
             changeDue > 0
@@ -947,13 +1024,23 @@ function buildServiceInvoiceHtml(txn) {
         <table class="service-invoice__totals">
           <tbody>
             <tr>
-              <th scope="row">Total Sales</th>
-              <td>${escapeHtml(formatPeso(txn.totalPayable))}</td>
+              <th scope="row">Gross Assessment</th>
+              <td>${escapeHtml(formatPeso(grossAssessment))}</td>
             </tr>
-            <tr>
-              <th scope="row">LESS: (Discount SC/ PWD/NAAC/MOV/SP</th>
-              <td></td>
-            </tr>
+            ${
+              voucherInfo.hasVoucher
+                ? `<tr class="service-invoice__discount-row">
+                    <th scope="row">
+                      LESS: Scholar Voucher
+                      <span class="d-block font-monospace" style="font-size:0.56rem;font-weight:normal;color:#333;">(${escapeHtml(voucherInfo.grantName)})</span>
+                    </th>
+                    <td class="fw-bold">-${escapeHtml(formatPeso(voucherInfo.voucherAmount))}</td>
+                  </tr>`
+                : `<tr>
+                    <th scope="row">LESS: (Discount SC/ PWD/NAAC/MOV/SP)</th>
+                    <td></td>
+                  </tr>`
+            }
             <tr>
               <th scope="row">Less: Withholding Tax</th>
               <td></td>
@@ -968,6 +1055,14 @@ function buildServiceInvoiceHtml(txn) {
             }
             <tr class="service-invoice__total-due">
               <th scope="row">TOTAL AMOUNT DUE</th>
+              <td>${escapeHtml(formatPeso(txn.totalPayable))}</td>
+            </tr>
+            <tr>
+              <th scope="row">Amount Paid (Cash)</th>
+              <td>${escapeHtml(formatPeso(amountPaid))}</td>
+            </tr>
+            <tr>
+              <th scope="row">Remaining Balance</th>
               <td>${escapeHtml(formatPeso(txn.remainingBalance))}</td>
             </tr>
           </tbody>
@@ -981,12 +1076,29 @@ function buildServiceInvoiceHtml(txn) {
 }
 
 function buildArReceiptHtml(txn) {
-  const particularsRows = txn.particulars
+  const voucherInfo = getTxnScholarVoucherInfo(txn);
+  const grossAssessment = getTxnGrossAssessment(txn);
+
+  const positiveParticulars = (txn.particulars || []).filter(
+    (p) => (Number(p.amount) || 0) > 0 && !p.isVoucher && !/less:\s*scholar/i.test(p.description || "")
+  );
+
+  const particularsRows = positiveParticulars
     .map(
       (p) =>
         `<tr><td>${escapeHtml(p.description)}</td><td class="text-end">${formatPeso(p.amount)}</td></tr>`
     )
     .join("");
+
+  const voucherRow = voucherInfo.hasVoucher
+    ? `<tr>
+        <td>
+          <div>Less: Scholar Voucher</div>
+          <div class="small text-muted">(${escapeHtml(voucherInfo.grantName)})</div>
+        </td>
+        <td class="text-end">-${formatPeso(voucherInfo.voucherAmount)}</td>
+       </tr>`
+    : "";
 
   return `
     <div class="cashier-receipt-simple">
@@ -1001,16 +1113,22 @@ function buildArReceiptHtml(txn) {
       <p><strong>Control No:</strong> ${escapeHtml(txn.controlNumber)}</p>
       ${txn.orNumber ? `<p><strong>OR No:</strong> ${escapeHtml(txn.orNumber)}</p>` : ""}
       <p><strong>Student:</strong> ${escapeHtml(formatInvoiceStudentName(txn.studentName))}</p>
+      ${voucherInfo.hasVoucher ? `<p><strong>Scholar Grant:</strong> <span>${escapeHtml(voucherInfo.grantName)}</span></p>` : ""}
       <p><strong>Date:</strong> ${escapeHtml(txn.dateTime)}</p>
       <p><strong>Cashier:</strong> ${escapeHtml(txn.cashierName || "—")}</p>
       ${(txn.changeDue || 0) > 0 ? `<p><strong>Change:</strong> ${formatPeso(txn.changeDue)}</p>` : ""}
       <table class="table table-sm mt-3">
         <thead><tr><th>Particular</th><th class="text-end">Amount</th></tr></thead>
-        <tbody>${particularsRows}</tbody>
+        <tbody>
+          ${particularsRows}
+          ${voucherRow}
+        </tbody>
         <tfoot>
-          <tr><th>Total</th><th class="text-end">${formatPeso(txn.totalPayable)}</th></tr>
-          <tr><th>Paid</th><th class="text-end">${formatPeso(txn.paidAmount)}</th></tr>
-          <tr><th>Balance</th><th class="text-end">${formatPeso(txn.remainingBalance)}</th></tr>
+          ${voucherInfo.hasVoucher ? `<tr><th>Gross Assessment</th><th class="text-end">${formatPeso(grossAssessment)}</th></tr>` : ""}
+          ${voucherInfo.hasVoucher ? `<tr><th>Less: Voucher (${escapeHtml(voucherInfo.grantName)})</th><th class="text-end">-${formatPeso(voucherInfo.voucherAmount)}</th></tr>` : ""}
+          <tr><th>Total Payable</th><th class="text-end">${formatPeso(txn.totalPayable)}</th></tr>
+          <tr><th>Amount Paid</th><th class="text-end">${formatPeso(txn.paidAmount ?? txn.amountPaid)}</th></tr>
+          <tr><th>Remaining Balance</th><th class="text-end">${formatPeso(txn.remainingBalance)}</th></tr>
         </tfoot>
       </table>
       <p class="small text-muted mb-0">Status: ${escapeHtml(txn.status)}</p>

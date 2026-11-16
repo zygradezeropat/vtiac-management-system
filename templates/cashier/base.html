@@ -2,5 +2,5 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/modules/cashier.css' %}" />
+<link rel="stylesheet" href="{% static 'css/modules/cashier.css' %}?v={% now 'U' %}" />
 {% endblock %}

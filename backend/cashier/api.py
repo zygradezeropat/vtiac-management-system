@@ -200,6 +200,8 @@ def reports_export(request):
 
     report_type = request.GET.get("type", "").strip().lower()
     day = _parse_date_param(request.GET.get("date"))
+    start_date = _parse_date_param(request.GET.get("start_date"))
+    end_date = _parse_date_param(request.GET.get("end_date"))
     year_param = request.GET.get("year", "").strip()
     month_param = request.GET.get("month", "").strip()
 
@@ -220,6 +222,8 @@ def reports_export(request):
             day=day,
             year=year,
             month=month,
+            start_date=start_date,
+            end_date=end_date,
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
