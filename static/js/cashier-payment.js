@@ -45,6 +45,9 @@ async function recordPaymentOnServer(txn) {
       paidAmount: txn.amountPaid ?? txn.paidAmount,
       status: txn.status,
       cashierName: txn.cashierName,
+      isScholar: txn.isScholar,
+      scholarCodeName: txn.scholarCodeName,
+      voucherAmount: txn.voucherAmount,
     }),
   });
   const data = await res.json().catch(() => ({}));
@@ -172,8 +175,35 @@ function paymentAmounts(totalPayable, amountPaid) {
   return { total, paid, credited, remaining, change };
 }
 
+function isScholarVoucherApplied() {
+  const chk = document.getElementById("isScholarCheckbox");
+  return Boolean(chk && !chk.disabled && chk.checked);
+}
+
+function getScholarVoucherAmount() {
+  if (!isScholarVoucherApplied()) return 0;
+  const val = parseFloat(document.getElementById("scholarVoucherAmount")?.value);
+  return Number.isFinite(val) && val > 0 ? val : 0;
+}
+
+function computeParticularsSubtotal() {
+  return readParticulars().reduce((sum, p) => sum + p.amount, 0);
+}
+
+function computeTotalPayable() {
+  const subtotal = computeParticularsSubtotal();
+  const voucher = getScholarVoucherAmount();
+  return Math.max(0, subtotal - voucher);
+}
+
 function validateMinimumPayment(paidAmount, totalPayable) {
   const minPay = getMinPaymentAmount();
+  if (totalPayable <= 0) {
+    if (paidAmount < 0) {
+      return "Amount paid cannot be negative.";
+    }
+    return "";
+  }
   if (paidAmount <= 0) {
     return "Enter the amount paid by the student.";
   }
@@ -199,21 +229,29 @@ function syncPaidAmountFieldState() {
 
   const total = computeTotalPayable();
   const studentSelected = hasSelectedStudent();
-  const shouldDisable = !studentSelected || total <= 0;
+  const voucherApplied = isScholarVoucherApplied() && getScholarVoucherAmount() > 0;
+  const isZeroPayable = total <= 0 && voucherApplied;
+  const shouldDisable = !studentSelected || (total <= 0 && !voucherApplied);
 
-  paidInput.disabled = shouldDisable;
-  paidInput.classList.toggle("cashier-amount-input--muted", shouldDisable);
+  paidInput.disabled = shouldDisable || isZeroPayable;
+  paidInput.classList.toggle("cashier-amount-input--muted", shouldDisable || isZeroPayable);
 
-  if (shouldDisable) {
+  if (isZeroPayable) {
+    paidInput.value = "0";
+  } else if (shouldDisable) {
     paidInput.value = "0";
   }
 
   if (minHint) {
-    const minPay = formatPeso(getMinPaymentAmount());
-    if (isNewStudentPayment() && total >= getMinPaymentAmount()) {
-      minHint.innerHTML = `New students must pay at least <strong>${minPay}</strong> on their first payment.`;
+    if (isZeroPayable) {
+      minHint.innerHTML = `<span class="text-success fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>100% covered by scholar grant voucher. No out-of-pocket payment required.</span>`;
     } else {
-      minHint.innerHTML = `Minimum payment per transaction is <strong>${minPay}</strong> (unless the full balance due is less).`;
+      const minPay = formatPeso(getMinPaymentAmount());
+      if (isNewStudentPayment() && total >= getMinPaymentAmount()) {
+        minHint.innerHTML = `New students must pay at least <strong>${minPay}</strong> on their first payment.`;
+      } else {
+        minHint.innerHTML = `Minimum payment per transaction is <strong>${minPay}</strong> (unless the full balance due is less).`;
+      }
     }
   }
 }
@@ -281,18 +319,33 @@ function readParticulars() {
     .filter((p) => p.description || p.amount > 0);
 }
 
-function computeTotalPayable() {
-  return readParticulars().reduce((sum, p) => sum + p.amount, 0);
-}
-
 function updateTotals() {
   syncPaidAmountFieldState();
 
+  const subtotal = computeParticularsSubtotal();
+  const voucher = getScholarVoucherAmount();
+  const voucherActive = isScholarVoucherApplied();
   const total = computeTotalPayable();
+
   const paidInput = document.getElementById("paidAmount");
   const amountPaid =
     paidInput && !paidInput.disabled ? parseFloat(paidInput.value) || 0 : 0;
   const { remaining, change } = paymentAmounts(total, amountPaid);
+
+  const subtotalEl = document.getElementById("particularsSubtotal");
+  const voucherRow = document.getElementById("scholarVoucherDeductionRow");
+  const voucherEl = document.getElementById("scholarVoucherDeductionDisplay");
+
+  if (subtotalEl) subtotalEl.textContent = formatPeso(subtotal);
+  if (voucherRow && voucherEl) {
+    if (voucherActive && voucher > 0) {
+      voucherRow.classList.remove("d-none");
+      voucherEl.textContent = `-${formatPeso(voucher)}`;
+    } else {
+      voucherRow.classList.add("d-none");
+      voucherEl.textContent = "-₱0.00";
+    }
+  }
 
   const totalEl = document.getElementById("totalPayable");
   const balanceEl = document.getElementById("remainingBalance");
@@ -305,9 +358,12 @@ function updateTotals() {
   if (changeEl) changeEl.textContent = formatPeso(change);
 
   if (badge) {
-    if (total <= 0) {
+    if (subtotal <= 0) {
       badge.textContent = "No Amount";
       badge.className = "badge bg-secondary";
+    } else if (voucherActive && voucher >= subtotal && total <= 0) {
+      badge.textContent = "Full Payment (Voucher Covered)";
+      badge.className = "badge cashier-badge-full";
     } else if (remaining <= 0 && amountPaid >= total) {
       badge.textContent = "Full Payment";
       badge.className = "badge cashier-badge-full";
@@ -322,11 +378,11 @@ function updateTotals() {
 
   const amountError = validatePaidAmountInput();
   if (submitBtn) {
+    const isVoucherFullyCovered = voucherActive && voucher > 0 && total <= 0 && subtotal > 0;
     const blocked =
       !hasSelectedStudent() ||
-      total <= 0 ||
-      amountPaid <= 0 ||
-      Boolean(amountError);
+      subtotal <= 0 ||
+      (!isVoucherFullyCovered && (total <= 0 || amountPaid <= 0 || Boolean(amountError)));
     submitBtn.disabled = blocked;
   }
 }
@@ -471,6 +527,9 @@ async function applyStudentFees(student) {
       totalRemaining: student.totalRemaining,
       isFullyPaid: student.isFullyPaid,
       isNewStudent: student.isNewStudent ?? (totalPaid <= 0 && totalAssessed > 0),
+      isScholar: student.isScholar ?? false,
+      scholarCodeName: student.scholarCodeName || "",
+      voucherAmount: student.voucherAmount || 0,
     };
   }
 
@@ -494,6 +553,49 @@ async function applyStudentFees(student) {
     paidInput.value = due > 0 ? "" : "0";
     paidInput.placeholder = due > 0 ? `Up to ${formatPeso(due)}` : "0.00";
   }
+
+  // Scholar Grant Handling
+  const scholarCheckbox = document.getElementById("isScholarCheckbox");
+  const scholarFieldsWrap = document.getElementById("scholarFieldsWrap");
+  const scholarCodeNameInput = document.getElementById("scholarCodeName");
+  const scholarVoucherInput = document.getElementById("scholarVoucherAmount");
+  const scholarBadge = document.getElementById("scholarGrantStatusBadge");
+  const scholarHint = document.getElementById("scholarGrantHint");
+
+  const isScholar = Boolean(feeData?.isScholar ?? student?.isScholar);
+  const scholarCodeName = feeData?.scholarCodeName || student?.scholarCodeName || "";
+  const voucherAmount = Number(feeData?.voucherAmount ?? student?.voucherAmount) || 0;
+
+  if (scholarCheckbox) {
+    if (isScholar) {
+      scholarCheckbox.disabled = false;
+      scholarCheckbox.checked = true;
+      if (scholarBadge) {
+        scholarBadge.textContent = "Verified Scholar Grantee";
+        scholarBadge.className = "badge bg-success-subtle text-success border border-success-subtle text-xs";
+      }
+      if (scholarHint) {
+        scholarHint.textContent = "Active scholar grant found in database. Voucher deduction will be applied to this student alone.";
+      }
+      if (scholarFieldsWrap) scholarFieldsWrap.classList.remove("d-none");
+      if (scholarCodeNameInput) scholarCodeNameInput.value = scholarCodeName;
+      if (scholarVoucherInput) scholarVoucherInput.value = voucherAmount > 0 ? voucherAmount.toFixed(2) : "0.00";
+    } else {
+      scholarCheckbox.disabled = true;
+      scholarCheckbox.checked = false;
+      if (scholarBadge) {
+        scholarBadge.textContent = "Not in Scholar Grant Database";
+        scholarBadge.className = "badge bg-secondary-subtle text-secondary border text-xs";
+      }
+      if (scholarHint) {
+        scholarHint.textContent = "This student has no active scholarship grant record in the database.";
+      }
+      if (scholarFieldsWrap) scholarFieldsWrap.classList.add("d-none");
+      if (scholarCodeNameInput) scholarCodeNameInput.value = "";
+      if (scholarVoucherInput) scholarVoucherInput.value = "0.00";
+    }
+  }
+
   updateTotals();
 }
 
@@ -593,6 +695,29 @@ async function assignNextControlNumber() {
   }
 }
 
+function resetScholarGrantSection() {
+  const scholarCheckbox = document.getElementById("isScholarCheckbox");
+  if (scholarCheckbox) {
+    scholarCheckbox.checked = false;
+    scholarCheckbox.disabled = true;
+  }
+  const scholarFieldsWrap = document.getElementById("scholarFieldsWrap");
+  if (scholarFieldsWrap) scholarFieldsWrap.classList.add("d-none");
+  const scholarCodeName = document.getElementById("scholarCodeName");
+  if (scholarCodeName) scholarCodeName.value = "";
+  const scholarVoucherAmount = document.getElementById("scholarVoucherAmount");
+  if (scholarVoucherAmount) scholarVoucherAmount.value = "0";
+  const scholarBadge = document.getElementById("scholarGrantStatusBadge");
+  if (scholarBadge) {
+    scholarBadge.textContent = "Select student";
+    scholarBadge.className = "badge bg-secondary-subtle text-secondary border text-xs";
+  }
+  const scholarHint = document.getElementById("scholarGrantHint");
+  if (scholarHint) {
+    scholarHint.textContent = "Select a student to check scholarship grant status in the database.";
+  }
+}
+
 function resetPaymentForm() {
   const form = document.getElementById("paymentForm");
   form?.reset();
@@ -600,6 +725,7 @@ function resetPaymentForm() {
   selectedStudentBalance = null;
   document.getElementById("selectedStudentId").value = "";
   document.getElementById("selectedRegistrationId").value = "";
+  resetScholarGrantSection();
 
   const tbody = document.getElementById("particularsBody");
   if (tbody) {
@@ -911,10 +1037,15 @@ export function showReceiptModal(txn) {
 }
 
 function buildPaymentConfirmSummary(txn) {
+  const voucherRow = txn.isScholar && txn.voucherAmount > 0
+    ? `<dt>Scholar Voucher</dt><dd class="text-success">-${formatPeso(txn.voucherAmount)} (${escapeHtml(txn.scholarCodeName || "Grant")})</dd>`
+    : "";
   return `
     <dl>
       <dt>Student</dt><dd>${escapeHtml(txn.studentName)}</dd>
       <dt>Control No.</dt><dd>${escapeHtml(txn.controlNumber)}</dd>
+      ${voucherRow}
+      <dt>Total payable</dt><dd>${formatPeso(txn.totalPayable)}</dd>
       <dt>Amount paid</dt><dd>${formatPeso(txn.amountPaid ?? txn.paidAmount)}</dd>
       <dt>Change</dt><dd>${formatPeso(txn.changeDue || 0)}</dd>
       <dt>Remaining balance</dt><dd>${formatPeso(txn.remainingBalance)}</dd>
@@ -927,6 +1058,10 @@ function collectPaymentPayload(form) {
   const controlNumber = document.getElementById("controlNumber")?.value?.trim();
   const studentName = document.getElementById("studentSearchInput")?.value?.trim();
   const particulars = readParticulars();
+  const particularsSubtotal = computeParticularsSubtotal();
+  const isScholar = isScholarVoucherApplied();
+  const scholarCodeName = document.getElementById("scholarCodeName")?.value?.trim() || "";
+  const voucherAmount = getScholarVoucherAmount();
   const totalPayable = computeTotalPayable();
   const amountPaid = parseFloat(document.getElementById("paidAmount")?.value) || 0;
   const receiptType = form.querySelector('input[name="receiptType"]:checked')?.value || "OR";
@@ -938,6 +1073,10 @@ function collectPaymentPayload(form) {
     controlNumber,
     studentName,
     particulars,
+    particularsSubtotal,
+    isScholar,
+    scholarCodeName,
+    voucherAmount,
     totalPayable,
     amountPaid,
     creditedAmount: amounts.credited,
@@ -958,6 +1097,10 @@ function validatePaymentPayload(payload) {
     amountPaid,
     studentId,
     registrationId,
+    isScholar,
+    scholarCodeName,
+    voucherAmount,
+    particularsSubtotal,
   } = payload;
 
   if (!controlNumber) return "Please enter or auto-generate a control number.";
@@ -966,12 +1109,19 @@ function validatePaymentPayload(payload) {
   if (!studentId && !registrationId) {
     return "Select a student from the search results (must have an enrollment profile).";
   }
-  if (!particulars.length || totalPayable <= 0) {
+  if (!particulars.length || particularsSubtotal <= 0) {
     return "Add at least one particular with an amount.";
   }
 
-  const minMsg = validateMinimumPayment(amountPaid, totalPayable);
-  if (minMsg) return minMsg;
+  if (isScholar && voucherAmount > 0 && !scholarCodeName) {
+    return "Please enter the scholarship grant code or name.";
+  }
+
+  const isVoucherFullyCovered = isScholar && voucherAmount > 0 && totalPayable <= 0;
+  if (!isVoucherFullyCovered) {
+    const minMsg = validateMinimumPayment(amountPaid, totalPayable);
+    if (minMsg) return minMsg;
+  }
 
   const accountDue = Number(selectedStudentBalance?.totalRemaining);
   if (accountDue > 0 && totalPayable > accountDue + 0.01) {
@@ -994,11 +1144,20 @@ async function savePaymentTransaction(form, payload) {
     receiptType,
     studentId,
     registrationId,
+    isScholar,
+    scholarCodeName,
+    voucherAmount,
+    particularsSubtotal,
   } = payload;
 
   let status = "Unpaid";
-  if (amountPaid >= totalPayable && totalPayable > 0) status = "Full Payment";
-  else if (amountPaid > 0) status = "Partial Payment";
+  if (isScholar && voucherAmount > 0 && totalPayable <= 0 && particularsSubtotal > 0) {
+    status = "Full Payment";
+  } else if (amountPaid >= totalPayable && totalPayable > 0) {
+    status = "Full Payment";
+  } else if (amountPaid > 0) {
+    status = "Partial Payment";
+  }
 
   const now = new Date();
   const txn = {
@@ -1017,6 +1176,9 @@ async function savePaymentTransaction(form, payload) {
     changeDue,
     remainingBalance,
     status,
+    isScholar,
+    scholarCodeName,
+    voucherAmount,
     cashierName: getCashierName(),
     dateTime: now.toLocaleString("en-PH", {
       year: "numeric",
@@ -1086,6 +1248,23 @@ export function initPaymentModal() {
   paidInput?.addEventListener("input", updateTotals);
   paidInput?.addEventListener("blur", validatePaidAmountInput);
 
+  const scholarCheckbox = document.getElementById("isScholarCheckbox");
+  const scholarFieldsWrap = document.getElementById("scholarFieldsWrap");
+  const scholarCodeName = document.getElementById("scholarCodeName");
+  const scholarVoucherAmount = document.getElementById("scholarVoucherAmount");
+
+  scholarCheckbox?.addEventListener("change", () => {
+    if (scholarCheckbox.checked) {
+      scholarFieldsWrap?.classList.remove("d-none");
+    } else {
+      scholarFieldsWrap?.classList.add("d-none");
+    }
+    updateTotals();
+  });
+
+  scholarCodeName?.addEventListener("input", updateTotals);
+  scholarVoucherAmount?.addEventListener("input", updateTotals);
+
   getParticularRows().forEach(bindParticularRow);
   syncRemoveButtons();
   updateTotals();
@@ -1097,6 +1276,7 @@ export function initPaymentModal() {
     document.getElementById("selectedRegistrationId").value = "";
     renderPaymentList([]);
     hideBalanceSummary();
+    resetScholarGrantSection();
     const q = studentInput.value.trim();
     clearTimeout(searchTimer);
     if (q.length < 2) {
@@ -1151,14 +1331,14 @@ export function initPaymentModal() {
   });
 }
 
-export function selectStudentForPayment(student) {
+export async function selectStudentForPayment(student) {
   if (!student) return;
   selectedStudent = { ...student };
   const input = document.getElementById("studentSearchInput");
   if (input) input.value = selectedStudent.name || "";
   document.getElementById("selectedStudentId").value = selectedStudent.id || "";
   document.getElementById("selectedRegistrationId").value = selectedStudent.registrationId || "";
-  applyStudentFees(selectedStudent);
+  await applyStudentFees(selectedStudent);
 }
 
 export function openPaymentModal() {

@@ -1320,7 +1320,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }),
       });
 
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error(`Server returned error (${res.status} ${res.statusText || "Internal Error"})`);
+      }
       if (!res.ok || !data.ok) {
         throw new Error(data.message || "Failed to save scholar.");
       }

@@ -364,20 +364,20 @@
 {% block scripts %}
 {% include "components/cashier/scripts_common.html" %}
 <script type="module">
-  import { findCachedCashierStudent, initCashierStudents } from "{% static 'js/cashier-students.js' %}";
-  import { initPaymentModal, openPaymentModal, selectStudentForPayment } from "{% static 'js/cashier-payment.js' %}";
+  import { findCachedCashierStudent, initCashierStudents } from "{% static 'js/cashier-students.js' %}?v={% now 'U' %}";
+  import { initPaymentModal, openPaymentModal, selectStudentForPayment } from "{% static 'js/cashier-payment.js' %}?v={% now 'U' %}";
 
   initPaymentModal();
   initCashierStudents();
 
   // Inline "Receive Payment" action button handler
-  document.getElementById("studentsTableBody")?.addEventListener("click", (e) => {
+  document.getElementById("studentsTableBody")?.addEventListener("click", async (e) => {
     const payBtn = e.target.closest(".btn-student-pay");
     if (!payBtn) return;
     openPaymentModal();
     const student = findCachedCashierStudent(payBtn.dataset.registrationId || "");
     if (student) {
-      selectStudentForPayment(student);
+      await selectStudentForPayment(student);
     }
   });
 </script>

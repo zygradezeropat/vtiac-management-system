@@ -91,11 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const docFilterEl = document.getElementById("doc-status-filter");
   const tableContainer = document.getElementById("student-table-container");
   const paginationContainer = document.getElementById("pagination-container");
-  const modalEl = document.getElementById("add-student-modal");
-  const addModal = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
   const viewModal = initStudentViewModal(document.getElementById("view-student-modal"));
   const viewBodyEl = document.getElementById("view-student-body");
-  const enrollmentSelect = document.querySelector('#add-student-form [name="enrollmentType"]');
   let currentStudentContext = null;
   let currentDetailContext = null;
   let actionInFlight = false;
@@ -313,9 +310,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderTabs();
         renderFilterOptions();
         renderTable();
-        if (enrollmentSelect) {
-          enrollmentSelect.value = activeTab === "assessment" ? "Assessment Only" : "Training with Assessment";
-        }
       });
       tabsEl.appendChild(btn);
     });
@@ -475,19 +469,6 @@ document.addEventListener("DOMContentLoaded", () => {
     docFilters[activeTab] = e.target.value;
     pages[activeTab] = 1;
     renderTable();
-  });
-
-  document.getElementById("open-add-student")?.addEventListener("click", () => {
-    document.getElementById("add-student-form")?.reset();
-    if (enrollmentSelect) {
-      enrollmentSelect.value = activeTab === "assessment" ? "Assessment Only" : "Training with Assessment";
-    }
-    addModal?.show();
-  });
-
-  document.getElementById("add-student-form")?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    addModal?.hide();
   });
 
   renderTabs();

@@ -4,264 +4,403 @@
 {% block body %}
 {% include "components/registrar/layout_start.html" %}
 
-<header class="registrar-page-header mb-4">
+{% if eval_trainer_rows_json %}
+{{ eval_trainer_rows_json|json_script:"eval-trainer-rows-data" }}
+{% endif %}
+
+<header class="registrar-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
     <div>
-        <h1 class="registrar-page-title">Trainer Evaluations</h1>
-        <p class="registrar-page-subtitle">
-            Monitor trainer performance based on student evaluations.
+        <h1 class="registrar-page-title mb-1">Trainer Evaluations</h1>
+        <p class="registrar-page-subtitle mb-0">
+            Monitor trainer performance based on verified student evaluations across all programs.
         </p>
     </div>
 </header>
 
 <!-- Summary Cards -->
 <div class="row g-3 mb-4">
-
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0">
-            <div class="card-body text-center">
-                <h6 class="text-muted">Total Trainers</h6>
-                <h2 class="fw-bold">{{ eval_total_trainers|default:0 }}</h2>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body text-center p-3 p-md-4">
+                <span class="text-uppercase text-muted fw-bold text-xs d-block mb-1">Total Trainers</span>
+                <h2 class="fw-bold text-dark mb-0">{{ eval_total_trainers|default:0 }}</h2>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0">
-            <div class="card-body text-center">
-                <h6 class="text-muted">Evaluated</h6>
-                <h2 class="fw-bold text-success">{{ eval_evaluated_trainers|default:0 }}</h2>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body text-center p-3 p-md-4">
+                <span class="text-uppercase text-muted fw-bold text-xs d-block mb-1">Evaluated</span>
+                <h2 class="fw-bold text-success mb-0">{{ eval_evaluated_trainers|default:0 }}</h2>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0">
-            <div class="card-body text-center">
-                <h6 class="text-muted">Average Rating</h6>
-                <h2 class="fw-bold text-warning">{{ eval_avg_rating|default:"—" }}</h2>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body text-center p-3 p-md-4">
+                <span class="text-uppercase text-muted fw-bold text-xs d-block mb-1">Average Rating</span>
+                <h2 class="fw-bold text-warning mb-0">{{ eval_avg_rating|default:"—" }}</h2>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
-        <div class="card shadow-sm border-0">
-            <div class="card-body text-center">
-                <h6 class="text-muted">Total Evaluations</h6>
-                <h2 class="fw-bold">{{ eval_total_count|default:0 }}</h2>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body text-center p-3 p-md-4">
+                <span class="text-uppercase text-muted fw-bold text-xs d-block mb-1">Total Evaluations</span>
+                <h2 class="fw-bold text-dark mb-0">{{ eval_total_count|default:0 }}</h2>
             </div>
         </div>
     </div>
-
 </div>
 
 <!-- Filters -->
-<div class="card shadow-sm border-0 mb-4">
-
-    <div class="card-header bg-white">
-        <strong>Filters</strong>
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-header bg-white py-3 border-0 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <strong class="text-dark"><i class="bi bi-funnel text-primary me-2"></i>Filters</strong>
+        <span class="text-muted small">Filter trainers by program, batch, or name</span>
     </div>
 
-    <div class="card-body">
-
-        <div class="row g-3">
-
+    <div class="card-body pt-0">
+        <div class="row g-3 align-items-center">
             <div class="col-md-3">
-                <input
-                    type="text"
-                    class="form-control"
-                    placeholder="Search trainer">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input
+                        type="search"
+                        id="eval-trainer-search"
+                        class="form-control form-control-sm border-start-0"
+                        placeholder="Search trainer by name or email...">
+                </div>
             </div>
 
             <div class="col-md-3">
-                <select class="form-select">
-                    <option>All Programs</option>
-                    <option>Automotive NC I</option>
-                    <option>SMAW NC II</option>
-                    <option>Dressmaking NC II</option>
+                <select id="eval-program-filter" class="form-select form-select-sm">
+                    <option value="">All Programs</option>
+                    {% for prog in eval_filter_programs %}
+                    <option value="{{ prog }}">{{ prog }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
             <div class="col-md-3">
-                <select class="form-select">
-                    <option>All Batches</option>
-                    <option>Morning</option>
-                    <option>Afternoon</option>
+                <select id="eval-batch-filter" class="form-select form-select-sm">
+                    <option value="">All Batches</option>
+                    {% for b in eval_filter_batches %}
+                    <option value="{{ b }}">{{ b }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
-            <div class="col-md-3">
-                <button class="btn btn-success w-100">
-                    Apply Filter
+            <div class="col-md-3 d-flex gap-2">
+                <button type="button" id="eval-apply-btn" class="btn btn-success btn-sm flex-grow-1 fw-semibold">
+                    <i class="bi bi-funnel-fill me-1"></i>Apply Filter
+                </button>
+                <button type="button" id="eval-reset-btn" class="btn btn-outline-secondary btn-sm px-3">
+                    Reset
                 </button>
             </div>
-
         </div>
-
     </div>
-
 </div>
 
 <!-- Trainer Evaluation Table -->
-<div class="card shadow-sm border-0">
-
-    <div class="card-header bg-white">
-        <strong>Trainer Performance</strong>
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-white py-3 border-0 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <strong class="text-dark"><i class="bi bi-person-lines-fill text-success me-2"></i>Trainer Performance</strong>
+        <span class="badge bg-light text-secondary border" id="eval-table-count">{{ eval_trainer_rows|length }} Trainers</span>
     </div>
 
-    <div class="card-body">
-
+    <div class="card-body p-0">
         <div class="table-responsive">
-
-            <table class="table table-hover align-middle">
-
-                <thead class="table-light">
-
+            <table class="table table-hover align-middle mb-0" id="eval-table">
+                <thead class="table-light text-secondary" style="font-size: 0.85rem;">
                     <tr>
-                        <th>Trainer</th>
+                        <th class="ps-4">Trainer</th>
                         <th>Program</th>
                         <th>Batch</th>
                         <th class="text-center">Students</th>
                         <th class="text-center">Rating</th>
-                        <th class="text-center">Action</th>
+                        <th class="text-center pe-4">Action</th>
                     </tr>
-
                 </thead>
 
-                <tbody>
-
+                <tbody id="eval-tbody">
                     {% for row in eval_trainer_rows %}
-                    <tr>
-                        <td>{{ row.name }}</td>
-                        <td>{{ row.program }}</td>
-                        <td>{{ row.batch }}</td>
-                        <td class="text-center">{{ row.student_count }}</td>
+                    <tr class="eval-trainer-row"
+                        data-id="{{ row.id }}"
+                        data-name="{{ row.name|lower }} {{ row.email|lower }}"
+                        data-program="{{ row.program }}"
+                        data-batch="{{ row.batch }}">
+                        <td class="ps-4">
+                            <strong class="d-block text-dark">{{ row.name }}</strong>
+                            <small class="text-muted">{{ row.email }}</small>
+                        </td>
+                        <td>
+                            <span class="badge text-bg-light border text-dark">{{ row.program }}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted fw-medium">{{ row.batch }}</small>
+                        </td>
                         <td class="text-center">
-                            <span class="badge {{ row.rating_badge_class }}">
+                            <span class="fw-bold text-dark">{{ row.student_count }}</span>
+                            <small class="text-muted d-block text-xs">evaluations</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {{ row.rating_badge_class }} px-2 py-1">
                                 {{ row.rating }}
                             </span>
                         </td>
-                        <td class="text-center">
+                        <td class="text-center pe-4">
                             <button
-                                class="btn btn-outline-primary btn-sm"
-                                data-bs-toggle="modal"
-                                data-bs-target="#evaluationModal">
-                                View
+                                type="button"
+                                class="btn btn-outline-primary btn-sm view-eval-btn"
+                                data-id="{{ row.id }}">
+                                <i class="bi bi-eye me-1"></i>View
                             </button>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr>
+                    <tr id="eval-empty-row">
                         <td colspan="6" class="text-center text-muted py-4">
                             No trainer evaluations recorded yet.
                         </td>
                     </tr>
                     {% endfor %}
-
+                    <tr id="eval-no-filter-match" class="d-none">
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No trainers match the selected filter criteria.
+                        </td>
+                    </tr>
                 </tbody>
-
             </table>
-
         </div>
-
     </div>
-
 </div>
 
 <!-- Evaluation Details Modal -->
-<div
-    class="modal fade"
-    id="evaluationModal"
-    tabindex="-1">
-
-    <div class="modal-dialog modal-lg">
-
-        <div class="modal-content">
-
-            <div class="modal-header">
-
-                <h5 class="modal-title">
-                    Trainer Evaluation Details
-                </h5>
-
-                <button
-                    class="btn-close"
-                    data-bs-dismiss="modal">
-                </button>
-
+<div class="modal fade" id="evaluationModal" tabindex="-1" aria-labelledby="evaluationModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title h5 fw-bold mb-1" id="evaluationModalTitle">
+                        Trainer Evaluation Details
+                    </h5>
+                    <p class="text-muted small mb-0" id="eval-modal-subtitle">Official Student Evaluation Record</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <div class="modal-body">
-
-                <h5>Juan Dela Cruz</h5>
-
-                <hr>
-
-                <table class="table">
-
-                    <tbody>
-
-                        <tr>
-                            <td>Professionalism</td>
-                            <td class="text-end fw-bold">4.9</td>
-                        </tr>
-
-                        <tr>
-                            <td>Teaching Skills</td>
-                            <td class="text-end fw-bold">4.8</td>
-                        </tr>
-
-                        <tr>
-                            <td>Communication</td>
-                            <td class="text-end fw-bold">4.9</td>
-                        </tr>
-
-                        <tr>
-                            <td>Knowledge</td>
-                            <td class="text-end fw-bold">5.0</td>
-                        </tr>
-
-                        <tr>
-                            <td>Time Management</td>
-                            <td class="text-end fw-bold">4.8</td>
-                        </tr>
-
-                    </tbody>
-
-                </table>
-
-                <hr>
-
-                <h6>Recent Anonymous Feedback</h6>
-
-                <div class="border rounded p-3 mb-3">
-                    Very patient and explains lessons clearly.
+            <div class="modal-body pt-3">
+                <div class="p-3 bg-light rounded-3 mb-3 border">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div>
+                            <h5 class="fw-bold text-dark mb-1" id="eval-modal-trainer-name">—</h5>
+                            <span class="badge text-bg-light border text-muted" id="eval-modal-program-batch">—</span>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-bold fs-6" id="eval-modal-overall-rating">
+                                ★ — / 5.0
+                            </span>
+                            <small class="text-muted d-block mt-1" id="eval-modal-eval-count">0 evaluations</small>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="border rounded p-3 mb-3">
-                    Excellent trainer. Highly recommended.
+                <h6 class="fw-bold text-dark mb-2">Core Criteria Performance (TESDA Evaluation)</h6>
+                <div class="table-responsive border rounded-3 mb-4">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Criteria Area</th>
+                                <th class="text-end" style="width: 140px;">Average Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eval-modal-criteria-body">
+                            <!-- Populated dynamically from DB -->
+                        </tbody>
+                    </table>
                 </div>
 
-                <div class="border rounded p-3">
-                    More hands-on activities would be appreciated.
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="fw-bold text-dark mb-0">Recent Anonymous Student Feedback</h6>
+                    <span class="badge bg-secondary-subtle text-secondary border text-xs">
+                        <i class="bi bi-shield-lock-fill text-success me-1"></i>Identities Protected
+                    </span>
                 </div>
 
+                <div id="eval-modal-feedback-list" class="d-flex flex-column gap-2" style="max-height: 260px; overflow-y: auto;">
+                    <!-- Populated dynamically from DB -->
+                </div>
             </div>
 
-            <div class="modal-footer">
-
-                <button
-                    class="btn btn-secondary"
-                    data-bs-dismiss="modal">
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
                     Close
                 </button>
-
             </div>
-
         </div>
-
     </div>
-
 </div>
 
 {% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Load evaluation dataset from server JSON
+    const dataScript = document.getElementById("eval-trainer-rows-data");
+    let trainerRows = [];
+    if (dataScript) {
+        try {
+            trainerRows = JSON.parse(dataScript.textContent);
+        } catch (e) {
+            console.error("Failed to parse trainer evaluations data", e);
+        }
+    }
+
+    const trainerMap = new Map();
+    trainerRows.forEach((r) => trainerMap.set(String(r.id), r));
+
+    // 2. Elements for Filtering
+    const searchInput = document.getElementById("eval-trainer-search");
+    const programSelect = document.getElementById("eval-program-filter");
+    const batchSelect = document.getElementById("eval-batch-filter");
+    const applyBtn = document.getElementById("eval-apply-btn");
+    const resetBtn = document.getElementById("eval-reset-btn");
+    const tableCountBadge = document.getElementById("eval-table-count");
+    const noMatchRow = document.getElementById("eval-no-filter-match");
+    const allRows = document.querySelectorAll(".eval-trainer-row");
+
+    function applyFilters() {
+        const query = (searchInput?.value || "").trim().toLowerCase();
+        const selectedProg = (programSelect?.value || "").trim();
+        const selectedBatch = (batchSelect?.value || "").trim();
+
+        let visibleCount = 0;
+        allRows.forEach((row) => {
+            const rowName = row.dataset.name || "";
+            const rowProg = row.dataset.program || "";
+            const rowBatch = row.dataset.batch || "";
+
+            const matchQuery = !query || rowName.includes(query);
+            const matchProg = !selectedProg || rowProg === selectedProg;
+            const matchBatch = !selectedBatch || rowBatch === selectedBatch;
+
+            if (matchQuery && matchProg && matchBatch) {
+                row.classList.remove("d-none");
+                visibleCount++;
+            } else {
+                row.classList.add("d-none");
+            }
+        });
+
+        if (tableCountBadge) {
+            tableCountBadge.textContent = `${visibleCount} Trainer${visibleCount === 1 ? "" : "s"}`;
+        }
+        if (noMatchRow) {
+            if (visibleCount === 0 && allRows.length > 0) {
+                noMatchRow.classList.remove("d-none");
+            } else {
+                noMatchRow.classList.add("d-none");
+            }
+        }
+    }
+
+    function resetFilters() {
+        if (searchInput) searchInput.value = "";
+        if (programSelect) programSelect.value = "";
+        if (batchSelect) batchSelect.value = "";
+        applyFilters();
+    }
+
+    applyBtn?.addEventListener("click", applyFilters);
+    searchInput?.addEventListener("input", applyFilters);
+    programSelect?.addEventListener("change", applyFilters);
+    batchSelect?.addEventListener("change", applyFilters);
+    resetBtn?.addEventListener("click", resetFilters);
+
+    // 3. Modal Population
+    const modalEl = document.getElementById("evaluationModal");
+    const modal = modalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
+    const modalTrainerName = document.getElementById("eval-modal-trainer-name");
+    const modalProgramBatch = document.getElementById("eval-modal-program-batch");
+    const modalOverallRating = document.getElementById("eval-modal-overall-rating");
+    const modalEvalCount = document.getElementById("eval-modal-eval-count");
+    const modalCriteriaBody = document.getElementById("eval-modal-criteria-body");
+    const modalFeedbackList = document.getElementById("eval-modal-feedback-list");
+
+    document.getElementById("eval-tbody")?.addEventListener("click", (e) => {
+        const btn = e.target.closest(".view-eval-btn");
+        if (!btn) return;
+        const id = String(btn.dataset.id);
+        const t = trainerMap.get(id);
+        if (!t) return;
+
+        if (modalTrainerName) modalTrainerName.textContent = t.name;
+        if (modalProgramBatch) modalProgramBatch.textContent = `${t.program} · ${t.batch}`;
+        if (modalOverallRating) {
+            modalOverallRating.textContent = `★ ${t.overall_rating} / 5.0`;
+            modalOverallRating.className = `badge ${t.rating_badge_class} px-3 py-2 fw-bold fs-6`;
+        }
+        if (modalEvalCount) {
+            modalEvalCount.textContent = `${t.student_count} student evaluation${t.student_count === 1 ? "" : "s"}`;
+        }
+
+        // Render criteria scores
+        if (modalCriteriaBody) {
+            if (t.summary_scores && t.summary_scores.length > 0) {
+                modalCriteriaBody.innerHTML = t.summary_scores.map((c) => `
+                    <tr>
+                        <td class="text-dark fw-medium">${c.category}</td>
+                        <td class="text-end">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fw-bold">
+                                ★ ${c.score} / 5.0
+                            </span>
+                        </td>
+                    </tr>
+                `).join("");
+            } else {
+                modalCriteriaBody.innerHTML = `
+                    <tr><td colspan="2" class="text-center text-muted py-3">No evaluation scores recorded yet.</td></tr>
+                `;
+            }
+        }
+
+        // Render feedback comments
+        if (modalFeedbackList) {
+            if (t.feedback_list && t.feedback_list.length > 0) {
+                modalFeedbackList.innerHTML = t.feedback_list.map((f) => `
+                    <div class="border rounded-3 p-3 bg-light">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <strong class="text-dark small"><i class="bi bi-person-fill text-muted me-1"></i>${f.student_alias}</strong>
+                            <span class="badge bg-warning-subtle text-dark border px-2 py-0.5 small">★ ${f.rating}</span>
+                        </div>
+                        <p class="mb-1 text-dark small">"${f.comment}"</p>
+                        <small class="text-muted text-xs">${f.submitted_date || ""} · ${f.program || ""}</small>
+                    </div>
+                `).join("");
+            } else {
+                modalFeedbackList.innerHTML = `
+                    <div class="text-center text-muted py-4 border rounded-3 bg-light">
+                        <i class="bi bi-chat-square-text opacity-50 fs-3 d-block mb-1"></i>
+                        <small>No student feedback comments submitted for this trainer yet.</small>
+                    </div>
+                `;
+            }
+        }
+
+        modal?.show();
+    });
+});
+</script>
 {% endblock %}

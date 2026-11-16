@@ -282,7 +282,7 @@ def scholarship_integrate_records(request):
                 middle_name=middle_name or (profile.middle_name if profile else (reg.middle_name if reg else None)),
                 scholar_name=full_display_name,
                 birthdate=str(birthdate) if birthdate else (str(profile.birth_date) if profile and profile.birth_date else None),
-                address=address or (profile.street_address if profile else None),
+                address=address or (getattr(profile, "street_house", None) if profile else None),
                 email=email or (profile.email if profile else (reg.email if reg else None)),
                 program=program or (profile.selected_program if profile else (reg.selected_program if reg else None)),
                 sponsor_name=sponsor or "Scholarship Grant",
@@ -371,58 +371,61 @@ def scholarship_manual_entry(request):
     if not grant and profile:
         grant = ScholarGrantRecord.objects.filter(profile=profile, is_active=True).first()
 
-    if not grant:
-        grant = ScholarGrantRecord(
-            scholar_name=scholar_name,
-            first_name=first_name,
-            last_name=last_name,
-            middle_name=middle_name,
-            email=email or (profile.email if profile else (reg.email if reg else None)),
-            program=program or (profile.selected_program if profile else (reg.selected_program if reg else None)),
-            scholarship_type=scholarship_type,
-            sponsor_name=sponsor_name or "Scholarship Grant",
-            academic_year=academic_year,
-            slot_id=slot_id or None,
-            amount=amount or None,
-            address=address or (profile.street_address if profile else None),
-            birthdate=birthdate or (str(profile.birth_date) if profile and profile.birth_date else None),
-            profile=profile,
-            registration=reg,
-            is_active=True,
-        )
-    else:
-        grant.scholar_name = scholar_name
-        if first_name:
-            grant.first_name = first_name
-        if last_name:
-            grant.last_name = last_name
-        if middle_name:
-            grant.middle_name = middle_name
-        if email:
-            grant.email = email
-        if program:
-            grant.program = program
-        grant.scholarship_type = scholarship_type
-        grant.sponsor_name = sponsor_name or grant.sponsor_name or "Scholarship Grant"
-        grant.academic_year = academic_year
-        grant.slot_id = slot_id or grant.slot_id
-        grant.amount = amount or grant.amount
-        if address:
-            grant.address = address
-        if birthdate:
-            grant.birthdate = birthdate
+    try:
+        if not grant:
+            grant = ScholarGrantRecord(
+                scholar_name=scholar_name,
+                first_name=first_name,
+                last_name=last_name,
+                middle_name=middle_name,
+                email=email or (profile.email if profile else (reg.email if reg else None)),
+                program=program or (profile.selected_program if profile else (reg.selected_program if reg else None)),
+                scholarship_type=scholarship_type,
+                sponsor_name=sponsor_name or "Scholarship Grant",
+                academic_year=academic_year,
+                slot_id=slot_id or None,
+                amount=amount or None,
+                address=address or (getattr(profile, "street_house", None) if profile else None),
+                birthdate=birthdate or (str(profile.birth_date) if profile and profile.birth_date else None),
+                profile=profile,
+                registration=reg,
+                is_active=True,
+            )
+        else:
+            grant.scholar_name = scholar_name
+            if first_name:
+                grant.first_name = first_name
+            if last_name:
+                grant.last_name = last_name
+            if middle_name:
+                grant.middle_name = middle_name
+            if email:
+                grant.email = email
+            if program:
+                grant.program = program
+            grant.scholarship_type = scholarship_type
+            grant.sponsor_name = sponsor_name or grant.sponsor_name or "Scholarship Grant"
+            grant.academic_year = academic_year
+            grant.slot_id = slot_id or grant.slot_id
+            grant.amount = amount or grant.amount
+            if address:
+                grant.address = address
+            if birthdate:
+                grant.birthdate = birthdate
+            if profile:
+                grant.profile = profile
+            if reg:
+                grant.registration = reg
+            grant.is_active = True
+
+        grant.save()
+
+        # Update profile scholarship_type if linked
         if profile:
-            grant.profile = profile
-        if reg:
-            grant.registration = reg
-        grant.is_active = True
-
-    grant.save()
-
-    # Update profile scholarship_type if linked
-    if profile:
-        profile.scholarship_type = scholarship_type
-        profile.save(update_fields=["scholarship_type"])
+            profile.scholarship_type = scholarship_type
+            profile.save(update_fields=["scholarship_type"])
+    except Exception as e:
+        return JsonResponse({"ok": False, "message": str(e)}, status=500)
 
     from .scholarship_registry import _SCHOLARSHIP_LABELS
     stype_label = _SCHOLARSHIP_LABELS.get(grant.scholarship_type, grant.scholarship_type.upper())

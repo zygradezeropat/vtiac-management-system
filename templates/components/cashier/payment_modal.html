@@ -85,6 +85,63 @@
           <p class="cashier-field-hint mb-0">Remaining balances are loaded into particulars below. Partial payments are allowed.</p>
         </div>
 
+        <!-- Scholar Grant / Voucher Section -->
+        <div class="cashier-form-group p-3 rounded-3 border bg-light mb-3" id="cashierScholarSection">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="form-check form-switch mb-0">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                role="switch"
+                id="isScholarCheckbox"
+                disabled
+              />
+              <label class="form-check-label fw-bold text-dark ms-1" for="isScholarCheckbox">
+                Is Scholar
+              </label>
+            </div>
+            <span class="badge bg-secondary-subtle text-secondary border text-xs" id="scholarGrantStatusBadge">
+              Select student
+            </span>
+          </div>
+          <p class="cashier-field-hint text-xs mt-1 mb-0" id="scholarGrantHint">
+            Select a student to check scholarship grant status in the database.
+          </p>
+
+          <!-- 2 Input Fields: Revealed when isScholarCheckbox is checked -->
+          <div class="row g-2 mt-2 d-none" id="scholarFieldsWrap">
+            <div class="col-md-7">
+              <label class="form-label text-xs fw-semibold text-secondary mb-1" for="scholarCodeName">
+                Code / Scholar Name *
+              </label>
+              <input
+                type="text"
+                class="form-control form-control-sm"
+                id="scholarCodeName"
+                placeholder="Grant code or scholar name"
+                autocomplete="off"
+              />
+            </div>
+            <div class="col-md-5">
+              <label class="form-label text-xs fw-semibold text-secondary mb-1" for="scholarVoucherAmount">
+                Amount Being Less on Voucher *
+              </label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white">₱</span>
+                <input
+                  type="number"
+                  class="form-control form-control-sm"
+                  id="scholarVoucherAmount"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  value="0"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="cashier-form-group">
           <label class="cashier-form-label">Particulars</label>
           <div class="cashier-particulars-table">
@@ -111,6 +168,14 @@
         </div>
 
         <div class="cashier-payment-computation">
+          <div class="cashier-computation-row" id="particularsSubtotalRow">
+            <span>Particulars Subtotal:</span>
+            <span id="particularsSubtotal">₱0.00</span>
+          </div>
+          <div class="cashier-computation-row text-success d-none" id="scholarVoucherDeductionRow">
+            <span>Less Scholar Voucher:</span>
+            <strong id="scholarVoucherDeductionDisplay">-₱0.00</strong>
+          </div>
           <div class="cashier-computation-row">
             <span>Total Payable:</span>
             <span id="totalPayable">₱0.00</span>

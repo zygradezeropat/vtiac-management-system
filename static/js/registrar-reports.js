@@ -11,11 +11,12 @@ const FISCAL_YEAR = 2026;
 const TABS = [
   { key: "egace", label: "E.G.A.C.E. Performance", icon: "bi-award-fill" },
   { key: "enrollment", label: "Enrollment Report", icon: "bi-file-earmark-spreadsheet-fill" },
-  { key: "competencies", label: "Unit Competency Mastery", icon: "bi-check2-circle" },
-  { key: "assessment_roster", label: "National Assessment Candidates", icon: "bi-card-checklist" },
-  { key: "batches", label: "Batch Completion Masterlist", icon: "bi-journal-bookmark-fill" },
-  { key: "payments", label: "Fee Collections & Financial", icon: "bi-cash-stack" },
-  { key: "archived", label: "Archived Reports", icon: "bi-archive-fill" },
+  // Temporarily commented out reports - remaining only E.G.A.C.E and Enrollment report
+  // { key: "competencies", label: "Unit Competency Mastery", icon: "bi-check2-circle" },
+  // { key: "assessment_roster", label: "National Assessment Candidates", icon: "bi-card-checklist" },
+  // { key: "batches", label: "Batch Completion Masterlist", icon: "bi-journal-bookmark-fill" },
+  // { key: "payments", label: "Fee Collections & Financial", icon: "bi-cash-stack" },
+  // { key: "archived", label: "Archived Reports", icon: "bi-archive-fill" },
 ];
 
 const DEFAULT_ARCHIVED = [];

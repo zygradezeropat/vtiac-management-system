@@ -41,12 +41,17 @@
       <i class="bi bi-card-checklist me-2" aria-hidden="true"></i>Scholar Masterlist &amp; Direct Entry
     </button>
   </li>
+  {# ========================================================================= #}
+  {# TEMPORARILY COMMENTED OUT / HIDDEN FROM UI (Can be restored later) #}
+  {# ========================================================================= #}
+  {% comment "Bulk File Import (Optional) Tab Button - temporarily hidden" %}
   <li class="nav-item" role="presentation">
     <button class="nav-link fw-semibold" id="tab-import-btn" data-bs-toggle="tab" data-bs-target="#tab-import-content"
       type="button" role="tab" aria-controls="tab-import-content" aria-selected="false">
       <i class="bi bi-file-earmark-arrow-up me-2" aria-hidden="true"></i>Bulk File Import (Optional)
     </button>
   </li>
+  {% endcomment %}
 </ul>
 
 <div class="tab-content" id="scholarship-tabs-content">
@@ -102,6 +107,10 @@
     </article>
   </div>
 
+  {# ========================================================================= #}
+  {# TEMPORARILY COMMENTED OUT / HIDDEN FROM UI (Can be restored later) #}
+  {# ========================================================================= #}
+  {% comment "Bulk File Import (Optional) Content - temporarily hidden" %}
   <!-- Tab 2: Bulk File Import (Optional) -->
   <div class="tab-pane fade" id="tab-import-content" role="tabpanel" aria-labelledby="tab-import-btn">
     <div id="scholarship-stats" class="row g-3 mb-4"></div>
@@ -178,6 +187,7 @@
       </div>
     </div>
   </div>
+  {% endcomment %}
 </div>
 
 <!-- Modal: Manual Scholar Registration / Edit -->
@@ -319,7 +329,8 @@
 
           <div class="row g-3 mb-2">
             <div class="col-md-6">
-              <label class="form-label fw-semibold small" for="scholar-form-amount">Grant Coverage / Amount</label>
+              <label class="form-label fw-semibold small" for="scholar-form-amount">Grant Coverage / Amount
+                (PHP)</label>
               <input type="text" id="scholar-form-amount" class="form-control"
                 placeholder="e.g. 100% Tuition &amp; Allowance">
             </div>

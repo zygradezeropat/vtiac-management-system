@@ -25,6 +25,8 @@ def _validate_minimum_payment(
     *,
     is_new_student: bool = False,
 ) -> None:
+    if total_payable <= 0:
+        return
     if paid_amount <= 0:
         raise ValueError("Paid amount must be greater than zero.")
     if total_payable < MIN_PAYMENT_AMOUNT:
@@ -113,16 +115,33 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
     for item in particulars:
         desc = (item.get("description") or "").strip()
         amount = _parse_decimal(item.get("amount", 0), "amount")
-        if desc or amount > 0:
+        if desc or amount != 0:
             cleaned_particulars.append({"description": desc, "amount": float(amount)})
+
+    is_scholar = bool(payload.get("isScholar"))
+    scholar_code_name = (payload.get("scholarCodeName") or "").strip()
+    voucher_amount = Decimal("0")
+    if is_scholar and payload.get("voucherAmount"):
+        voucher_amount = max(Decimal("0"), _parse_decimal(payload.get("voucherAmount", 0), "voucher amount"))
+
+    if is_scholar and voucher_amount > Decimal("0"):
+        cleaned_particulars.append({
+            "description": f"Less: Scholar Grant Voucher ({scholar_code_name or 'Grant'})",
+            "amount": -float(voucher_amount),
+            "isVoucher": True,
+        })
 
     if not cleaned_particulars:
         raise ValueError("At least one particular is required.")
 
-    total_payable = _parse_decimal(
-        payload.get("totalPayable") or sum(p["amount"] for p in cleaned_particulars),
-        "total payable",
-    )
+    if is_scholar and voucher_amount > Decimal("0"):
+        subtotal = Decimal(str(sum(p["amount"] for p in cleaned_particulars if not p.get("isVoucher"))))
+        total_payable = max(Decimal("0"), subtotal - voucher_amount)
+    else:
+        total_payable = _parse_decimal(
+            payload.get("totalPayable") or sum(p["amount"] for p in cleaned_particulars),
+            "total payable",
+        )
     program = profile.selected_program or (reg.selected_program if reg else "")
     balance_before = fee_balance_for_profile(profile, program)
 
@@ -149,7 +168,7 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
     status = (payload.get("status") or "").strip()
     valid_statuses = {choice[0] for choice in CashierPayment.Status.choices}
     if status not in valid_statuses:
-        if amount_paid >= total_payable and total_payable > 0:
+        if total_payable <= Decimal("0") or (amount_paid >= total_payable and total_payable > 0):
             status = CashierPayment.Status.FULL
         elif amount_paid > 0:
             status = CashierPayment.Status.PARTIAL

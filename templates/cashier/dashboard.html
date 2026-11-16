@@ -84,8 +84,6 @@
   </a>
 </section>
 
-{% include "components/shared/dashboard_calendar.html" with calendar_role="cashier" %}
-
 <article class="cashier-panel">
   <div class="cashier-panel__head">
     <h2 class="cashier-panel__title">Recent Transactions</h2>
@@ -95,6 +93,8 @@
     <div class="cashier-txn-list" id="recentTransactions"></div>
   </div>
 </article>
+
+{% include "components/shared/dashboard_calendar.html" with calendar_role="cashier" %}
 
 {% include "components/cashier/payment_modal.html" %}
 {% include "components/cashier/receipt_modal.html" %}

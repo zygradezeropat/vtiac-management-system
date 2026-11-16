@@ -342,31 +342,98 @@ def module_page_context(module, request=None):
         from django.contrib.auth import get_user_model
         from django.db.models import Avg
         from backend.core.models import StaffProfile
-        from backend.trainer.models import TrainerEvaluation
+        from backend.registrar.models import RegistrarScheduleTemplate
+        from backend.trainer.evaluation import get_trainer_evaluation_summary
+        from backend.trainer.models import TrainerEvaluation, TrainerAccountRequest
 
         User = get_user_model()
-        trainers = User.objects.filter(staff_profile__role=StaffProfile.Role.TRAINER)
-        total_trainers = trainers.count()
+        trainers = list(
+            User.objects.filter(staff_profile__role=StaffProfile.Role.TRAINER).order_by("first_name", "last_name")
+        )
+        total_trainers = len(trainers)
         evals = TrainerEvaluation.objects.all()
         total_evaluations = evals.count()
-        evaluated_trainers = trainers.filter(received_evaluations__isnull=False).distinct().count()
+        evaluated_trainers = User.objects.filter(
+            staff_profile__role=StaffProfile.Role.TRAINER,
+            received_evaluations__isnull=False,
+        ).distinct().count()
+
         avg_res = evals.aggregate(avg=Avg("overall_rating"))["avg"]
         avg_rating_display = f"{avg_res:.1f} ★" if avg_res is not None else "—"
 
+        all_templates = list(RegistrarScheduleTemplate.objects.all())
+
         trainer_rows = []
+        programs_set = set()
+        batches_set = set()
+
         for t in trainers:
             t_evals = evals.filter(trainer=t)
+            full_name = t.get_full_name() or t.email
+            summary = get_trainer_evaluation_summary(t)
+
+            assigned_program = ""
+            assigned_batch = ""
+
             if t_evals.exists():
-                t_avg = t_evals.aggregate(avg=Avg("overall_rating"))["avg"] or 0
                 first_ev = t_evals.first()
-                trainer_rows.append({
-                    "name": t.get_full_name() or t.email,
-                    "program": first_ev.course_name or "—",
-                    "batch": first_ev.batch_label or "—",
-                    "student_count": t_evals.count(),
-                    "rating": f"★ {t_avg:.1f}",
-                    "rating_badge_class": "bg-success" if t_avg >= 4.0 else "bg-warning text-dark",
-                })
+                assigned_program = first_ev.course_name
+                assigned_batch = first_ev.batch_label
+
+            if not assigned_program:
+                t_name_clean = full_name.strip().lower()
+                for tmpl in all_templates:
+                    tmpl_trainer = (tmpl.trainer_name or "").strip().lower()
+                    if tmpl_trainer and (tmpl_trainer == t_name_clean or t_name_clean in tmpl_trainer or tmpl_trainer in t_name_clean):
+                        assigned_program = tmpl.course_name
+                        assigned_batch = tmpl.batch_label
+                        break
+
+            if not assigned_program:
+                req = TrainerAccountRequest.objects.filter(email__iexact=t.email).first()
+                if req and req.qualifications:
+                    assigned_program = req.qualifications[0]
+                    assigned_batch = "AY 2026–2027 · Batch 1"
+
+            if not assigned_program:
+                assigned_program = "Automotive Servicing NC I"
+            if not assigned_batch:
+                assigned_batch = "AY 2026–2027 · Batch 1"
+
+            programs_set.add(assigned_program)
+            batches_set.add(assigned_batch)
+
+            t_count = t_evals.count()
+            if t_count > 0:
+                t_avg = t_evals.aggregate(avg=Avg("overall_rating"))["avg"] or 0
+                rating_str = f"★ {t_avg:.1f}"
+                rating_badge_class = "bg-success text-white" if t_avg >= 4.0 else "bg-warning text-dark"
+                has_eval = True
+            else:
+                rating_str = "No evaluations"
+                rating_badge_class = "bg-secondary text-white"
+                has_eval = False
+
+            trainer_rows.append({
+                "id": str(t.id),
+                "name": full_name,
+                "email": t.email,
+                "program": assigned_program,
+                "batch": assigned_batch,
+                "student_count": t_count,
+                "rating": rating_str,
+                "rating_badge_class": rating_badge_class,
+                "has_eval": has_eval,
+                "overall_rating": summary.get("overall_rating", "0.0"),
+                "summary_scores": summary.get("summary_scores", []),
+                "feedback_list": summary.get("feedback_list", []),
+            })
+
+        for tmpl in all_templates:
+            if tmpl.course_name:
+                programs_set.add(tmpl.course_name)
+            if tmpl.batch_label:
+                batches_set.add(tmpl.batch_label)
 
         ctx.update({
             "eval_total_trainers": total_trainers,
@@ -374,6 +441,9 @@ def module_page_context(module, request=None):
             "eval_avg_rating": avg_rating_display,
             "eval_total_count": total_evaluations,
             "eval_trainer_rows": trainer_rows,
+            "eval_trainer_rows_json": json.dumps(trainer_rows, default=str),
+            "eval_filter_programs": sorted(list(programs_set)),
+            "eval_filter_batches": sorted(list(batches_set)),
         })
     if module == "settings":
         user = getattr(request, "user", None) if request else None

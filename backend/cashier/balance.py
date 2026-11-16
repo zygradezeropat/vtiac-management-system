@@ -94,9 +94,16 @@ def fee_balance_for_profile(
         for payment in profile.cashier_payments.order_by("created_at"):
             particulars = payment.particulars if isinstance(payment.particulars, list) else []
             paid = _decimal(payment.paid_amount)
-            if paid <= 0:
+            # Find any scholar grant voucher / subsidy deduction in particulars
+            voucher_amount = sum(
+                abs(_decimal(p.get("amount", 0)))
+                for p in particulars
+                if p.get("isVoucher") or _decimal(p.get("amount", 0)) < 0
+            )
+            total_applied = paid + voucher_amount
+            if total_applied <= 0:
                 continue
-            applied = _allocate_payment_fifo(particulars, paid, assessed_keys)
+            applied = _allocate_payment_fifo(particulars, total_applied, assessed_keys)
             for key, amount in applied.items():
                 paid_on_line[key] += amount
 

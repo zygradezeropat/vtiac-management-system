@@ -95,6 +95,64 @@ def _payment_label(reg: StudentRegistration, profile: StudentEnrollmentProfile |
     return needed["label"]
 
 
+def get_student_scholar_grant_info(reg: StudentRegistration | None, profile: StudentEnrollmentProfile | None) -> dict:
+    from backend.registrar.models import ScholarGrantRecord
+    from django.db import models as db_models
+
+    grant = None
+    if profile and hasattr(profile, "scholarship_grants"):
+        grant = profile.scholarship_grants.filter(is_active=True).first()
+    if not grant and reg and hasattr(reg, "scholarship_grants"):
+        grant = reg.scholarship_grants.filter(is_active=True).first()
+
+    email_val = (profile.email if profile else (reg.email if reg else "")) or ""
+    last_val = (profile.last_name if profile else (reg.last_name if reg else "")) or ""
+    first_val = (profile.first_name if profile else (reg.first_name if reg else "")) or ""
+
+    if not grant and (email_val or (last_val and first_val)):
+        q = db_models.Q()
+        if email_val:
+            q |= db_models.Q(email__iexact=email_val)
+        if last_val and first_val:
+            q |= (db_models.Q(last_name__iexact=last_val) & db_models.Q(first_name__icontains=first_val))
+        grant = ScholarGrantRecord.objects.filter(q, is_active=True).first()
+
+    scholarship_type = (profile.scholarship_type if profile and profile.scholarship_type else "") or ""
+    is_scholar = bool(
+        (scholarship_type and scholarship_type.lower() not in ("", "none", "regular"))
+        or grant
+        or getattr(reg, "program_type", "") == "scholarship"
+        or (profile and getattr(profile, "program_type", "") == "scholarship")
+    )
+
+    scholar_code_name = ""
+    voucher_amount = 0.0
+
+    if grant:
+        parts = []
+        if grant.sponsor_name:
+            parts.append(grant.sponsor_name)
+        if grant.slot_id:
+            parts.append(f"Slot: {grant.slot_id}")
+        scholar_code_name = " — ".join(parts) if parts else (grant.scholarship_type or "Scholar Grant")
+        try:
+            raw_amt = str(grant.amount or "0").replace(",", "").strip()
+            voucher_amount = float(raw_amt) if raw_amt else 0.0
+        except (ValueError, TypeError):
+            voucher_amount = 0.0
+    elif is_scholar:
+        stype = scholarship_type.lower() if scholarship_type else "scholar"
+        scholar_code_name = _SCHOLARSHIP_LABELS.get(stype, stype.upper())
+        voucher_amount = 0.0
+
+    return {
+        "isScholar": is_scholar,
+        "scholarCodeName": scholar_code_name,
+        "voucherAmount": voucher_amount,
+        "grant": grant,
+    }
+
+
 def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfile | None) -> dict:
     today = timezone.localtime(timezone.now()).date()
 
@@ -124,16 +182,8 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
     program = (program or "").strip()
 
     # Determine if scholar
-    has_grant = False
-    if profile and hasattr(profile, "scholarship_grants"):
-        has_grant = profile.scholarship_grants.exists()
-    if not has_grant and hasattr(reg, "scholarship_grants"):
-        has_grant = reg.scholarship_grants.exists()
-
-    is_scholar = bool(
-        (scholarship_type and scholarship_type.lower() not in ("", "none", "regular"))
-        or has_grant
-    )
+    scholar_info = get_student_scholar_grant_info(reg, profile)
+    is_scholar = scholar_info["isScholar"]
     if is_scholar:
         stype_label = _SCHOLARSHIP_LABELS.get(scholarship_type.lower(), scholarship_type) if scholarship_type else "Scholar"
         scholarship_label = f"Scholar ({stype_label})" if stype_label != "Scholar" else "Scholar"
@@ -231,6 +281,8 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
         "phone": phone,
         "referenceId": reg.reference_id,
         "isScholar": is_scholar,
+        "scholarCodeName": scholar_info.get("scholarCodeName", ""),
+        "voucherAmount": scholar_info.get("voucherAmount", 0.0),
         "scholarshipType": scholarship_type,
         "scholarshipLabel": scholarship_label,
         "paymentLabel": _payment_label(reg, profile),
@@ -472,6 +524,7 @@ def get_student_fees(registration_id: str) -> dict | None:
     else:
         program = reg.selected_program or ""
     balance = fee_balance_for_profile(profile, program)
+    scholar_info = get_student_scholar_grant_info(reg, profile)
     return {
         "registrationId": str(reg.pk),
         "program": program,
@@ -483,4 +536,7 @@ def get_student_fees(registration_id: str) -> dict | None:
         "isFullyPaid": balance["isFullyPaid"],
         "isNewStudent": balance["totalPaid"] <= 0 and balance["totalAssessed"] > 0,
         "paymentList": payment_list_display(),
+        "isScholar": scholar_info["isScholar"],
+        "scholarCodeName": scholar_info["scholarCodeName"],
+        "voucherAmount": scholar_info["voucherAmount"],
     }

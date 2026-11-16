@@ -1039,7 +1039,7 @@ document.addEventListener(
                     data-template-id="${escapeHtml(batch.id)}"
                     data-first="${escapeHtml(s.firstName || "")}"
                     data-last="${escapeHtml(s.lastName || "")}"
-                    title="Remove from batch (Override)"
+                    title="Remove from batch"
                   >
                     <i class="bi bi-trash" aria-hidden="true"></i>
                   </button>
@@ -1384,7 +1384,7 @@ document.addEventListener(
               data-course-name="${escapeHtml(batch.courseName || "")}"
             >
               <i class="bi bi-person-plus-fill me-1" aria-hidden="true"></i>
-              Insert Student (Override)
+              Insert Student
             </button>
             <div class="d-flex gap-2">
               <button
