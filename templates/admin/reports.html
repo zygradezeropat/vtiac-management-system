@@ -1,77 +1,517 @@
 {% extends "admin/base.html" %}
 {% load static %}
 
+{% block extra_head %}
+{{ block.super }}
+<style>
+  @media print {
+    *, *::before, *::after {
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+    html, body {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #000000 !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .admin-sidebar,
+    .admin-topbar,
+    .admin-page-header,
+    .admin-reports-tabs,
+    .no-print,
+    .btn,
+    nav,
+    footer {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    #admin-printable-egace,
+    #admin-printable-egace * {
+      visibility: visible !important;
+    }
+    #admin-printable-egace {
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      background: #ffffff !important;
+    }
+  }
+
+  .admin-official-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1.5px solid #000000 !important;
+    table-layout: fixed !important;
+  }
+  .admin-official-table th,
+  .admin-official-table td {
+    border: 1px solid #000000 !important;
+    padding: 6px 8px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    font-size: 0.85rem !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+  }
+  .admin-official-table thead th {
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .admin-official-table tfoot td {
+    font-weight: 700 !important;
+    border-top: 1.5px solid #000000 !important;
+  }
+
+  .admin-kpi-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .admin-kpi-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .admin-reports-tabs .nav-link {
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+    color: #4b5563;
+    border: 1px solid transparent;
+  }
+  .admin-reports-tabs .nav-link.active {
+    color: #00563B;
+    background-color: #ffffff;
+    border-color: #e5e7eb #e5e7eb #ffffff;
+    border-top: 3px solid #00563B;
+  }
+</style>
+{% endblock %}
 
 {% block body %}
 {% include "components/admin/layout_start.html" %}
 {% include "components/admin/page_header.html" with show_clock=True show_fiscal_year=True %}
 {{ institutional_reports|json_script:"institutional-reports-data" }}
 
-<section class="admin-reports-center" aria-label="Institutional reports">
-  <p class="text-muted small mb-3" id="admin-reports-generated"></p>
+<section class="admin-reports-center pb-5" aria-label="Institutional reports center">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 no-print">
+    <p class="text-muted small mb-0" id="admin-reports-generated"></p>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1.5 rounded-pill fs-8 fw-semibold">
+        <i class="bi bi-shield-check me-1"></i>Institutional Admin Access
+      </span>
+    </div>
+  </div>
 
-  <ul class="nav nav-tabs admin-reports-tabs mb-3" id="adminReportsTabs" role="tablist">
+  <!-- Primary Report Category Tabs (Organized by Department / Domain) -->
+  <ul class="nav nav-tabs admin-reports-tabs mb-4 no-print" id="adminReportsTabs" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="tab-enrollment" data-bs-toggle="tab" data-bs-target="#panel-enrollment" type="button" role="tab">Enrollment</button>
+      <button class="nav-link active" id="tab-egace" data-bs-toggle="tab" data-bs-target="#panel-egace" type="button" role="tab" aria-selected="true">
+        <i class="bi bi-award-fill me-1 text-success"></i>E.G.A.C.E. Reports
+      </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="tab-payments" data-bs-toggle="tab" data-bs-target="#panel-payments" type="button" role="tab">Payments</button>
+      <button class="nav-link" id="tab-cashier" data-bs-toggle="tab" data-bs-target="#panel-cashier" type="button" role="tab" aria-selected="false">
+        <i class="bi bi-cash-coin me-1 text-primary"></i>Cashier &amp; Financial
+      </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="tab-performance" data-bs-toggle="tab" data-bs-target="#panel-performance" type="button" role="tab">Performance</button>
+      <button class="nav-link" id="tab-enrollment" data-bs-toggle="tab" data-bs-target="#panel-enrollment" type="button" role="tab" aria-selected="false">
+        <i class="bi bi-person-lines-fill me-1 text-info"></i>Registrar &amp; Enrollment
+      </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="tab-egace" data-bs-toggle="tab" data-bs-target="#panel-egace" type="button" role="tab">E.G.A.C.E</button>
+      <button class="nav-link" id="tab-trainers" data-bs-toggle="tab" data-bs-target="#panel-trainers" type="button" role="tab" aria-selected="false">
+        <i class="bi bi-person-check-fill me-1 text-warning"></i>Trainer &amp; Evaluations
+      </button>
     </li>
   </ul>
 
-  <div class="tab-content">
-    <div class="tab-pane fade show active" id="panel-enrollment" role="tabpanel" aria-labelledby="tab-enrollment">
-      <div class="admin-table-card">
-        <div class="p-3 border-bottom d-flex flex-wrap gap-3">
-          <div><span class="text-muted small">Pending approvals</span><p class="fw-bold mb-0 fs-4" id="enroll-pending">0</p></div>
-          <div><span class="text-muted small">Total enrolled</span><p class="fw-bold mb-0 fs-4" id="enroll-approved">0</p></div>
-        </div>
-        <div class="row g-0">
-          <div class="col-lg-6 border-end">
-            <h3 class="h6 px-3 pt-3 mb-2">By status</h3>
-            <div class="table-responsive">
-              <table class="table admin-egace-table mb-0">
-                <thead><tr><th>Status</th><th class="text-center">Count</th></tr></thead>
-                <tbody id="enroll-by-status"></tbody>
-              </table>
+  <div class="tab-content" id="adminReportsTabContent">
+    <!-- ============================================================== -->
+    <!-- TAB 1: E.G.A.C.E. PERFORMANCE REPORTS                           -->
+    <!-- ============================================================== -->
+    <div class="tab-pane fade show active" id="panel-egace" role="tabpanel" aria-labelledby="tab-egace">
+      
+      <!-- Date Range & Preset Filter Toolbar (Hidden on Print) -->
+      <section class="card border-0 shadow-sm rounded-4 p-3 mb-3 bg-white no-print" aria-label="EGACE date filter">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle bg-success-subtle p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+              <i class="bi bi-calendar-range text-success fs-5"></i>
+            </div>
+            <div>
+              <span class="fw-bold text-dark d-block" style="font-size: 0.95rem;">Filter Report Period</span>
+              <span class="text-muted small" style="font-size: 0.8rem;">Filter institutional milestones by Year, Month, or Date Range</span>
             </div>
           </div>
-          <div class="col-lg-6">
-            <h3 class="h6 px-3 pt-3 mb-2">By program</h3>
-            <div class="table-responsive">
-              <table class="table admin-egace-table mb-0">
-                <thead><tr><th>Program</th><th class="text-center">Enrolled</th></tr></thead>
-                <tbody id="enroll-by-program"></tbody>
-              </table>
+
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-1">
+              <label class="small text-muted mb-0 fw-semibold" for="admin-egace-year-select">Year:</label>
+              <select id="admin-egace-year-select" class="form-select form-select-sm w-auto fw-semibold border-secondary-subtle">
+                <option value="">All Years</option>
+                <option value="2027">2027</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+            </div>
+
+            <div class="d-flex align-items-center gap-1">
+              <label class="small text-muted mb-0 fw-semibold" for="admin-egace-month-select">Month:</label>
+              <select id="admin-egace-month-select" class="form-select form-select-sm w-auto fw-semibold border-secondary-subtle">
+                <option value="">All Months</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+              </select>
+            </div>
+
+            <div class="vr mx-1 d-none d-lg-block text-secondary" style="height: 24px;"></div>
+
+            <div class="d-flex align-items-center gap-1">
+              <label class="small text-muted mb-0 fw-semibold" for="admin-egace-start-date">From:</label>
+              <input type="date" id="admin-egace-start-date" class="form-control form-control-sm w-auto border-secondary-subtle">
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              <label class="small text-muted mb-0 fw-semibold" for="admin-egace-end-date">To:</label>
+              <input type="date" id="admin-egace-end-date" class="form-control form-control-sm w-auto border-secondary-subtle">
+            </div>
+
+            <button type="button" class="btn btn-success btn-sm px-3 fw-semibold rounded-3 shadow-sm" id="admin-egace-apply-filter">
+              <i class="bi bi-funnel-fill me-1"></i>Apply
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-3 fw-semibold rounded-3" id="admin-egace-reset-filter">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-2 pt-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark border fw-normal" style="font-size: 0.8rem;">
+              <i class="bi bi-calendar-check text-success me-1"></i>Active Range: <strong id="admin-egace-active-range-text" class="text-dark">AY 2026–2027</strong>
+            </span>
+          </div>
+          <div class="d-flex align-items-center gap-1 small">
+            <span class="text-muted small me-1">Quick Range:</span>
+            <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-success fw-semibold" id="admin-egace-preset-this-month">This Month</button>
+            <span class="text-muted">|</span>
+            <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-success fw-semibold" id="admin-egace-preset-last-month">Last Month</button>
+            <span class="text-muted">|</span>
+            <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-success fw-semibold" id="admin-egace-preset-this-year">This Year (2026)</button>
+            <span class="text-muted">|</span>
+            <button type="button" class="btn btn-link btn-xs text-decoration-none py-0 px-1 text-secondary" id="admin-egace-preset-all-time">All Time</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Qualification & Batch Selectors Toolbar (Hidden on Print) -->
+      <section class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white no-print" aria-label="Qualification and batch selectors">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="d-flex align-items-center gap-2">
+              <label class="fw-bold mb-0 text-dark small" for="admin-egace-course-select">
+                <i class="bi bi-mortarboard-fill text-success me-1"></i>Qualification:
+              </label>
+              <select id="admin-egace-course-select" class="form-select form-select-sm w-auto fw-bold text-dark border-secondary-subtle">
+                <option value="">Loading qualifications…</option>
+              </select>
+            </div>
+
+            <div class="vr text-secondary d-none d-sm-block" style="height: 24px;"></div>
+
+            <div class="d-flex align-items-center gap-2">
+              <label class="fw-bold mb-0 text-dark small" for="admin-egace-batch-select">
+                <i class="bi bi-collection-fill text-success me-1"></i>Batch Number / Label:
+              </label>
+              <select id="admin-egace-batch-select" class="form-select form-select-sm w-auto fw-bold text-dark border-secondary-subtle">
+                <option value="">All Batches</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-success btn-sm px-3 rounded-3 fw-semibold shadow-sm" id="admin-egace-export-csv">
+              <i class="bi bi-file-earmark-excel me-1"></i>Export CSV
+            </button>
+            <button type="button" class="btn btn-success btn-sm px-3 rounded-3 fw-semibold shadow-sm" id="admin-egace-print-btn">
+              <i class="bi bi-printer-fill me-1"></i>Print Official Report
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Official Printable E.G.A.C.E. Document Sheet -->
+      <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5 mb-4" id="admin-printable-egace">
+        <!-- Dual Logo Official Header -->
+        <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-dark border-2">
+          <div style="width: 80px;" class="text-start">
+            <img src="/static/img/valient-logo.svg" alt="VTIAC Logo" style="height: 75px; width: 75px; object-fit: contain;">
+          </div>
+          <div class="text-center flex-grow-1 px-2">
+            <h4 class="fw-bold mb-0 text-dark" style="font-family: 'Times New Roman', serif, sans-serif; letter-spacing: 0.5px; font-size: 1.25rem;">
+              VALIANT TECHNICAL INSTITUTE AND ASSESSMENT CENTER, INC.
+            </h4>
+            <p class="mb-0 text-dark small" style="font-size: 0.85rem;">Bangoy St., Salvacion, Panabo City, Philippines</p>
+            <p class="mb-0 text-dark small" style="font-size: 0.8rem;">Mobile No: 09106341543, 09176820073 &nbsp; e-mail: valianttiaci@gmail.com</p>
+          </div>
+          <div style="width: 80px;" class="text-end">
+            <img src="/static/img/TESDA%20Logo%20official.png" alt="TESDA Logo" style="height: 75px; width: 75px; object-fit: contain;">
+          </div>
+        </div>
+
+        <div class="text-center my-3">
+          <h3 class="fw-bold text-dark text-uppercase mb-0" style="font-family: 'Times New Roman', serif, sans-serif; letter-spacing: 1.5px; font-size: 1.45rem;">
+            EGACE
+          </h3>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3 text-start flex-wrap gap-2">
+          <div>
+            <span class="text-dark d-block" style="font-size: 0.95rem;">
+              Qualification: <strong class="text-uppercase text-decoration-underline" id="admin-egace-doc-course">—</strong>
+            </span>
+            <span class="text-dark small fw-semibold" id="admin-egace-doc-batch-container" style="display: none;">
+              Batch: <strong class="text-uppercase text-decoration-underline" id="admin-egace-doc-batch">—</strong>
+            </span>
+          </div>
+          <span class="text-dark small fw-semibold">
+            Report Range: <strong class="text-dark text-decoration-underline" id="admin-egace-doc-range">AY 2026–2027</strong>
+          </span>
+        </div>
+
+        <div class="table-responsive w-100 mb-4" style="overflow: visible;">
+          <table class="admin-official-table w-100">
+            <thead>
+              <tr>
+                <th rowspan="2" style="width: 15%;"></th>
+                <th colspan="2" class="text-center" style="width: 17%;">ENROLLED</th>
+                <th colspan="2" class="text-center" style="width: 17%;">GRADUATES</th>
+                <th colspan="2" class="text-center" style="width: 17%;">ASSESSED</th>
+                <th colspan="2" class="text-center" style="width: 17%;">CERTIFIED</th>
+                <th colspan="2" class="text-center" style="width: 17%;">EMPLOYED</th>
+              </tr>
+              <tr>
+                <th class="text-center" style="width: 11%; white-space: nowrap;">Actual</th>
+                <th class="text-center" style="width: 6%; white-space: nowrap;">%</th>
+                <th class="text-center" style="width: 11%; white-space: nowrap;">Actual</th>
+                <th class="text-center" style="width: 6%; white-space: nowrap;">%</th>
+                <th class="text-center" style="width: 11%; white-space: nowrap;">Actual</th>
+                <th class="text-center" style="width: 6%; white-space: nowrap;">%</th>
+                <th class="text-center" style="width: 11%; white-space: nowrap;">Actual</th>
+                <th class="text-center" style="width: 6%; white-space: nowrap;">%</th>
+                <th class="text-center" style="width: 11%; white-space: nowrap;">Actual</th>
+                <th class="text-center" style="width: 6%; white-space: nowrap;">%</th>
+              </tr>
+            </thead>
+            <tbody id="admin-egace-tbody">
+              <tr>
+                <td colspan="11" class="text-center py-4 text-muted">Loading E.G.A.C.E. records…</td>
+              </tr>
+            </tbody>
+            <tfoot id="admin-egace-tfoot"></tfoot>
+          </table>
+        </div>
+
+        <!-- Official Signatures -->
+        <div class="d-flex justify-content-between align-items-start mt-4 pt-3">
+          <div style="width: 280px;">
+            <p class="text-dark small mb-1 fw-semibold">Prepared by:</p>
+            <div class="pt-2" style="width: 250px;">
+              <div style="height: 40px;"></div>
+              <div class="border-bottom border-dark border-1 mb-1"></div>
+              <p class="fw-bold text-dark text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.95rem; font-family: 'Times New Roman', serif;">
+                OFFICE OF THE REGISTRAR
+              </p>
+              <p class="text-muted small mb-0" style="font-size: 0.85rem; font-family: 'Times New Roman', serif;">
+                Registrar / TVET Staff
+              </p>
+            </div>
+          </div>
+
+          <div style="width: 280px;" class="text-start">
+            <p class="text-dark small mb-1 fw-semibold">Approved by:</p>
+            <div class="pt-2" style="width: 250px;">
+              <div style="height: 40px;"></div>
+              <div class="border-bottom border-dark border-1 mb-1"></div>
+              <p class="fw-bold text-dark text-uppercase mb-0" style="letter-spacing: 0.5px; font-size: 0.95rem; font-family: 'Times New Roman', serif;">
+                DANILO P. PATANA
+              </p>
+              <p class="text-muted small mb-0" style="font-size: 0.85rem; font-family: 'Times New Roman', serif;">
+                School Director
+              </p>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="tab-pane fade" id="panel-payments" role="tabpanel" aria-labelledby="tab-payments">
-      <div class="admin-table-card p-3">
-        <div class="d-flex flex-wrap gap-4 mb-3">
-          <div><span class="text-muted small">Transactions</span><p class="fw-bold mb-0" id="pay-count">0</p></div>
-          <div><span class="text-muted small">Total collected</span><p class="fw-bold mb-0" id="pay-total">₱0.00</p></div>
-          <div><span class="text-muted small">Collected today</span><p class="fw-bold mb-0" id="pay-today">₱0.00</p></div>
+    <!-- ============================================================== -->
+    <!-- TAB 2: CASHIER & FINANCIAL COLLECTION REPORTS                   -->
+    <!-- ============================================================== -->
+    <div class="tab-pane fade" id="panel-cashier" role="tabpanel" aria-labelledby="tab-cashier">
+      
+      <!-- Excel Downloads Cards (Identical format to Cashier Portal) -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+        <h5 class="fw-bold text-dark mb-1">
+          <i class="bi bi-file-earmark-spreadsheet-fill text-success me-2"></i>Download Excel Reports
+        </h5>
+        <p class="text-muted small mb-4">Consolidated collection reports (formatted for official filing and audits)</p>
+
+        <div class="row g-3">
+          <!-- Daily Consolidated Report -->
+          <div class="col-md-4">
+            <div class="card h-100 border rounded-4 p-3 bg-light-subtle">
+              <h6 class="fw-bold text-dark mb-1">Daily Consolidated Report</h6>
+              <p class="text-muted small mb-3">Line-by-line transactions for one day with totals.</p>
+              <div class="mt-auto">
+                <label class="form-label small text-muted mb-1" for="admin-cashier-daily-date">Report date</label>
+                <input type="date" id="admin-cashier-daily-date" class="form-control form-control-sm mb-3">
+                <button type="button" class="btn btn-success btn-sm w-100 fw-semibold rounded-3" id="admin-cashier-download-daily">
+                  <i class="bi bi-download me-1"></i>Download Daily Excel
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monthly Summary Report -->
+          <div class="col-md-4">
+            <div class="card h-100 border rounded-4 p-3 bg-light-subtle">
+              <h6 class="fw-bold text-dark mb-1">Monthly Summary Report</h6>
+              <p class="text-muted small mb-3">Monthly transactions plus breakdown by program and day.</p>
+              <div class="mt-auto">
+                <label class="form-label small text-muted mb-1" for="admin-cashier-monthly-month">Report month</label>
+                <input type="month" id="admin-cashier-monthly-month" class="form-control form-control-sm mb-3">
+                <button type="button" class="btn btn-success btn-sm w-100 fw-semibold rounded-3" id="admin-cashier-download-monthly">
+                  <i class="bi bi-download me-1"></i>Download Monthly Excel
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Annual Performance Report -->
+          <div class="col-md-4">
+            <div class="card h-100 border rounded-4 p-3 bg-light-subtle">
+              <h6 class="fw-bold text-dark mb-1">Annual Performance Report</h6>
+              <p class="text-muted small mb-3">Yearly totals by month and program collections share.</p>
+              <div class="mt-auto">
+                <label class="form-label small text-muted mb-1" for="admin-cashier-annual-year">Report year</label>
+                <input type="number" id="admin-cashier-annual-year" class="form-control form-control-sm mb-3" min="2020" max="2035" value="2026">
+                <button type="button" class="btn btn-success btn-sm w-100 fw-semibold rounded-3" id="admin-cashier-download-annual">
+                  <i class="bi bi-download me-1"></i>Download Annual Excel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <h3 class="h6 mb-2">Recent transactions</h3>
+      </div>
+
+      <!-- Custom Date Range Financial Filter -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+        <h6 class="fw-bold text-dark mb-1">Custom Date Range Financial Report</h6>
+        <p class="text-muted small mb-3">Filter income and receipts by specific date range</p>
+
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-sm-5">
+            <label class="form-label small text-muted mb-1" for="admin-cashier-custom-start">Start Date</label>
+            <input type="date" id="admin-cashier-custom-start" class="form-control form-control-sm">
+          </div>
+          <div class="col-sm-5">
+            <label class="form-label small text-muted mb-1" for="admin-cashier-custom-end">End Date</label>
+            <input type="date" id="admin-cashier-custom-end" class="form-control form-control-sm">
+          </div>
+          <div class="col-sm-2">
+            <button type="button" class="btn btn-success btn-sm w-100 fw-semibold" id="admin-cashier-custom-filter">
+              <i class="bi bi-search me-1"></i>Filter
+            </button>
+          </div>
+        </div>
+
+        <div class="p-3 bg-light rounded-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <span class="text-muted small d-block">Income for Selected Period:</span>
+            <strong class="fs-5 text-dark" id="admin-cashier-custom-income">₱0.00</strong>
+          </div>
+          <div>
+            <span class="text-muted small d-block text-end">Total Transactions:</span>
+            <strong class="fs-5 text-dark d-block text-end" id="admin-cashier-custom-transactions">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Status Summary KPIs -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+        <h6 class="fw-bold text-dark mb-3">Payment Status Summary</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="admin-kpi-card text-center">
+              <div class="rounded-circle bg-success-subtle text-success mx-auto mb-2 p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                <i class="bi bi-check-circle-fill fs-5"></i>
+              </div>
+              <span class="text-muted small">Full Payments</span>
+              <p class="fw-bold fs-3 text-dark mb-0" id="admin-cashier-full-count">0</p>
+              <span class="text-muted small" id="admin-cashier-full-amount">₱0.00 collected</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="admin-kpi-card text-center">
+              <div class="rounded-circle bg-warning-subtle text-warning mx-auto mb-2 p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                <i class="bi bi-clock-history fs-5"></i>
+              </div>
+              <span class="text-muted small">Partial Payments</span>
+              <p class="fw-bold fs-3 text-dark mb-0" id="admin-cashier-partial-count">0</p>
+              <span class="text-muted small" id="admin-cashier-partial-amount">₱0.00 collected</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="admin-kpi-card text-center">
+              <div class="rounded-circle bg-primary-subtle text-primary mx-auto mb-2 p-2 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                <i class="bi bi-currency-dollar fs-5"></i>
+              </div>
+              <span class="text-muted small">Total Revenue</span>
+              <p class="fw-bold fs-3 text-success mb-0" id="admin-cashier-total-revenue">₱0.00</p>
+              <span class="text-muted small">All payments recorded</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions Ledger Table -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h6 class="fw-bold text-dark mb-0">Recent Payment Transactions</h6>
+          <span class="badge bg-light text-muted border" id="admin-cashier-trans-count">0 records</span>
+        </div>
         <div class="table-responsive">
-          <table class="table admin-egace-table mb-0">
-            <thead>
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
               <tr>
-                <th>Date</th>
-                <th>Student</th>
-                <th>Amount</th>
-                <th>Type</th>
-                <th>Cashier</th>
+                <th scope="col">Date / Time</th>
+                <th scope="col">Student / Payee</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Receipt Type</th>
+                <th scope="col">Recorded by</th>
               </tr>
             </thead>
             <tbody id="pay-recent"></tbody>
@@ -85,63 +525,222 @@
       </div>
     </div>
 
-    <div class="tab-pane fade" id="panel-performance" role="tabpanel" aria-labelledby="tab-performance">
-      <div class="admin-table-card p-3">
-        <p class="text-muted small mb-3">Trainer grade records: <strong id="perf-grade-count">0</strong></p>
+    <!-- ============================================================== -->
+    <!-- TAB 3: REGISTRAR & ENROLLMENT REPORTS                           -->
+    <!-- ============================================================== -->
+    <div class="tab-pane fade" id="panel-enrollment" role="tabpanel" aria-labelledby="tab-enrollment">
+      
+      <!-- Admissions & Enrollment KPI Cards -->
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+          <div class="admin-kpi-card">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small">Total Enrolled</span>
+                <h3 class="fw-bold text-success mb-0" id="enroll-approved">0</h3>
+              </div>
+              <div class="rounded-circle bg-success-subtle p-3 text-success">
+                <i class="bi bi-people-fill fs-4"></i>
+              </div>
+            </div>
+            <span class="text-muted small mt-2 d-block">Approved &amp; active trainees</span>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="admin-kpi-card">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small">Pending Approvals</span>
+                <h3 class="fw-bold text-warning mb-0" id="enroll-pending">0</h3>
+              </div>
+              <div class="rounded-circle bg-warning-subtle p-3 text-warning">
+                <i class="bi bi-hourglass-split fs-4"></i>
+              </div>
+            </div>
+            <span class="text-muted small mt-2 d-block">Awaiting requirements check</span>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="admin-kpi-card">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small">Active Programs</span>
+                <h3 class="fw-bold text-primary mb-0" id="admin-enroll-programs-count">0</h3>
+              </div>
+              <div class="rounded-circle bg-primary-subtle p-3 text-primary">
+                <i class="bi bi-mortarboard-fill fs-4"></i>
+              </div>
+            </div>
+            <span class="text-muted small mt-2 d-block">Accredited qualifications</span>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="admin-kpi-card">
+            <div class="d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small">Training Batches</span>
+                <h3 class="fw-bold text-info mb-0" id="admin-enroll-batches-count">0</h3>
+              </div>
+              <div class="rounded-circle bg-info-subtle p-3 text-info">
+                <i class="bi bi-calendar3 fs-4"></i>
+              </div>
+            </div>
+            <span class="text-muted small mt-2 d-block">Created schedule templates</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side-by-Side Breakdown: Status & Program -->
+      <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h6 class="fw-bold text-dark mb-3">
+              <i class="bi bi-pie-chart-fill text-primary me-2"></i>Admissions by Status
+            </h6>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Registration Status</th>
+                    <th class="text-center">Count</th>
+                  </tr>
+                </thead>
+                <tbody id="enroll-by-status"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+            <h6 class="fw-bold text-dark mb-3">
+              <i class="bi bi-bar-chart-fill text-success me-2"></i>Enrollment by Program
+            </h6>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Qualification / Program</th>
+                    <th class="text-center">Enrolled</th>
+                  </tr>
+                </thead>
+                <tbody id="enroll-by-program"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Batches & Schedules Master Roster -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-calendar2-check-fill text-success me-2"></i>Institutional Batches &amp; Class Schedules
+          </h6>
+          <span class="text-muted small" id="admin-batches-summary-count">0 Batches</span>
+        </div>
         <div class="table-responsive">
-          <table class="table admin-egace-table mb-0">
-            <thead>
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
               <tr>
                 <th>Program</th>
+                <th>Batch</th>
+                <th>Academic Year / Term</th>
+                <th>Schedule</th>
+                <th>Assigned Trainer</th>
                 <th class="text-center">Enrolled</th>
-                <th class="text-center">With grades</th>
-                <th class="text-center">Assessed</th>
+                <th class="text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody id="admin-batches-roster-tbody">
+              <tr>
+                <td colspan="7" class="text-center py-4 text-muted">Loading batch schedules…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 4: TRAINER & EVALUATIONS REPORTS                            -->
+    <!-- ============================================================== -->
+    <div class="tab-pane fade" id="panel-trainers" role="tabpanel" aria-labelledby="tab-trainers">
+      
+      <!-- Trainer Evaluations Summary KPIs -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="admin-kpi-card text-center">
+            <span class="text-muted small">Total Evaluations Recorded</span>
+            <p class="fw-bold fs-3 text-dark mb-0" id="admin-trainers-total-evals">0</p>
+            <span class="text-muted small">Student feedback submitted</span>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="admin-kpi-card text-center">
+            <span class="text-muted small">Active TVET Instructors</span>
+            <p class="fw-bold fs-3 text-success mb-0" id="admin-trainers-count">0</p>
+            <span class="text-muted small">Teaching staff</span>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="admin-kpi-card text-center">
+            <span class="text-muted small">Institutional Average Rating</span>
+            <p class="fw-bold fs-3 text-warning mb-0" id="admin-trainers-avg-rating">—</p>
+            <span class="text-muted small">Overall performance rating</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Program Competency Achievement Table -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-graph-up-arrow text-primary me-2"></i>Program Competency &amp; Assessment Achievement
+          </h6>
+          <span class="badge bg-light text-muted border">Trainer Grade Records: <strong id="perf-grade-count">0</strong></span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Program / Qualification</th>
+                <th class="text-center">Enrolled</th>
+                <th class="text-center">With Grades Recorded</th>
+                <th class="text-center">Assessed Competent</th>
               </tr>
             </thead>
             <tbody id="perf-by-program"></tbody>
           </table>
         </div>
       </div>
-    </div>
 
-    <div class="tab-pane fade" id="panel-egace" role="tabpanel" aria-labelledby="tab-egace">
-      <div class="admin-egace-summary__filter mb-3">
-        <label class="admin-egace-summary__filter-label" for="admin-reports-qualification">Qualification</label>
-        <select id="admin-reports-qualification" class="form-select form-select-sm admin-egace-qualification-select"></select>
-      </div>
-      <p class="admin-egace-summary__qualification text-center mb-3" id="admin-reports-qualification-title" hidden>
-        Qualification: <strong id="admin-reports-qualification-name"></strong>
-      </p>
-      <div class="admin-table-card">
+      <!-- Trainer Evaluations Roster -->
+      <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+        <h6 class="fw-bold text-dark mb-3">
+          <i class="bi bi-star-fill text-warning me-2"></i>Trainer Evaluations &amp; Ratings Roster
+        </h6>
         <div class="table-responsive">
-          <table class="table admin-egace-table admin-egace-table--report mb-0">
-            <thead>
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
               <tr>
-                <th rowspan="2"></th>
-                <th colspan="2" class="text-center">Enrolled</th>
-                <th colspan="2" class="text-center">Graduates</th>
-                <th colspan="2" class="text-center">Assessed</th>
-                <th colspan="2" class="text-center">Certified</th>
-                <th colspan="2" class="text-center">Employed</th>
-              </tr>
-              <tr>
-                <th class="text-center admin-egace-subhead">Actual</th>
-                <th class="text-center admin-egace-subhead">%</th>
-                <th class="text-center admin-egace-subhead">Actual</th>
-                <th class="text-center admin-egace-subhead">%</th>
-                <th class="text-center admin-egace-subhead">Actual</th>
-                <th class="text-center admin-egace-subhead">%</th>
-                <th class="text-center admin-egace-subhead">Actual</th>
-                <th class="text-center admin-egace-subhead">%</th>
-                <th class="text-center admin-egace-subhead">Actual</th>
-                <th class="text-center admin-egace-subhead">%</th>
+                <th>Instructor Name</th>
+                <th>Email</th>
+                <th>Assigned Qualification</th>
+                <th>Assigned Batch</th>
+                <th class="text-center">Evaluations Count</th>
+                <th class="text-center">Average Rating</th>
               </tr>
             </thead>
-            <tbody id="admin-reports-egace-body"></tbody>
+            <tbody id="admin-trainers-roster-tbody">
+              <tr>
+                <td colspan="6" class="text-center py-4 text-muted">Loading trainer evaluations…</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
     </div>
+
   </div>
 </section>
 
@@ -150,5 +749,5 @@
 
 {% block scripts %}
 {% include "components/admin/scripts_common.html" with show_clock=True %}
-<script type="module" src="{% static 'js/admin-reports.js' %}"></script>
+<script type="module" src="{% static 'js/admin-reports.js' %}?v={% now 'U' %}"></script>
 {% endblock %}

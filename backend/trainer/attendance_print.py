@@ -11,23 +11,30 @@ from backend.trainer.class_assignments import _registration_for_student
 
 def _program_batch_fields(batch_ctx: dict) -> dict[str, dict]:
     programs: dict[str, dict] = {}
+    batches: dict[str, dict] = {}
     for card in batch_ctx.get("assigned_batches") or []:
         name = (card.get("course_name") or "").strip()
-        if not name or name in programs:
+        batch_label = (card.get("batch_label") or "").strip()
+        if not name:
             continue
         time_from = (card.get("time_from") or "").strip()
         time_to = (card.get("time_to") or "").strip()
         duration = card.get("schedule_display") or ""
         if time_from and time_to:
             duration = f"{duration} ({time_from} – {time_to})".strip()
-        programs[name] = {
+        item = {
             "date_start": card.get("start_date_display") or "",
             "date_end": card.get("end_date_display") or "",
             "duration": duration.strip(),
             "delivery_mode": "",
             "location": ASSESSMENT_DEFAULT_SCHOOL_ADDRESS,
         }
-    return programs
+        if name not in programs:
+            programs[name] = item
+        if batch_label:
+            batches[f"{name}|{batch_label}"] = item
+            batches[f"{name.lower()}|{batch_label.lower()}"] = item
+    return {"by_course": programs, "by_batch": batches, **programs}
 
 
 def attendance_print_payload(user, batch_ctx: dict) -> dict:

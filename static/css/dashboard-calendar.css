@@ -10,6 +10,10 @@
   background: rgba(16, 185, 129, 0.1);
 }
 
+.vtiac-calendar-toolbar {
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
 .vtiac-calendar-legend .vtiac-dot {
   display: inline-block;
   width: 8px;
@@ -119,6 +123,12 @@
   border: 1px solid #fecdd3;
 }
 
+.badge-enrollment {
+  background-color: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+}
+
 .badge-event {
   background-color: #e0f2fe;
   color: #075985;
@@ -147,6 +157,10 @@
 
 .vtiac-agenda-item.type-class_end {
   border-left-color: #f59e0b;
+}
+
+.vtiac-agenda-item.type-enrollment {
+  border-left-color: #8b5cf6;
 }
 
 .vtiac-agenda-item.type-event {

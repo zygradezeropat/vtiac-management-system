@@ -176,12 +176,23 @@ def payments_list(request):
     return JsonResponse({"transactions": list_transactions()})
 
 
+def _can_access_cashier_reports(request):
+    if not request.user.is_authenticated:
+        return False
+    portal_role = (request.session.get("portal_role") or "").lower()
+    staff_role = (getattr(getattr(request.user, "staff_profile", None), "role", None) or "").lower()
+    if portal_role in (CASHIER_ROLE, "admin") or staff_role in (CASHIER_ROLE, "admin") or request.user.is_superuser:
+        return True
+    return False
+
+
 @login_required(login_url="/")
 @require_GET
 def reports_data(request):
-    denied = require_portal_access(request, CASHIER_ROLE)
-    if denied:
-        return denied
+    if not _can_access_cashier_reports(request):
+        denied = require_portal_access(request, CASHIER_ROLE)
+        if denied:
+            return denied
 
     return JsonResponse(
         reports_summary(
@@ -194,9 +205,10 @@ def reports_data(request):
 @login_required(login_url="/")
 @require_GET
 def reports_export(request):
-    denied = require_portal_access(request, CASHIER_ROLE)
-    if denied:
-        return denied
+    if not _can_access_cashier_reports(request):
+        denied = require_portal_access(request, CASHIER_ROLE)
+        if denied:
+            return denied
 
     report_type = request.GET.get("type", "").strip().lower()
     day = _parse_date_param(request.GET.get("date"))

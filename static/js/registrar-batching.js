@@ -650,31 +650,51 @@ document.addEventListener(
         "template-name"
       );
 
+    const customBatchNameContainer =
+      document.getElementById(
+        "template-custom-name-container"
+      );
+
+    const customBatchNameEl =
+      document.getElementById(
+        "template-custom-name"
+      );
+
+    const batchNameErrorEl =
+      document.getElementById(
+        "template-batch-name-error"
+      );
+
+    const batchNameErrorTextEl =
+      document.getElementById(
+        "template-batch-name-error-text"
+      );
+
+    const occupiedHintEl =
+      document.getElementById(
+        "template-occupied-hint"
+      );
+
     const identifierPreviewEl =
       document.getElementById(
         "template-identifier-preview"
       );
 
+    function getEffectiveBatchName() {
+      if (!batchNameEl) return "Batch 1";
+      if (batchNameEl.value === "__custom__") {
+        return customBatchNameEl?.value?.trim() || "";
+      }
+      return batchNameEl.value?.trim() || "Batch 1";
+    }
+
     function updateBatchIdentifierPreview() {
       if (!identifierPreviewEl) return;
       const ay = academicYearEl?.value || "AY 2026–2027";
       const tm = termEl?.value || "1st Semester";
-      const nm = batchNameEl?.value?.trim() || "Batch 1";
+      const nm = getEffectiveBatchName() || "Batch 1";
       identifierPreviewEl.textContent = `${ay} · ${tm} · ${nm}`;
     }
-
-    academicYearEl?.addEventListener("change", () => {
-      updateBatchIdentifierPreview();
-      updateActionButtonsState();
-    });
-    termEl?.addEventListener("change", () => {
-      updateBatchIdentifierPreview();
-      updateActionButtonsState();
-    });
-    batchNameEl?.addEventListener("input", () => {
-      updateBatchIdentifierPreview();
-      updateActionButtonsState();
-    });
 
     const enrolledStudentsEl =
       document.getElementById(
@@ -1208,6 +1228,224 @@ document.addEventListener(
         courseId
       ] = templates;
     }
+
+    function normAy(val) {
+      return String(val || "").replace(/–/g, "-").trim().toLowerCase();
+    }
+
+    function getOccupiedBatchNamesForCourse(courseId, excludeTemplateId = null) {
+      if (!courseId) return new Set();
+      const course = getCourse(courseId);
+      const courseName = (course?.name || "").trim().toLowerCase();
+      const selectedAy = normAy(academicYearEl?.value || "AY 2026–2027");
+      const occupied = new Set();
+
+      for (const [cId, list] of Object.entries(templatesByCourse)) {
+        if (!Array.isArray(list)) continue;
+        for (const tpl of list) {
+          if (excludeTemplateId && String(tpl.id) === String(excludeTemplateId)) {
+            continue;
+          }
+          const tplCourseName = (tpl.courseName || "").trim().toLowerCase();
+          const tplCourseId = String(tpl.courseId || "").trim().toLowerCase();
+          const matchCourse =
+            String(cId).toLowerCase() === String(courseId).toLowerCase() ||
+            tplCourseId === String(courseId).toLowerCase() ||
+            (courseName && tplCourseName === courseName);
+          if (!matchCourse) continue;
+
+          const tplAy = normAy(tpl.academicYear);
+          if (!tplAy || !selectedAy || tplAy === selectedAy) {
+            if (tpl.name) {
+              occupied.add(tpl.name.trim().toLowerCase());
+            }
+            if (tpl.batchLabel) {
+              const parts = tpl.batchLabel.split("·").map((p) => p.trim());
+              const last = parts[parts.length - 1];
+              if (last) occupied.add(last.toLowerCase());
+            }
+          }
+        }
+      }
+
+      for (const [wId, draft] of workingDraftsByCourse.entries()) {
+        if (excludeTemplateId && String(draft.editingTemplateId) === String(excludeTemplateId)) {
+          continue;
+        }
+        if (String(wId) === String(selectedCourseId)) {
+          continue;
+        }
+        const draftCourse = getCourse(wId);
+        const draftCourseName = (draftCourse?.name || "").trim().toLowerCase();
+        const matchCourse =
+          String(wId).toLowerCase() === String(courseId).toLowerCase() ||
+          (courseName && draftCourseName === courseName);
+        if (!matchCourse) continue;
+
+        const draftAy = normAy(draft.academicYear);
+        if (!draftAy || !selectedAy || draftAy === selectedAy) {
+          if (draft.name) {
+            occupied.add(draft.name.trim().toLowerCase());
+          }
+        }
+      }
+
+      return occupied;
+    }
+
+    function populateBatchNameSelect(preferredName = null) {
+      if (!batchNameEl) return;
+      const course = selectedCourse();
+      if (!course) return;
+
+      const currentEditingId = editingTemplateId || (formState?.id || null);
+      const occupied = getOccupiedBatchNamesForCourse(course.id, currentEditingId);
+
+      const availableBatches = [];
+      let nextAvailable = null;
+
+      for (let i = 1; i <= 20; i++) {
+        const bName = `Batch ${i}`;
+        const isOccupied = occupied.has(bName.toLowerCase());
+        const isCurrentDraft = Boolean(
+          preferredName && preferredName.toLowerCase() === bName.toLowerCase()
+        );
+
+        if (!isOccupied || isCurrentDraft) {
+          if (!nextAvailable && !isOccupied) {
+            nextAvailable = bName;
+          }
+          availableBatches.push({
+            value: bName,
+            label: !isOccupied && bName === nextAvailable ? `${bName} (Next Available)` : bName,
+          });
+        }
+      }
+
+      const isCustomPreferred = Boolean(
+        preferredName &&
+          !availableBatches.some((b) => b.value.toLowerCase() === preferredName.toLowerCase()) &&
+          preferredName !== "__custom__"
+      );
+
+      let optionsHtml = "";
+      for (const b of availableBatches) {
+        optionsHtml += `<option value="${escapeHtml(b.value)}">${escapeHtml(b.label)}</option>`;
+      }
+      optionsHtml += `<option value="__custom__">Custom Batch Name…</option>`;
+      batchNameEl.innerHTML = optionsHtml;
+
+      if (isCustomPreferred) {
+        batchNameEl.value = "__custom__";
+        if (customBatchNameContainer) customBatchNameContainer.classList.remove("d-none");
+        if (customBatchNameEl) customBatchNameEl.value = preferredName;
+      } else if (
+        preferredName &&
+        availableBatches.some((b) => b.value.toLowerCase() === preferredName.toLowerCase())
+      ) {
+        const found = availableBatches.find((b) => b.value.toLowerCase() === preferredName.toLowerCase());
+        batchNameEl.value = found.value;
+        if (customBatchNameContainer) customBatchNameContainer.classList.add("d-none");
+      } else {
+        if (nextAvailable) {
+          batchNameEl.value = nextAvailable;
+        } else if (availableBatches.length > 0) {
+          batchNameEl.value = availableBatches[0].value;
+        } else {
+          batchNameEl.value = "__custom__";
+        }
+        if (customBatchNameContainer) customBatchNameContainer.classList.add("d-none");
+      }
+
+      if (occupiedHintEl) {
+        if (occupied.size > 0) {
+          occupiedHintEl.classList.remove("d-none");
+          const names = Array.from(occupied)
+            .map((s) => s.replace(/\b\w/g, (l) => l.toUpperCase()))
+            .join(", ");
+          occupiedHintEl.innerHTML = `<i class="bi bi-info-circle text-primary me-1"></i>Occupied (${names}) excluded`;
+        } else {
+          occupiedHintEl.classList.add("d-none");
+        }
+      }
+
+      validateBatchName();
+      updateBatchIdentifierPreview();
+    }
+
+    function validateBatchName() {
+      const course = selectedCourse();
+      if (!course) return { ok: true, name: getEffectiveBatchName() };
+
+      const currentEditingId = editingTemplateId || (formState?.id || null);
+      const occupied = getOccupiedBatchNamesForCourse(course.id, currentEditingId);
+      const isCustom = batchNameEl?.value === "__custom__";
+      const name = getEffectiveBatchName();
+
+      if (!name) {
+        if (isCustom) {
+          customBatchNameEl?.classList.add("is-invalid");
+          if (batchNameErrorEl && batchNameErrorTextEl) {
+            batchNameErrorTextEl.textContent = "Please enter a custom batch name.";
+            batchNameErrorEl.classList.remove("d-none");
+          }
+        }
+        return { ok: false, reason: "empty", name: "" };
+      }
+
+      if (occupied.has(name.toLowerCase())) {
+        if (isCustom) {
+          customBatchNameEl?.classList.add("is-invalid");
+        } else {
+          batchNameEl?.classList.add("is-invalid");
+        }
+        if (batchNameErrorEl && batchNameErrorTextEl) {
+          batchNameErrorTextEl.textContent = `Batch name "${name}" is already occupied for this course. Please choose another batch name to avoid duplicates.`;
+          batchNameErrorEl.classList.remove("d-none");
+        }
+        return { ok: false, reason: "occupied", name };
+      }
+
+      customBatchNameEl?.classList.remove("is-invalid");
+      batchNameEl?.classList.remove("is-invalid");
+      if (batchNameErrorEl) {
+        batchNameErrorEl.classList.add("d-none");
+      }
+      return { ok: true, name };
+    }
+
+    academicYearEl?.addEventListener("change", () => {
+      populateBatchNameSelect(getEffectiveBatchName());
+      updateBatchIdentifierPreview();
+      updateActionButtonsState();
+    });
+
+    termEl?.addEventListener("change", () => {
+      updateBatchIdentifierPreview();
+      updateActionButtonsState();
+    });
+
+    batchNameEl?.addEventListener("change", () => {
+      if (batchNameEl.value === "__custom__") {
+        if (customBatchNameContainer) {
+          customBatchNameContainer.classList.remove("d-none");
+          customBatchNameEl?.focus();
+        }
+      } else {
+        if (customBatchNameContainer) {
+          customBatchNameContainer.classList.add("d-none");
+        }
+      }
+      validateBatchName();
+      updateBatchIdentifierPreview();
+      updateActionButtonsState();
+    });
+
+    customBatchNameEl?.addEventListener("input", () => {
+      validateBatchName();
+      updateBatchIdentifierPreview();
+      updateActionButtonsState();
+    });
 
     function pendingForSelectedCourse() {
       const course =
@@ -1987,6 +2225,14 @@ document.addEventListener(
 
       if (!state.name || !state.name.trim()) {
         missing.push("batch name");
+      } else {
+        const occupied = getOccupiedBatchNamesForCourse(
+          course.id,
+          state.editingTemplateId || (isPersistedTemplateId(editingTemplateId) ? editingTemplateId : null)
+        );
+        if (occupied.has(state.name.trim().toLowerCase())) {
+          missing.push(`batch name "${state.name}" is already occupied`);
+        }
       }
 
       // Check trainer conflict
@@ -2123,7 +2369,7 @@ document.addEventListener(
           "1st Semester"
       );
 
-      const rawBatchName = template.name || batchNameEl?.value?.trim() || "Batch 1";
+      const rawBatchName = template.name || getEffectiveBatchName() || "Batch 1";
       const ay = template.academicYear || academicYearEl?.value || "AY 2026–2027";
 
       body.set(
@@ -2863,9 +3109,7 @@ document.addEventListener(
       }
 
       if (batchNameEl) {
-        batchNameEl.value =
-          formState.name ||
-          "Batch 1";
+        populateBatchNameSelect(formState.name);
       }
 
       updateBatchIdentifierPreview();
@@ -2927,8 +3171,7 @@ document.addEventListener(
         "1st Semester";
 
       formState.name =
-        batchNameEl?.value?.trim() ||
-        "Batch 1";
+        getEffectiveBatchName();
 
       updateDailyHoursField();
     }
@@ -3101,6 +3344,18 @@ document.addEventListener(
       readFormFromInputs();
 
       let ok = true;
+
+      const batchCheck = validateBatchName();
+      if (!batchCheck.ok) {
+        if (batchCheck.reason === "occupied") {
+          alert(
+            `Batch name "${batchCheck.name}" is already occupied for this course. Please choose a different batch name to avoid duplicates.`
+          );
+        } else {
+          alert("Please enter a valid batch name.");
+        }
+        ok = false;
+      }
 
       if (
         !formState.days.length

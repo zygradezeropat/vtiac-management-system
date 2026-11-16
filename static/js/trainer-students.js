@@ -1,4 +1,5 @@
-const PAGE_SIZE = 10;
+let pageSize = 5;
+let currentPage = 1;
 
 const searchEl = document.getElementById("student-search");
 const programEl = document.getElementById("filter-program");
@@ -7,8 +8,6 @@ const scheduleEl = document.getElementById("filter-schedule");
 const tbody = document.getElementById("students-table-body");
 const emptyFilterEl = document.getElementById("students-empty-filter");
 const paginationEl = document.getElementById("students-pagination");
-
-let currentPage = 1;
 
 function escapeHtml(text) {
   return String(text ?? "")
@@ -45,24 +44,59 @@ function getMatchingRows() {
 function renderPagination(totalRows, page, totalPages) {
   if (!paginationEl) return;
 
-  if (totalRows <= PAGE_SIZE) {
+  if (totalRows === 0) {
     paginationEl.classList.add("d-none");
     paginationEl.innerHTML = "";
     return;
   }
 
   paginationEl.classList.remove("d-none");
-  const start = (page - 1) * PAGE_SIZE + 1;
-  const end = Math.min(page * PAGE_SIZE, totalRows);
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalRows);
   const prevDisabled = page <= 1 ? "disabled" : "";
   const nextDisabled = page >= totalPages ? "disabled" : "";
 
+  // Render individual page number buttons
+  let pageButtonsHtml = "";
+  for (let p = 1; p <= totalPages; p++) {
+    const isCurrent = p === page;
+    const btnClass = isCurrent
+      ? "btn-success active fw-bold shadow-sm"
+      : "btn-outline-secondary";
+    pageButtonsHtml += `
+      <button type="button" class="btn btn-sm ${btnClass} students-page-num" data-page="${p}" style="min-width: 32px;">
+        ${p}
+      </button>
+    `;
+  }
+
   paginationEl.innerHTML = `
-    <span class="trainer-pagination__label">Showing ${start}–${end} of ${totalRows}</span>
-    <div class="trainer-pagination__controls">
-      <button type="button" class="btn btn-sm btn-outline-secondary students-page-prev" ${prevDisabled}>Previous</button>
-      <span class="trainer-pagination__page">Page ${page} of ${totalPages}</span>
-      <button type="button" class="btn btn-sm btn-outline-secondary students-page-next" ${nextDisabled}>Next</button>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 w-100 py-2">
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div class="d-flex align-items-center gap-1">
+          <label for="students-page-size" class="small text-muted mb-0 me-1 fw-semibold">Show:</label>
+          <select id="students-page-size" class="form-select form-select-sm w-auto py-1 px-2 fw-semibold border-secondary-subtle rounded-3" style="font-size: 0.825rem;">
+            <option value="5" ${pageSize === 5 ? "selected" : ""}>5</option>
+            <option value="10" ${pageSize === 10 ? "selected" : ""}>10</option>
+            <option value="25" ${pageSize === 25 ? "selected" : ""}>25</option>
+          </select>
+        </div>
+        <span class="trainer-pagination__label text-muted small" style="font-size: 0.85rem;">
+          Showing <strong class="text-dark">${start}–${end}</strong> of <strong class="text-dark">${totalRows}</strong> student${totalRows === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <div class="trainer-pagination__controls d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-2.5 students-page-prev" ${prevDisabled} title="Previous Page">
+          <i class="bi bi-chevron-left" aria-hidden="true"></i> Prev
+        </button>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Page selection">
+          ${pageButtonsHtml}
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-3 px-2.5 students-page-next" ${nextDisabled} title="Next Page">
+          Next <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -73,15 +107,15 @@ function applyStudentFilters(resetPage = false) {
   if (resetPage) currentPage = 1;
 
   const matchingRows = getMatchingRows();
-  const totalPages = Math.max(1, Math.ceil(matchingRows.length / PAGE_SIZE) || 1);
+  const totalPages = Math.max(1, Math.ceil(matchingRows.length / pageSize) || 1);
   currentPage = Math.min(Math.max(1, currentPage), totalPages);
 
   tbody.querySelectorAll("tr[data-search]").forEach((row) => {
     row.classList.add("hidden");
   });
 
-  const start = (currentPage - 1) * PAGE_SIZE;
-  matchingRows.slice(start, start + PAGE_SIZE).forEach((row) => {
+  const start = (currentPage - 1) * pageSize;
+  matchingRows.slice(start, start + pageSize).forEach((row) => {
     row.classList.remove("hidden");
   });
 
@@ -90,9 +124,9 @@ function applyStudentFilters(resetPage = false) {
   if (emptyFilterEl) {
     const hasActiveFilter = Boolean(
       (searchEl?.value || "").trim() ||
-        programEl?.value ||
-        batchEl?.value ||
-        scheduleEl?.value
+      programEl?.value ||
+      batchEl?.value ||
+      scheduleEl?.value
     );
     emptyFilterEl.classList.toggle("hidden", matchingRows.length > 0 || !hasActiveFilter);
   }
@@ -104,16 +138,32 @@ if (tbody) {
     if (el && el.tagName === "SELECT") el.addEventListener("change", () => applyStudentFilters(true));
   });
 
+  paginationEl?.addEventListener("change", (event) => {
+    if (event.target.id === "students-page-size") {
+      pageSize = parseInt(event.target.value, 10) || 5;
+      currentPage = 1;
+      applyStudentFilters(false);
+    }
+  });
+
   paginationEl?.addEventListener("click", (event) => {
     const prev = event.target.closest(".students-page-prev");
     const next = event.target.closest(".students-page-next");
+    const pageNumBtn = event.target.closest(".students-page-num");
+
     if (prev && currentPage > 1) {
       currentPage -= 1;
       applyStudentFilters(false);
     } else if (next) {
-      const totalPages = Math.max(1, Math.ceil(getMatchingRows().length / PAGE_SIZE));
+      const totalPages = Math.max(1, Math.ceil(getMatchingRows().length / pageSize));
       if (currentPage < totalPages) {
         currentPage += 1;
+        applyStudentFilters(false);
+      }
+    } else if (pageNumBtn) {
+      const p = parseInt(pageNumBtn.getAttribute("data-page"), 10);
+      if (p && p !== currentPage) {
+        currentPage = p;
         applyStudentFilters(false);
       }
     }
@@ -158,23 +208,46 @@ function fieldLine(value, minWidth = "10rem") {
   return `<span class="field-blank" style="min-width:${minWidth}"></span>`;
 }
 
-function programInfo(meta, course) {
-  const programs = meta?.programs || {};
-  return programs[course] || {};
+function programInfo(meta, course, batch = "") {
+  const byBatch = meta?.batches || meta?.programs?.by_batch || {};
+  if (batch) {
+    const key = `${course}|${batch}`.toLowerCase();
+    for (const [k, v] of Object.entries(byBatch)) {
+      if (k.toLowerCase() === key) return v;
+    }
+  }
+  const byCourse = meta?.programs?.by_course || meta?.programs || {};
+  return byCourse[course] || byCourse[course.toLowerCase()] || {};
 }
 
-function buildDailyAttendanceHeader(course, meta) {
-  const info = programInfo(meta, course);
+function buildDailyAttendanceHeader(course, batch, meta) {
+  const info = programInfo(meta, course, batch);
   const trainer = meta?.trainer || "Trainer";
+  const courseDisplay = batch ? `${course} — ${batch}` : course;
+  const valientLogo = `${window.location.origin}/static/img/valient-logo.svg`;
+  const tesdaLogo = `${window.location.origin}/static/img/TESDA%20Logo%20official.png`;
 
   return `
+    <div class="daily-sheet__institution-header">
+      <div class="daily-sheet__logo-wrap daily-sheet__logo-wrap--left">
+        <img src="${valientLogo}" alt="VTIAC Logo" class="daily-sheet__logo-img" />
+      </div>
+      <div class="daily-sheet__institution-info">
+        <h2 class="daily-sheet__inst-name">VALIANT TECHNICAL INSTITUTE AND ASSESSMENT CENTER, INC.</h2>
+        <p class="daily-sheet__inst-sub">Bangoy St., Salvacion, Panabo City, Philippines</p>
+        <p class="daily-sheet__inst-sub">Mobile No: 09106341543, 09176820073 &nbsp;&bull;&nbsp; E-mail: valianttiaci@gmail.com</p>
+      </div>
+      <div class="daily-sheet__logo-wrap daily-sheet__logo-wrap--right">
+        <img src="${tesdaLogo}" alt="TESDA Logo" class="daily-sheet__logo-img" />
+      </div>
+    </div>
     <h1 class="daily-sheet__title">TRAINEES DAILY ATTENDANCE SHEET</h1>
     <div class="daily-sheet__meta">
       <p class="daily-sheet__row">
         <span class="daily-sheet__label">Name of TVET Provider:</span>
         ${fieldLine(meta?.tvet_provider, "14rem")}
         <span class="daily-sheet__label daily-sheet__label--spaced">Qualification/Program:</span>
-        ${fieldLine(course, "14rem")}
+        ${fieldLine(courseDisplay, "14rem")}
       </p>
       <p class="daily-sheet__row">
         <span class="daily-sheet__label">Date Start:</span>
@@ -240,14 +313,14 @@ function buildDailyAttendanceFooter(trainerName) {
     </div>`;
 }
 
-function buildDailyAttendancePages(course, students, meta) {
+function buildDailyAttendancePages(course, batch, students, meta) {
   const sorted = [...students].sort((a, b) =>
     (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" })
   );
 
   return `
     <section class="daily-attendance-page">
-      ${buildDailyAttendanceHeader(course, meta)}
+      ${buildDailyAttendanceHeader(course, batch, meta)}
       <table class="daily-attendance-table" cellspacing="0" cellpadding="0">
         <thead>
           <tr>
@@ -273,31 +346,80 @@ function buildDailyAttendancePages(course, students, meta) {
 }
 
 const DAILY_ATTENDANCE_PRINT_STYLES = `
-  @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap");
-  @page { size: landscape; margin: 10mm; }
+  @page { size: landscape; margin: 8mm 10mm; }
   * { box-sizing: border-box; }
-  body {
-    font-family: "Poppins", system-ui, -apple-system, sans-serif;
+  html, body {
+    font-family: Arial, "Poppins", system-ui, -apple-system, sans-serif;
     margin: 0;
+    padding: 0;
+    background: #fff;
     color: #000;
     font-size: 11px;
+    width: 100%;
   }
   .daily-attendance-page {
+    width: 100%;
+    max-width: 100%;
+    background: #fff;
     page-break-after: always;
   }
   .daily-attendance-page:last-child {
     page-break-after: auto;
   }
+  .daily-sheet__institution-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #000;
+  }
+  .daily-sheet__logo-wrap {
+    width: 75px;
+    flex-shrink: 0;
+  }
+  .daily-sheet__logo-wrap--left {
+    text-align: left;
+  }
+  .daily-sheet__logo-wrap--right {
+    text-align: right;
+  }
+  .daily-sheet__logo-img {
+    height: 65px;
+    width: 65px;
+    object-fit: contain;
+    display: inline-block;
+  }
+  .daily-sheet__institution-info {
+    text-align: center;
+    flex: 1;
+    padding: 0 10px;
+  }
+  .daily-sheet__inst-name {
+    font-family: 'Times New Roman', serif, sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 2px;
+    letter-spacing: 0.5px;
+    color: #000;
+  }
+  .daily-sheet__inst-sub {
+    margin: 0 0 2px;
+    font-size: 9.5px;
+    color: #000;
+    line-height: 1.3;
+  }
   .daily-sheet__title {
     text-align: center;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
-    margin: 0 0 12px;
-    letter-spacing: 0.02em;
-    background: #548235;
+    margin: 0 0 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: transparent;
     color: #000;
-    padding: 10px 8px;
-    border: 1px solid #375623;
+    padding: 4px 0;
+    border: none;
   }
   .daily-sheet__meta {
     margin-bottom: 10px;
@@ -334,22 +456,26 @@ const DAILY_ATTENDANCE_PRINT_STYLES = `
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    border: 1.5px solid #000;
+    margin-bottom: 15px;
   }
   .daily-attendance-table th,
   .daily-attendance-table td {
     border: 1px solid #000;
-    padding: 4px 6px;
+    padding: 5px 6px;
     vertical-align: middle;
+    background: #fff;
+    color: #000;
   }
   .daily-attendance-table thead tr:first-child th {
-    background: #70ad47;
+    background: #fff;
     font-weight: 700;
     text-align: center;
     font-size: 10px;
     color: #000;
   }
   .daily-attendance-table thead tr:last-child th {
-    background: #a9d08e;
+    background: #fff;
     font-weight: 700;
     text-align: center;
     font-size: 10px;
@@ -363,17 +489,17 @@ const DAILY_ATTENDANCE_PRINT_STYLES = `
   .col-time { width: 8%; }
   .col-sign { width: 14%; }
   .daily-attendance-table tbody td {
-    height: 26px;
+    height: 28px;
     font-size: 10px;
     background: #fff;
   }
   .daily-attendance-table tbody .col-no {
     text-align: center;
     font-weight: 600;
-    background: #e2efda;
+    background: #fff;
   }
   .daily-attendance-table tbody .col-sign {
-    background: #e2efda;
+    background: #fff;
   }
   .daily-sheet__signatures {
     display: flex;
@@ -410,18 +536,76 @@ const DAILY_ATTENDANCE_PRINT_STYLES = `
   }
 `;
 
-function studentsForCourse(roster, course) {
-  const target = (course || "").trim().toLowerCase();
-  return roster.filter((row) => (row.program || "").trim().toLowerCase() === target);
+function updatePrintBatchDropdown() {
+  const courseEl = document.getElementById("attendance-print-course");
+  const batchEl = document.getElementById("attendance-print-batch");
+  const hintEl = document.getElementById("attendance-print-batch-hint");
+  if (!courseEl || !batchEl) return;
+
+  const selectedCourse = (courseEl.value || "").trim();
+  const roster = loadAttendanceRoster();
+
+  if (!selectedCourse) {
+    batchEl.innerHTML = `<option value="">Select a course first</option>`;
+    batchEl.disabled = true;
+    if (hintEl) hintEl.textContent = "Choose a course to check available batches.";
+    return;
+  }
+
+  // Filter roster for this course
+  const courseStudents = roster.filter(
+    (s) => (s.program || "").trim().toLowerCase() === selectedCourse.toLowerCase()
+  );
+
+  // Collect distinct batches for this course
+  const batchCounts = {};
+  courseStudents.forEach((s) => {
+    const b = (s.batch || "").trim();
+    if (b) {
+      batchCounts[b] = (batchCounts[b] || 0) + 1;
+    }
+  });
+
+  const batches = Object.keys(batchCounts).sort();
+
+  if (!batches.length) {
+    batchEl.innerHTML = `<option value="">All Students in ${escapeHtml(selectedCourse)} (${courseStudents.length} student${courseStudents.length === 1 ? "" : "s"})</option>`;
+    batchEl.disabled = false;
+    if (hintEl) hintEl.textContent = `${courseStudents.length} enrolled student(s) found.`;
+    return;
+  }
+
+  let optionsHtml = `<option value="">All Batches (${courseStudents.length} total students)</option>`;
+  batches.forEach((b) => {
+    optionsHtml += `<option value="${escapeHtml(b)}">${escapeHtml(b)} (${batchCounts[b]} student${batchCounts[b] === 1 ? "" : "s"})</option>`;
+  });
+
+  batchEl.innerHTML = optionsHtml;
+  batchEl.disabled = false;
+  if (hintEl) {
+    hintEl.textContent = `${batches.length} batch(es) available for this course. Select a specific batch or print all.`;
+  }
 }
 
-function printAttendanceSheet(course) {
+function printAttendanceSheet(course, batch = "") {
   const roster = loadAttendanceRoster();
   const meta = loadAttendanceMeta();
-  const students = studentsForCourse(roster, course);
+
+  let students = roster.filter(
+    (row) => (row.program || "").trim().toLowerCase() === (course || "").trim().toLowerCase()
+  );
+
+  if (batch) {
+    students = students.filter(
+      (row) => (row.batch || "").trim().toLowerCase() === batch.trim().toLowerCase()
+    );
+  }
 
   if (!students.length) {
-    window.alert("No students found for the selected course.");
+    const msg = batch
+      ? `No students found for "${course}" in batch "${batch}".`
+      : `No students found for "${course}".`;
+    window.alert(msg);
     return;
   }
 
@@ -431,14 +615,15 @@ function printAttendanceSheet(course) {
     return;
   }
 
-  const pagesHtml = buildDailyAttendancePages(course, students, meta);
+  const pagesHtml = buildDailyAttendancePages(course, batch, students, meta);
+  const titleBatch = batch ? ` — ${batch}` : "";
 
   printWindow.document.open();
   printWindow.document.write(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeHtml(course)} — Daily Attendance Sheet</title>
+  <title>${escapeHtml(course)}${escapeHtml(titleBatch)} — Daily Attendance Sheet</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -472,16 +657,38 @@ function printAttendanceSheet(course) {
 function initAttendancePrint() {
   const confirmBtn = document.getElementById("attendance-print-confirm");
   const courseEl = document.getElementById("attendance-print-course");
+  const batchEl = document.getElementById("attendance-print-batch");
+  const modalEl = document.getElementById("attendancePrintModal");
   if (!confirmBtn || !courseEl) return;
+
+  courseEl.addEventListener("change", () => {
+    updatePrintBatchDropdown();
+  });
+
+  // When modal is shown, auto-sync from page filter if set
+  if (modalEl) {
+    modalEl.addEventListener("show.bs.modal", () => {
+      const pageProgram = programEl?.value || "";
+      const pageBatch = batchEl?.value || "";
+      if (pageProgram && !courseEl.value) {
+        courseEl.value = pageProgram;
+      }
+      updatePrintBatchDropdown();
+      if (pageBatch && batchEl) {
+        batchEl.value = pageBatch;
+      }
+    });
+  }
 
   confirmBtn.addEventListener("click", () => {
     const course = (courseEl.value || "").trim();
+    const batch = (batchEl?.value || "").trim();
     if (!course) {
       window.alert("Please select a course before printing.");
       courseEl.focus();
       return;
     }
-    printAttendanceSheet(course);
+    printAttendanceSheet(course, batch);
   });
 }
 

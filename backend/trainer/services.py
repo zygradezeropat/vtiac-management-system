@@ -70,9 +70,9 @@ TRAINER_MODULES = {
     },
     "reports": {
         "label": "Reports",
-        "icon_bi": "bi-file-earmark-bar-graph-fill",
-        "title": "Reports",
-        "subtitle": "Generate and download class reports",
+        "icon_bi": "bi-award-fill",
+        "title": "E.G.A.C.E. Performance Report",
+        "subtitle": "Training & Institutional EGACE Performance Report",
         "template": "trainer/reports.html",
         "sidebar": True,
     },
@@ -227,148 +227,114 @@ def module_page_context(module, request=None):
         )
     if module == "reports":
         user = getattr(request, "user", None) if request else None
-        students = []
-        batch_cards = []
-        if user and getattr(user, "is_authenticated", False):
-            students, batch_cards = assigned_students_by_batch(user)
+        from .class_assignments import (
+            trainer_account_request_for_user,
+            finalized_batches_for_trainer,
+            _trainer_name_for_lookup,
+        )
+        from .egace_progress import build_registrar_egace_rows
 
-        total_candidates = len(students)
+        trainer_req = trainer_account_request_for_user(user)
+        trainer_name = _trainer_name_for_lookup(trainer_req, user) or (user.get_full_name() if user else "Trainer")
 
-        # Determine programs assigned to trainer
-        programs_in_class = sorted({s.get("program") for s in students if s.get("program")})
-        primary_program = programs_in_class[0] if programs_in_class else "Automotive Servicing NC I"
+        # Batches assigned to this trainer
+        batches_qs = finalized_batches_for_trainer(trainer_req, user=user)
+        if not batches_qs.exists() and user:
+            from backend.registrar.models import RegistrarScheduleTemplate
+            user_full = (user.get_full_name() or "").strip()
+            if user_full:
+                batches_qs = RegistrarScheduleTemplate.objects.filter(
+                    trainer_name__iexact=user_full
+                ).order_by("-finalized_at", "-updated_at")
 
-        from .grading_sample import record_sheet_structure_for_program
-        from .models import TrainerStudentGrade
+        egace_rows = build_registrar_egace_rows()
 
-        record_struct = record_sheet_structure_for_program(primary_program)
-        cats_by_id = {c["id"]: c for c in record_struct}
+        trainer_students_refs = set()
+        trainer_students_names = set()
+        for b in batches_qs:
+            b_students = b.students_snapshot if isinstance(b.students_snapshot, list) else []
+            for s in b_students:
+                if s.get("referenceId"):
+                    trainer_students_refs.add(s.get("referenceId"))
+                if s.get("fullName"):
+                    trainer_students_names.add(s.get("fullName").strip().lower())
 
-        grade_records = {
-            g.student_key: g.payload
-            for g in TrainerStudentGrade.objects.filter(trainer=user)
-        } if user and user.is_authenticated else {}
+        trainer_egace_rows = [
+            r for r in egace_rows
+            if r.get("referenceId") in trainer_students_refs
+            or r.get("studentName", "").strip().lower() in trainer_students_names
+        ]
 
-        competency_units = {"basic": [], "common": [], "core": []}
-        for cat_key in ("basic", "common", "core"):
-            cat_obj = cats_by_id.get(cat_key)
-            if not cat_obj:
-                continue
-            for u in cat_obj.get("units", []):
-                u_id = u.get("id") or ""
-                scored_competent = 0
-                for s in students:
-                    s_key = s.get("reference_id") or s.get("key") or ""
-                    payload = grade_records.get(s_key) or {}
-                    scores = payload.get("scores", {}).get(u_id, {})
-                    w, d, i = scores.get("written"), scores.get("demo"), scores.get("interview")
-                    nums = [n for n in (w, d, i) if n is not None]
-                    if len(nums) == 3 and (sum(nums) / 3) >= 75:
-                        scored_competent += 1
-                mastery_pct = round((scored_competent / total_candidates) * 100, 1) if total_candidates > 0 else 100.0
-                status_label = "Mastered" if mastery_pct >= 75 else ("In Progress" if mastery_pct > 0 else "Pending")
-                competency_units[cat_key].append({
-                    "id": u_id,
-                    "code": u.get("code") or "UC",
-                    "name": u.get("title") or "",
-                    "mastery_pct": mastery_pct,
-                    "status": status_label,
-                })
+        # Group batches by course to assign sequential BATCH 1, BATCH 2 labels
+        course_batch_counters = {}
+        trainer_batch_reports = []
+        for t in batches_qs.order_by("course_name", "id"):
+            c_name = t.course_name or "General Training"
+            course_batch_counters[c_name] = course_batch_counters.get(c_name, 0) + 1
+            batch_num = course_batch_counters[c_name]
 
-        candidate_competency_rows = []
-        ready_for_assessment_count = 0
+            t_students = t.students_snapshot if isinstance(t.students_snapshot, list) else []
+            t_refs = {s.get("referenceId") for s in t_students if s.get("referenceId")}
+            t_names = {s.get("fullName", "").strip().lower() for s in t_students if s.get("fullName")}
+            matched_egace = [
+                r for r in trainer_egace_rows
+                if r.get("referenceId") in t_refs or r.get("studentName", "").strip().lower() in t_names
+            ]
 
-        basic_total = len(competency_units["basic"]) or 4
-        common_total = len(competency_units["common"]) or 3
-        core_total = len(competency_units["core"]) or 4
+            has_scholar = any(
+                s.get("scholarship") or s.get("scholarshipType") or s.get("scholarship_type")
+                for s in t_students
+            )
+            modality = "SCHOLARS" if has_scholar else "NON-SCHOLARS"
 
-        for s in students:
-            s_key = s.get("reference_id") or s.get("key") or ""
-            payload = grade_records.get(s_key) or {}
-            scores_map = payload.get("scores", {}) if isinstance(payload, dict) else {}
+            clean_batch = f"BATCH {batch_num}"
 
-            passed_basic = 0
-            for u in competency_units["basic"]:
-                u_scores = scores_map.get(u.get("id", "")) or {}
-                nums = [n for n in (u_scores.get("written"), u_scores.get("demo"), u_scores.get("interview")) if n is not None]
-                if len(nums) == 3 and (sum(nums) / 3) >= 75:
-                    passed_basic += 1
+            start_iso = t.available_from.strftime("%Y-%m-%d") if t.available_from else (t.created_at.strftime("%Y-%m-%d") if t.created_at else "")
+            end_iso = t.available_until.strftime("%Y-%m-%d") if t.available_until else ""
+            b_year = t.available_from.year if t.available_from else (t.created_at.year if t.created_at else 2026)
+            b_month = t.available_from.month if t.available_from else (t.created_at.month if t.created_at else 11)
 
-            passed_common = 0
-            for u in competency_units["common"]:
-                u_scores = scores_map.get(u.get("id", "")) or {}
-                nums = [n for n in (u_scores.get("written"), u_scores.get("demo"), u_scores.get("interview")) if n is not None]
-                if len(nums) == 3 and (sum(nums) / 3) >= 75:
-                    passed_common += 1
-
-            passed_core = 0
-            for u in competency_units["core"]:
-                u_scores = scores_map.get(u.get("id", "")) or {}
-                nums = [n for n in (u_scores.get("written"), u_scores.get("demo"), u_scores.get("interview")) if n is not None]
-                if len(nums) == 3 and (sum(nums) / 3) >= 75:
-                    passed_core += 1
-
-            is_ready = False
-            if scores_map:
-                is_ready = (passed_core == core_total and passed_basic == basic_total and passed_common == common_total)
-            else:
-                is_ready = (s.get("status") == "approved")
-
-            if is_ready:
-                ready_for_assessment_count += 1
-                readiness_text = "Ready for National Assessment"
-                badge_class = "bg-success"
-                result_text = "Competent (C)"
-            elif passed_core > 0 or passed_basic > 0:
-                readiness_text = "Pending Competencies"
-                badge_class = "bg-warning text-dark"
-                result_text = "In Progress"
-            else:
-                readiness_text = "Recommended for Assessment" if s.get("status") == "approved" else "Needs Assessment"
-                badge_class = "bg-success" if s.get("status") == "approved" else "bg-secondary"
-                result_text = "Competent (C)" if s.get("status") == "approved" else "Not Yet Assessed"
-                if s.get("status") == "approved":
-                    ready_for_assessment_count += 1
-
-            candidate_competency_rows.append({
-                "name": s.get("name") or f"{s.get('first_name', '')} {s.get('last_name', '')}",
-                "ref_id": s.get("reference_id", "REG-2026"),
-                "program": s.get("program", primary_program),
-                "batch": s.get("batch_label", "Batch 1"),
-                "basic_ucs": f"{passed_basic if scores_map else basic_total} / {basic_total} Completed",
-                "common_ucs": f"{passed_common if scores_map else common_total} / {common_total} Completed",
-                "core_ucs": f"{passed_core if scores_map else core_total} / {core_total} Completed",
-                "readiness": readiness_text,
-                "status_badge": badge_class,
-                "result": result_text,
+            trainer_batch_reports.append({
+                "id": t.id,
+                "course_name": c_name,
+                "batch_label": clean_batch,
+                "modality": modality,
+                "trainer_name": t.trainer_name or trainer_name,
+                "examiner_name": t.examiner_name or "TESDA Assessor",
+                "start_date": t.available_from.strftime("%m/%d/%Y") if t.available_from else "—",
+                "end_date": t.available_until.strftime("%m/%d/%Y") if t.available_until else "—",
+                "start_date_iso": start_iso,
+                "end_date_iso": end_iso,
+                "year": b_year,
+                "month": b_month,
+                "academic_year": t.academic_year,
+                "assessment_date": t.assessment_at.strftime("%m/%d/%Y") if t.assessment_at else "TBA",
+                "status": t.get_status_display(),
+                "students_count": len(t_students),
+                "graduates": sum(1 for r in matched_egace if r.get("graduate")),
+                "assessed": sum(1 for r in matched_egace if r.get("assessment")),
+                "certified": sum(1 for r in matched_egace if r.get("certificate")),
+                "employed": sum(1 for r in matched_egace if r.get("employment")),
             })
 
-        competent_count = ready_for_assessment_count
-        competency_mastery_pct = round((competent_count / total_candidates) * 100, 1) if total_candidates > 0 else 100.0
-
-        total_comp_units = basic_total + common_total + core_total
+        trainer_courses = []
+        for b in trainer_batch_reports:
+            c = b.get("course_name")
+            if c and c not in trainer_courses:
+                trainer_courses.append(c)
 
         ctx.update({
-            "total_candidates": total_candidates,
-            "competent_count": competent_count,
-            "competency_mastery_pct": competency_mastery_pct,
-            "national_assessment_ready": ready_for_assessment_count,
-            "basic_total": basic_total,
-            "common_total": common_total,
-            "core_total": core_total,
-            "total_competency_units": total_comp_units,
-            "competency_units": competency_units,
-            "candidate_competency_rows": candidate_competency_rows,
-            "primary_program": primary_program,
-            "programs_in_class": programs_in_class,
-            "trainer_reports_json": json.dumps(
-                {
-                    "students": students,
-                    "batch_cards": batch_cards,
-                    "has_classes": bool(batch_cards),
-                    "primary_program": primary_program,
-                }
-            ),
+            "page_title": "E.G.A.C.E. Performance Report",
+            "page_subtitle": f"Training & Institutional EGACE Performance Records for {trainer_name}",
+            "trainer_name": trainer_name,
+            "trainer_courses": trainer_courses,
+            "reports_egace_data_json": trainer_egace_rows,
+            "reports_batches_data_json": trainer_batch_reports,
+            "trainer_courses_json": trainer_courses,
+            "trainer_info_json": {
+                "name": trainer_name,
+                "title": "Trainer / TVET Instructor",
+            },
         })
     if module == "evaluations":
         user = getattr(request, "user", None) if request else None

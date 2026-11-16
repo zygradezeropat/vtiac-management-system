@@ -1456,6 +1456,46 @@ def batching_template_upsert(request):
     obj.name = name[:200].strip()
 
     # ---------------------------------------------------------
+    # CHECK DUPLICATE BATCH NAME / LABEL
+    # ---------------------------------------------------------
+
+    clean_batch_name = (name or "Batch 1").strip()
+    norm_current_ay = academic_year.replace("–", "-").strip().lower()
+
+    dup_candidates = RegistrarScheduleTemplate.objects.filter(
+        course_name__iexact=course_name.strip()
+    )
+    if obj.pk:
+        dup_candidates = dup_candidates.exclude(pk=obj.pk)
+
+    for cand in dup_candidates:
+        cand_ay = (cand.academic_year or "").replace("–", "-").strip().lower()
+        if not cand_ay or not norm_current_ay or cand_ay == norm_current_ay:
+            cand_name = (cand.name or "").strip().lower()
+            if cand_name and cand_name == clean_batch_name.lower():
+                return JsonResponse(
+                    {
+                        "error": (
+                            f"Batch name '{clean_batch_name}' is already occupied for {course_name} "
+                            f"in {academic_year} ({cand.batch_label or cand.name}). "
+                            "Please choose another batch name to avoid duplicate batches."
+                        )
+                    },
+                    status=400,
+                )
+            if not cand_name and cand.batch_label and clean_batch_name.lower() in cand.batch_label.lower():
+                return JsonResponse(
+                    {
+                        "error": (
+                            f"Batch name '{clean_batch_name}' is already occupied for {course_name} "
+                            f"in {academic_year} ({cand.batch_label}). "
+                            "Please choose another batch name to avoid duplicate batches."
+                        )
+                    },
+                    status=400,
+                )
+
+    # ---------------------------------------------------------
     # SCHEDULE
     # ---------------------------------------------------------
 

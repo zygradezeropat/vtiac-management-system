@@ -376,21 +376,42 @@
       <!-- Batch Label / Name -->
       <div class="mb-4">
 
-        <label
-          class="form-label fw-semibold"
-          for="template-name">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <label
+            class="form-label fw-semibold mb-0"
+            for="template-name">
+            Batch Number or Label <span class="text-danger">*</span>
+          </label>
+          <span id="template-occupied-hint" class="badge bg-light text-muted border d-none" style="font-size: 0.75rem;">
+            <i class="bi bi-info-circle text-primary me-1"></i>Occupied batches excluded
+          </span>
+        </div>
 
-          Batch Number or Label
-
-        </label>
-
-        <input
-          type="text"
+        <select
           id="template-name"
-          class="form-control form-control-vtiac"
-          placeholder="e.g. Batch 1"
-          value="Batch 1"
-        />
+          class="form-select form-select-vtiac"
+          aria-label="Batch number or label"
+        >
+          <option value="Batch 1">Batch 1</option>
+        </select>
+
+        <div id="template-custom-name-container" class="mt-2 d-none">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-light text-muted small">Custom Name:</span>
+            <input
+              type="text"
+              id="template-custom-name"
+              class="form-control form-control-vtiac"
+              placeholder="e.g. Special Batch A"
+              maxlength="40"
+            />
+          </div>
+        </div>
+
+        <div id="template-batch-name-error" class="text-danger small mt-1 d-none" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          <span id="template-batch-name-error-text">This batch name is already occupied for this course.</span>
+        </div>
 
         <small class="text-muted d-block mt-1">
           Full batch identifier will format as: <code id="template-identifier-preview">AY 2026–2027 · 1st Semester · Batch 1</code>
@@ -750,7 +771,7 @@
 
 <script
   type="module"
-  src="{% static 'js/registrar-batching.js' %}?v=20261024_clean">
+  src="{% static 'js/registrar-batching.js' %}?v={% now 'U' %}">
 </script>
 
 <script type="module">
