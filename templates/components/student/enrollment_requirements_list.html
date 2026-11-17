@@ -68,13 +68,14 @@
       <select id="id-type-{{ row.key }}" name="id_type" class="student-enroll-input student-enroll-select" required>
         <option value="">Select ID type</option>
         {% for value, label in id_type_choices %}
-        <option value="{{ value }}" {% if row.id_type==value %} selected{% endif %}>{{ label }}</option>
+        <option value="{{ value }}" {% if row.id_type == value %} selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
       {% elif row.id_type %}
       <p class="mb-0">
-        {% for value, label in id_type_choices %}{% if row.id_type == value %}<strong>{{ label }}</strong>{% endif %}{%
-        endfor %}
+        {% for value, label in id_type_choices %}
+        {% if row.id_type == value %}<strong>{{ label }}</strong>{% endif %}
+        {% endfor %}
       </p>
       {% endif %}
     </div>
@@ -98,8 +99,8 @@
       <span
         class="badge {% if row.hard_copy_received %}bg-success-subtle text-success border border-success-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} ms-1">
         <i
-          class="bi {% if row.hard_copy_received %}bi-file-earmark-check-fill{% else %}bi-file-earmark-x{% endif %} me-1"></i>{%
-        if row.hard_copy_received %}Hard Copy: Received{% else %}Hard Copy: Pending{% endif %}
+          class="bi {% if row.hard_copy_received %}bi-file-earmark-check-fill{% else %}bi-file-earmark-x{% endif %} me-1"></i>
+        {% if row.hard_copy_received %}Hard Copy: Received{% else %}Hard Copy: Pending{% endif %}
       </span>
       {% endif %}
       {% if row.file_url %}
