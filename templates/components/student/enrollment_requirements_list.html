@@ -5,8 +5,9 @@
   data-approved="{% if row.is_approved %}1{% else %}0{% endif %}">
   {% if can_edit_requirements %}
   <form method="post" action="{% url requirements_post_url_name %}" enctype="multipart/form-data"
-    class="student-req-upload-form" id="form-{{ row.key }}" {% if row.has_id_type %}data-requires-id-type="1" {% endif
-    %} {% if row.is_approved and not records_mode %}data-approved="1" {% endif %}>
+    class="student-req-upload-form" id="form-{{ row.key }}"
+    {% if row.has_id_type %}data-requires-id-type="1"{% endif %}
+    {% if row.is_approved and not records_mode %}data-approved="1"{% endif %}>
     {% csrf_token %}
     <input type="hidden" name="action" value="upload" />
     <input type="hidden" name="document_type" value="{{ row.key }}" />
@@ -47,11 +48,11 @@
         </span>
         {% else %}
         <input type="file" name="file" id="file-{{ row.key }}" class="student-req-file-input"
-          accept=".pdf,application/pdf" aria-label="Upload {{ row.title }}" {% if row.has_id_type and not row.id_type
-          %}disabled{% endif %} />
+          accept=".pdf,application/pdf" aria-label="Upload {{ row.title }}"
+          {% if row.has_id_type and not row.id_type %}disabled{% endif %} />
         <label for="file-{{ row.key }}" id="upload-label-{{ row.key }}"
           class="student-req-upload-btn{% if row.has_id_type and not row.id_type %} student-req-upload-btn--disabled{% endif %}"
-          {% if row.has_id_type and not row.id_type %}aria-disabled="true" {% endif %}>
+          {% if row.has_id_type and not row.id_type %}aria-disabled="true"{% endif %}>
           <i class="bi bi-upload" aria-hidden="true"></i>
           {% if row.uploaded %}Change{% else %}Upload{% endif %}
         </label>
