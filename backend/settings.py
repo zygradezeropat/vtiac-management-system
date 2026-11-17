@@ -214,6 +214,13 @@ if USE_SUPABASE_STORAGE:
         s3_endpoint = ""
         public_base = ""
 
+    public_host = public_base.replace("https://", "").replace("http://", "").strip("/")
+    custom_domain = (
+        f"{public_host}/storage/v1/object/public/{SUPABASE_S3_BUCKET}"
+        if public_host
+        else None
+    )
+
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -228,6 +235,7 @@ if USE_SUPABASE_STORAGE:
                 "default_acl": None,
                 "querystring_auth": False,
                 "file_overwrite": False,
+                "custom_domain": custom_domain,
             },
         },
         "staticfiles": {
