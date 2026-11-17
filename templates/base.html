@@ -16,7 +16,7 @@
   {# Module CSS: registrar/base.html, cashier/base.html, etc. — see static/css/modules/README.md #}
   {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-white">
+<body class="{% block body_class %}bg-white{% endblock %}">
   {% block body %}{% endblock %}
   {% include "components/shared/logout_confirm_modal.html" %}
   <script src="{% static 'vendor/bootstrap/bootstrap.bundle.min.js' %}"></script>

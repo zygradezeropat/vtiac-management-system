@@ -1,10 +1,15 @@
 /* Student portal — templates/student/, components/student/ */
 
+html,
+body.student-portal-body,
 html:has(.student-layout),
 body:has(.student-layout) {
-  height: 100%;
-  overflow: hidden;
+  height: 100% !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
   background-color: #f1f5f3 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .student-layout {
@@ -18,29 +23,48 @@ body:has(.student-layout) {
   --student-highlight: #e8f5ef;
   background: #f1f5f3;
   font-family: "Inter", "Poppins", system-ui, sans-serif;
-  height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
 }
 
 .student-layout > .d-flex.flex-column {
-  min-width: 0;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
 .student-sidebar {
-  width: var(--student-sidebar-w);
-  height: 100vh;
-  position: sticky;
-  top: 0;
-  background: var(--student-surface);
-  border-right: 1px solid var(--student-border);
-  padding: 1.25rem 1rem;
-  flex-shrink: 0;
+  width: var(--student-sidebar-w) !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: var(--student-surface) !important;
+  border-right: 1px solid var(--student-border) !important;
+  padding: 1.25rem 1rem !important;
+  flex-shrink: 0 !important;
   z-index: 40;
-  overflow-y: auto;
+  overflow-y: auto !important;
+}
+
+.student-topbar {
+  flex-shrink: 0 !important;
+}
+
+.student-main {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow-y: auto !important;
+  background-color: #f1f5f3 !important;
 }
 
 .student-offcanvas {
