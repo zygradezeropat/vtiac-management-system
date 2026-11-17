@@ -11,6 +11,34 @@ export function filePreviewButtonHtml({ extraClass = "", ariaLabel = "Preview fi
 
 const MODAL_ID = "file-preview-modal";
 let activeObjectUrl = null;
+let activeRenderId = 0;
+
+function loadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[src*="pdf.js"], script[src*="pdf.min.js"]');
+    if (existing) {
+      if (window.pdfjsLib) return resolve(window.pdfjsLib);
+      existing.addEventListener("load", () => {
+        if (window.pdfjsLib) resolve(window.pdfjsLib);
+        else reject(new Error("pdfjsLib not defined"));
+      });
+      existing.addEventListener("error", reject);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.onload = () => {
+      if (window.pdfjsLib) {
+        resolve(window.pdfjsLib);
+      } else {
+        reject(new Error("pdfjsLib not defined"));
+      }
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
 
 function isImageFile(filename, url) {
   const name = (filename || "").toLowerCase();
@@ -42,7 +70,12 @@ export function ensureFilePreviewModal() {
           </div>
           <div class="modal-body file-preview-modal__body">
             <div class="file-preview-modal__frame">
+              <div id="file-preview-loading" class="text-center p-4 d-none">
+                <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                <span class="ms-2 small text-muted">Rendering preview...</span>
+              </div>
               <img id="file-preview-img" class="file-preview-modal__img d-none" alt="" />
+              <div id="file-preview-canvas-container" class="file-preview-canvas-container d-none w-100 d-flex flex-column align-items-center"></div>
               <iframe id="file-preview-frame" class="file-preview-modal__pdf d-none" title="PDF preview"></iframe>
             </div>
           </div>
@@ -56,13 +89,18 @@ export function ensureFilePreviewModal() {
   );
 
   document.getElementById(MODAL_ID)?.addEventListener("hidden.bs.modal", () => {
+    activeRenderId++;
     const img = document.getElementById("file-preview-img");
     const frame = document.getElementById("file-preview-frame");
+    const canvasContainer = document.getElementById("file-preview-canvas-container");
+    const loadingEl = document.getElementById("file-preview-loading");
     if (img) {
       img.src = "";
       img.alt = "";
     }
     if (frame) frame.src = "";
+    if (canvasContainer) canvasContainer.innerHTML = "";
+    if (loadingEl) loadingEl.classList.add("d-none");
     if (activeObjectUrl) {
       URL.revokeObjectURL(activeObjectUrl);
       activeObjectUrl = null;
@@ -77,6 +115,8 @@ export function openFilePreview({ url, filename = "Document", revokeOnClose = fa
   const modalEl = document.getElementById(MODAL_ID);
   const img = document.getElementById("file-preview-img");
   const pdfFrame = document.getElementById("file-preview-frame");
+  const canvasContainer = document.getElementById("file-preview-canvas-container");
+  const loadingEl = document.getElementById("file-preview-loading");
   const previewFrame = document.querySelector(`#${MODAL_ID} .file-preview-modal__frame`);
   const title = document.getElementById("file-preview-modal-label");
   const openTab = document.getElementById("file-preview-open-tab");
@@ -95,19 +135,83 @@ export function openFilePreview({ url, filename = "Document", revokeOnClose = fa
     previewFrame.scrollTop = 0;
     previewFrame.scrollLeft = 0;
   }
-  if (img && pdfFrame) {
-    if (useFrame) {
-      img.classList.add("d-none");
-      img.removeAttribute("src");
-      pdfFrame.classList.remove("d-none");
-      pdfFrame.src = url;
-    } else {
+
+  if (isImg) {
+    if (pdfFrame) {
       pdfFrame.classList.add("d-none");
       pdfFrame.src = "";
+    }
+    if (canvasContainer) {
+      canvasContainer.classList.add("d-none");
+      canvasContainer.innerHTML = "";
+    }
+    if (loadingEl) loadingEl.classList.add("d-none");
+    if (img) {
       img.classList.remove("d-none");
       img.src = url;
       img.alt = filename;
     }
+  } else {
+    // PDF rendering
+    if (img) {
+      img.classList.add("d-none");
+      img.removeAttribute("src");
+    }
+
+    const renderId = ++activeRenderId;
+    if (loadingEl) loadingEl.classList.remove("d-none");
+    if (canvasContainer) {
+      canvasContainer.classList.add("d-none");
+      canvasContainer.innerHTML = "";
+    }
+    if (pdfFrame) {
+      pdfFrame.classList.add("d-none");
+      pdfFrame.src = "";
+    }
+
+    loadPdfJs()
+      .then(async (pdfjs) => {
+        pdfjs.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+        const loadingTask = pdfjs.getDocument(url);
+        const pdf = await loadingTask.promise;
+        if (renderId !== activeRenderId) return;
+
+        if (canvasContainer) {
+          canvasContainer.innerHTML = "";
+          const numPages = Math.min(pdf.numPages, 10);
+          for (let i = 1; i <= numPages; i++) {
+            if (renderId !== activeRenderId) return;
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement("canvas");
+            canvas.className = "file-preview-pdf-page mb-3 shadow-sm border";
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.style.maxWidth = "100%";
+            canvas.style.height = "auto";
+            canvas.style.background = "#fff";
+            canvas.style.borderRadius = "4px";
+            const ctx = canvas.getContext("2d");
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            canvasContainer.appendChild(canvas);
+          }
+        }
+
+        if (loadingEl) loadingEl.classList.add("d-none");
+        if (canvasContainer) canvasContainer.classList.remove("d-none");
+      })
+      .catch((err) => {
+        console.warn("Could not render with PDF.js, falling back to iframe:", err);
+        if (renderId !== activeRenderId) return;
+        if (loadingEl) loadingEl.classList.add("d-none");
+        if (canvasContainer) canvasContainer.classList.add("d-none");
+        if (pdfFrame) {
+          pdfFrame.classList.remove("d-none");
+          pdfFrame.src = url;
+        }
+      });
   }
 
   if (title) title.textContent = filename;

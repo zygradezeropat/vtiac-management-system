@@ -116,7 +116,7 @@
 </div>
 
 {% if enrollment_under_review %}
-<section class="student-panel student-enroll-card student-enroll-actions-card mt-0">
+<section class="student-panel student-enroll-card student-enroll-actions-card mt-3">
   <div class="student-pending-card__actions student-pending-card__actions--inline">
     <a href="{% url 'student_enrollment' %}" class="btn student-program-edit-btn student-program-edit-btn--secondary text-decoration-none">
       <i class="bi bi-pencil-square" aria-hidden="true"></i>
@@ -128,7 +128,7 @@
   </div>
 </section>
 {% elif not requirements_submitted %}
-<section class="student-panel student-enroll-card student-enroll-actions-card mt-0">
+<section class="student-panel student-enroll-card student-enroll-actions-card mt-3">
   <button type="button" class="student-enroll-submit" id="requirements-submit-btn" data-bs-toggle="modal" data-bs-target="#submitConfirmModal">
     Submit for Approval
     <i class="bi bi-chevron-right" aria-hidden="true"></i>
@@ -182,7 +182,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{% static 'js/student-enrollment-requirements.js' %}"></script>
+<script type="module" src="{% static 'js/student-enrollment-requirements.js' %}?v={% now 'U' %}"></script>
 <script type="module">
   import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
 

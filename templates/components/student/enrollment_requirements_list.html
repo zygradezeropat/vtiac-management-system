@@ -1,164 +1,163 @@
 {% for row in requirements_rows %}
-<section
-  class="student-panel student-enroll-card student-req-card"
+<section class="student-panel student-enroll-card student-req-card"
   data-required="{% if row.required %}1{% else %}0{% endif %}"
   data-uploaded="{% if row.uploaded %}1{% else %}0{% endif %}"
-  data-approved="{% if row.is_approved %}1{% else %}0{% endif %}"
->
+  data-approved="{% if row.is_approved %}1{% else %}0{% endif %}">
   {% if can_edit_requirements %}
-  <form
-    method="post"
-    action="{% url requirements_post_url_name %}"
-    enctype="multipart/form-data"
-    class="student-req-upload-form"
-    id="form-{{ row.key }}"
-    {% if row.has_id_type %}data-requires-id-type="1"{% endif %}
-    {% if row.is_approved and not records_mode %}data-approved="1"{% endif %}
-  >
+  <form method="post" action="{% url requirements_post_url_name %}" enctype="multipart/form-data"
+    class="student-req-upload-form" id="form-{{ row.key }}" {% if row.has_id_type %}data-requires-id-type="1" {% endif
+    %} {% if row.is_approved and not records_mode %}data-approved="1" {% endif %}>
     {% csrf_token %}
     <input type="hidden" name="action" value="upload" />
     <input type="hidden" name="document_type" value="{{ row.key }}" />
-  {% endif %}
+    {% endif %}
 
-  <div class="student-req-card__head">
-    <div class="student-req-card__info">
-      <span class="student-req-card__icon"><i class="bi {{ row.icon_bi }}" aria-hidden="true"></i></span>
-      <div>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <p class="student-req-card__title mb-0">
-            {{ row.title }}{% if row.required %} <span class="student-enroll-required">*</span>{% endif %}
-          </p>
+    <div class="student-req-card__head">
+      <div class="student-req-card__info">
+        <span class="student-req-card__icon"><i class="bi {{ row.icon_bi }}" aria-hidden="true"></i></span>
+        <div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <p class="student-req-card__title mb-0">
+              {{ row.title }}{% if row.required %} <span class="student-enroll-required">*</span>{% endif %}
+            </p>
             {% if row.requires_hard_copy %}
-              {% if row.hard_copy_received %}
-              <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.68rem; font-weight:600;" title="Physical copy received by Registrar">
-                <i class="bi bi-file-earmark-check-fill me-1"></i>Hard Copy Received
-              </span>
-              {% else %}
-              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:0.68rem; font-weight:600;" title="Physical copy pending submission to Registrar">
-                <i class="bi bi-file-earmark-x me-1"></i>Hard Copy Pending
-              </span>
-              {% endif %}
+            {% if row.hard_copy_received %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle"
+              style="font-size:0.68rem; font-weight:600;" title="Physical copy received by Registrar">
+              <i class="bi bi-file-earmark-check-fill me-1"></i>Hard Copy Received
+            </span>
+            {% else %}
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"
+              style="font-size:0.68rem; font-weight:600;" title="Physical copy pending submission to Registrar">
+              <i class="bi bi-file-earmark-x me-1"></i>Hard Copy Pending
+            </span>
+            {% endif %}
             {% endif %}
           </div>
-        <p class="student-req-card__hint mb-0">{{ row.hint }}</p>
+          <p class="student-req-card__hint mb-0">{{ row.hint }}</p>
+        </div>
       </div>
+      {% if can_edit_requirements %}
+      <div class="student-req-card__actions">
+        {% if row.is_approved and not records_mode %}
+        <span class="student-req-upload-btn student-req-upload-btn--disabled" id="upload-label-{{ row.key }}"
+          aria-disabled="true" title="This document was approved and can no longer be changed">
+          <i class="bi bi-lock-fill" aria-hidden="true"></i>
+          Change
+        </span>
+        {% else %}
+        <input type="file" name="file" id="file-{{ row.key }}" class="student-req-file-input"
+          accept=".pdf,application/pdf" aria-label="Upload {{ row.title }}" {% if row.has_id_type and not row.id_type
+          %}disabled{% endif %} />
+        <label for="file-{{ row.key }}" id="upload-label-{{ row.key }}"
+          class="student-req-upload-btn{% if row.has_id_type and not row.id_type %} student-req-upload-btn--disabled{% endif %}"
+          {% if row.has_id_type and not row.id_type %}aria-disabled="true" {% endif %}>
+          <i class="bi bi-upload" aria-hidden="true"></i>
+          {% if row.uploaded %}Change{% else %}Upload{% endif %}
+        </label>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
-    {% if can_edit_requirements %}
-    <div class="student-req-card__actions">
-      {% if row.is_approved and not records_mode %}
-      <span
-        class="student-req-upload-btn student-req-upload-btn--disabled"
-        id="upload-label-{{ row.key }}"
-        aria-disabled="true"
-        title="This document was approved and can no longer be changed"
-      >
-        <i class="bi bi-lock-fill" aria-hidden="true"></i>
-        Change
-      </span>
-      {% else %}
-      <input
-        type="file"
-        name="file"
-        id="file-{{ row.key }}"
-        class="student-req-file-input"
-        accept=".pdf,application/pdf"
-        aria-label="Upload {{ row.title }}"
-        {% if row.has_id_type and not row.id_type %}disabled{% endif %}
-      />
-      <label
-        for="file-{{ row.key }}"
-        id="upload-label-{{ row.key }}"
-        class="student-req-upload-btn{% if row.has_id_type and not row.id_type %} student-req-upload-btn--disabled{% endif %}"
-        {% if row.has_id_type and not row.id_type %}aria-disabled="true"{% endif %}
-      >
-        <i class="bi bi-upload" aria-hidden="true"></i>
-        {% if row.uploaded %}Change{% else %}Upload{% endif %}
-      </label>
+
+    {% if row.has_id_type %}
+    <div class="mt-3">
+      <label class="student-enroll-label" for="id-type-{{ row.key }}">ID Type <span
+          class="student-enroll-required">*</span></label>
+      {% if can_edit_requirements and records_mode or can_edit_requirements and not row.is_approved %}
+      <select id="id-type-{{ row.key }}" name="id_type" class="student-enroll-input student-enroll-select" required>
+        <option value="">Select ID type</option>
+        {% for value, label in id_type_choices %}
+        <option value="{{ value }}" {% if row.id_type==value %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% elif row.id_type %}
+      <p class="mb-0">
+        {% for value, label in id_type_choices %}{% if row.id_type == value %}<strong>{{ label }}</strong>{% endif %}{%
+        endfor %}
+      </p>
       {% endif %}
     </div>
     {% endif %}
-  </div>
 
-  {% if row.has_id_type %}
-  <div class="mt-3">
-    <label class="student-enroll-label" for="id-type-{{ row.key }}">ID Type <span class="student-enroll-required">*</span></label>
-    {% if can_edit_requirements and records_mode or can_edit_requirements and not row.is_approved %}
-    <select id="id-type-{{ row.key }}" name="id_type" class="student-enroll-input student-enroll-select" required>
-      <option value="">Select ID type</option>
-      {% for value, label in id_type_choices %}
-      <option value="{{ value }}"{% if row.id_type == value %} selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    {% elif row.id_type %}
-    <p class="mb-0">
-      {% for value, label in id_type_choices %}{% if row.id_type == value %}<strong>{{ label }}</strong>{% endif %}{% endfor %}
+    {% if row.uploaded %}
+    <div class="student-req-card__status">
+      {% if row.is_rejected %}
+      <i class="bi bi-x-circle-fill text-danger" aria-hidden="true"></i>
+      {% else %}
+      <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+      {% endif %}
+      <span class="student-req-card__filename">{{ row.filename }}</span>
+      {% if row.registrar_status %}
+      <span
+        class="badge {% if row.is_rejected %}text-bg-danger{% elif row.registrar_status == 'approved' %}text-bg-success{% else %}text-bg-secondary{% endif %} ms-2">
+        Soft Copy: {{ row.registrar_status|title }}
+      </span>
+      {% endif %}
+      {% if row.requires_hard_copy %}
+      <span
+        class="badge {% if row.hard_copy_received %}bg-success-subtle text-success border border-success-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} ms-1">
+        <i
+          class="bi {% if row.hard_copy_received %}bi-file-earmark-check-fill{% else %}bi-file-earmark-x{% endif %} me-1"></i>{%
+        if row.hard_copy_received %}Hard Copy: Received{% else %}Hard Copy: Pending{% endif %}
+      </span>
+      {% endif %}
+      {% if row.file_url %}
+      <button type="button" class="file-preview-btn ms-auto" data-preview-url="{{ row.file_url }}"
+        data-preview-name="{{ row.filename }}" aria-label="Preview {{ row.title }}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+      {% endif %}
+      {% if can_edit_requirements and row.is_rejected %}
+      <button type="button" class="btn btn-outline-danger btn-sm ms-2" data-remove-rejected-document="{{ row.key }}"
+        data-remove-rejected-title="{{ row.title }}" aria-label="Remove rejected {{ row.title }}">
+        <i class="bi bi-trash" aria-hidden="true"></i>
+        Remove rejected file
+      </button>
+      {% elif can_edit_requirements and not row.is_approved %}
+      <button type="button" class="btn btn-outline-secondary btn-sm ms-2" data-remove-document="{{ row.key }}"
+        data-remove-title="{{ row.title }}" aria-label="Cancel {{ row.title }}"
+        title="Cancel / remove uploaded document">
+        Cancel
+      </button>
+      {% endif %}
+    </div>
+    {% if row.is_rejected and row.rejection_reason %}
+    <p class="text-danger small mt-2 mb-0">
+      <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+      Rejected: {{ row.rejection_reason }}
     </p>
     {% endif %}
-  </div>
-  {% endif %}
+    {% endif %}
 
-  {% if row.uploaded %}
-  <div class="student-req-card__status">
-    {% if row.is_rejected %}
-    <i class="bi bi-x-circle-fill text-danger" aria-hidden="true"></i>
-    {% else %}
-    <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+    {% if can_edit_requirements %}
+    <div class="student-req-pending d-none" data-req-pending>
+      <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+        <span class="spinner-border spinner-border-sm text-success" role="status" aria-hidden="true"></span>
+        <span class="student-req-pending__name text-truncate" data-req-pending-name></span>
+        <span class="badge bg-success-subtle text-success border border-success-subtle small ms-1"
+          data-req-pending-status>Uploading...</span>
+      </div>
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <button type="button" class="file-preview-btn" data-req-pending-view hidden aria-label="Preview selected file"
+          title="Preview file">
+          <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+        <button type="button" class="student-req-pending__cancel btn btn-outline-secondary btn-sm"
+          title="Cancel upload">Cancel</button>
+      </div>
+    </div>
     {% endif %}
-    <span class="student-req-card__filename">{{ row.filename }}</span>
-    {% if row.registrar_status %}
-    <span class="badge {% if row.is_rejected %}text-bg-danger{% elif row.registrar_status == 'approved' %}text-bg-success{% else %}text-bg-secondary{% endif %} ms-2">
-      Online: {{ row.registrar_status|title }}
-    </span>
-    {% endif %}
-    {% if row.requires_hard_copy %}
-    <span class="badge {% if row.hard_copy_received %}bg-success-subtle text-success border border-success-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} ms-1">
-      <i class="bi {% if row.hard_copy_received %}bi-file-earmark-check-fill{% else %}bi-file-earmark-x{% endif %} me-1"></i>{% if row.hard_copy_received %}Hard Copy: Received{% else %}Hard Copy: Pending{% endif %}
-    </span>
-    {% endif %}
-    {% if row.file_url %}
-    <button
-      type="button"
-      class="file-preview-btn ms-auto"
-      data-preview-url="{{ row.file_url }}"
-      data-preview-name="{{ row.filename }}"
-      aria-label="Preview {{ row.title }}"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-    </button>
-    {% endif %}
-    {% if can_edit_requirements and row.is_rejected %}
-    <button
-      type="button"
-      class="btn btn-outline-danger btn-sm ms-2"
-      data-remove-rejected-document="{{ row.key }}"
-      data-remove-rejected-title="{{ row.title }}"
-      aria-label="Remove rejected {{ row.title }}"
-    >
-      <i class="bi bi-trash" aria-hidden="true"></i>
-      Remove rejected file
-    </button>
-    {% endif %}
-  </div>
-  {% if row.is_rejected and row.rejection_reason %}
-  <p class="text-danger small mt-2 mb-0">
-    <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
-    Rejected: {{ row.rejection_reason }}
-  </p>
-  {% endif %}
-  {% endif %}
 
-  {% if can_edit_requirements %}
-  <div class="student-req-pending d-none" data-req-pending>
-    <span class="student-req-pending__name" data-req-pending-name></span>
-    <button type="button" class="file-preview-btn" data-req-pending-view hidden aria-label="Preview selected file">
-      <svg xmlns="http://www.w3.org/2000/svg" class="file-preview-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.25 12s3.75-7.25 9.75-7.25S21.75 12 21.75 12s-3.75 7.25-9.75 7.25S2.25 12 2.25 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-    </button>
-    <button type="button" class="student-req-pending__confirm btn btn-success btn-sm fw-semibold">Upload file</button>
-    <button type="button" class="student-req-pending__cancel btn btn-outline-secondary btn-sm">Cancel</button>
-  </div>
-  {% endif %}
-
-  {% if can_edit_requirements %}
+    {% if can_edit_requirements %}
   </form>
   {% endif %}
 </section>

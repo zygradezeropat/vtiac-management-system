@@ -28,9 +28,11 @@ function reviewStatusBadge(status, rejectionReason, doc = {}) {
 
 function docReviewActions(doc, released) {
   if (!doc.reviewable || released) return "";
-  const approved = doc.reviewStatus === "approved";
-  const rejectDisabled = approved ? " disabled" : "";
-  const approveDisabled = approved ? " disabled" : "";
+  const status = (doc.reviewStatus || "").toLowerCase();
+
+  // Once a document is reviewed (approved or rejected), hide the action buttons
+  if (status === "approved" || status === "rejected") return "";
+
   return `<div class="registrar-doc-review__actions" role="group" aria-label="Review ${escapeHtml(doc.title)}">
     <button
       type="button"
@@ -38,7 +40,6 @@ function docReviewActions(doc, released) {
       data-doc-key="${escapeHtml(doc.key)}"
       title="Approve document"
       aria-label="Approve ${escapeHtml(doc.title)}"
-      ${approveDisabled}
     >
       <i class="bi bi-check-lg" aria-hidden="true"></i>
     </button>
@@ -49,7 +50,6 @@ function docReviewActions(doc, released) {
       data-doc-title="${escapeHtml(doc.title)}"
       title="Reject document"
       aria-label="Reject ${escapeHtml(doc.title)}"
-      ${rejectDisabled}
     >
       <i class="bi bi-x-lg" aria-hidden="true"></i>
     </button>

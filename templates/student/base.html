@@ -2,5 +2,6 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/modules/student.css' %}" />
+<link rel="stylesheet" href="{% static 'css/modules/student.css' %}?v={% now 'U' %}" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 {% endblock %}

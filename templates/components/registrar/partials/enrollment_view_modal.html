@@ -52,3 +52,25 @@
     </div>
   </div>
 </div>
+
+<div id="release-confirm-modal" class="modal fade" tabindex="-1" aria-labelledby="release-confirm-modal-title" aria-hidden="true" style="z-index: 1065;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h3 id="release-confirm-modal-title" class="modal-title h5 fw-bold text-dark mb-0">Release to Payment</h3>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-3">
+        <p class="mb-0 text-secondary fs-6">
+          Are you sure to release student <strong id="release-confirm-student-name" class="text-dark"></strong>?
+        </p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary px-4 fw-semibold" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="release-confirm-submit" class="btn btn-success px-4 fw-semibold" style="background:#00a859;border-color:#00a859">
+          Yes, Release
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

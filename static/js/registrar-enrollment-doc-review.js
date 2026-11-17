@@ -20,9 +20,24 @@ export function initEnrollmentDocReview({ viewBodyEl, getItem, onReleased, onUpd
   const rejectInputEl = document.getElementById("doc-reject-reason-input");
   const rejectErrorEl = document.getElementById("doc-reject-reason-error");
   const rejectSubmitBtn = document.getElementById("doc-reject-reason-submit");
+  const releaseModalEl = document.getElementById("release-confirm-modal");
+  const releaseStudentNameEl = document.getElementById("release-confirm-student-name");
+  const releaseSubmitBtn = document.getElementById("release-confirm-submit");
   const nextBtn = document.getElementById("view-enrollment-doc-next");
 
   const rejectModal = rejectModalEl ? bootstrap.Modal.getOrCreateInstance(rejectModalEl) : null;
+  const releaseModal = releaseModalEl && typeof bootstrap !== "undefined"
+    ? bootstrap.Modal.getOrCreateInstance(releaseModalEl)
+    : null;
+
+  releaseModalEl?.addEventListener("show.bs.modal", () => {
+    setTimeout(() => {
+      const backdrops = document.querySelectorAll(".modal-backdrop");
+      if (backdrops.length > 1) {
+        backdrops[backdrops.length - 1].style.zIndex = "1060";
+      }
+    }, 0);
+  });
   let pendingRejectKey = "";
   let pendingRejectTitle = "";
   let currentDetail = null;
@@ -238,23 +253,53 @@ export function initEnrollmentDocReview({ viewBodyEl, getItem, onReleased, onUpd
     }
   });
 
-  nextBtn?.addEventListener("click", async () => {
-    if (actionInFlight || nextBtn.disabled) return;
+  async function performRelease() {
     actionInFlight = true;
     nextBtn.disabled = true;
+    if (releaseSubmitBtn) {
+      releaseSubmitBtn.disabled = true;
+      releaseSubmitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status"></span> Releasing...`;
+    }
     try {
       const detail = await postDocumentAction("release");
       applyDetail(detail);
       onReleased?.(detail);
+      releaseModal?.hide();
     } catch (err) {
       window.alert(err.message || "Could not continue.");
       updateEnrollmentDocReviewFooter(currentDetail);
     } finally {
       actionInFlight = false;
+      if (releaseSubmitBtn) {
+        releaseSubmitBtn.disabled = false;
+        releaseSubmitBtn.textContent = "Yes, Release";
+      }
       if (currentDetail && !currentDetail.documentsReviewReleased) {
         nextBtn.disabled = !currentDetail.allDocumentsApproved;
       }
     }
+  }
+
+  nextBtn?.addEventListener("click", () => {
+    if (actionInFlight || nextBtn.disabled) return;
+    const item = getItem();
+    const studentName = currentDetail?.name || item?.name || "this student";
+    if (releaseStudentNameEl) {
+      releaseStudentNameEl.textContent = `"${studentName}"`;
+    }
+
+    if (releaseModal) {
+      releaseModal.show();
+    } else {
+      if (window.confirm(`Are you sure to release student "${studentName}"?`)) {
+        performRelease();
+      }
+    }
+  });
+
+  releaseSubmitBtn?.addEventListener("click", async () => {
+    if (actionInFlight) return;
+    await performRelease();
   });
 
   return {

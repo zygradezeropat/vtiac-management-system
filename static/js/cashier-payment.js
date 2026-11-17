@@ -357,6 +357,18 @@ function updateTotals() {
   if (balanceEl) balanceEl.textContent = formatPeso(remaining);
   if (changeEl) changeEl.textContent = formatPeso(change);
 
+  const changeRow = document.getElementById("changeDueRow");
+  if (changeRow) {
+    const changeLabel = changeRow.querySelector("span");
+    if (change > 0) {
+      changeRow.classList.add("is-highlighted");
+      if (changeLabel) changeLabel.innerHTML = `<i class="bi bi-cash-stack me-1 text-success"></i>Change to Return:`;
+    } else {
+      changeRow.classList.remove("is-highlighted");
+      if (changeLabel) changeLabel.textContent = "Change:";
+    }
+  }
+
   if (badge) {
     if (subtotal <= 0) {
       badge.textContent = "No Amount";
@@ -1165,7 +1177,14 @@ function buildPaymentConfirmSummary(txn) {
       ${voucherRow}
       <dt>Total payable</dt><dd>${formatPeso(txn.totalPayable)}</dd>
       <dt>Amount paid</dt><dd>${formatPeso(txn.amountPaid ?? txn.paidAmount)}</dd>
-      <dt>Change</dt><dd>${formatPeso(txn.changeDue || 0)}</dd>
+      ${(txn.changeDue || 0) > 0 ? `
+        <dt class="text-success fw-bold">Change to Return</dt>
+        <dd class="text-success fs-5 fw-bold bg-success-subtle p-2 rounded border border-success-subtle mb-2">
+          <i class="bi bi-cash-stack me-1"></i>${formatPeso(txn.changeDue)}
+        </dd>
+      ` : `
+        <dt>Change</dt><dd>${formatPeso(0)}</dd>
+      `}
       <dt>Remaining balance</dt><dd>${formatPeso(txn.remainingBalance)}</dd>
       <dt>Cashier</dt><dd>${escapeHtml(txn.cashierName)}</dd>
     </dl>
@@ -1239,11 +1258,6 @@ function validatePaymentPayload(payload) {
   if (!isVoucherFullyCovered) {
     const minMsg = validateMinimumPayment(amountPaid, totalPayable);
     if (minMsg) return minMsg;
-  }
-
-  const accountDue = Number(selectedStudentBalance?.totalRemaining);
-  if (accountDue > 0 && totalPayable > accountDue + 0.01) {
-    return `Total payable cannot exceed this student's remaining balance (${formatPeso(accountDue)}).`;
   }
 
   return "";

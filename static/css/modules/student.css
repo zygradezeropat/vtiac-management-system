@@ -262,6 +262,10 @@
   border-radius: 1rem;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   padding: 1.25rem;
+  height: auto;
+}
+
+.row > [class*="col"] > .student-panel {
   height: 100%;
 }
 
@@ -931,6 +935,7 @@
 }
 
 .student-enroll-card {
+  height: auto;
   padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
   margin-bottom: 0;
 }
@@ -1136,7 +1141,12 @@
 }
 
 .student-enroll-actions-card {
+  height: auto;
   padding: 1.25rem clamp(1rem, 3vw, 1.5rem);
+}
+
+.student-req-card {
+  height: auto;
 }
 
 .student-enroll-submit {

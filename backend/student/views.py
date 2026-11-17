@@ -275,9 +275,15 @@ def enrollment(request):
     if registration_is_enrolled(request.user):
         return redirect("student_my_profile")
 
+    if not profile or not profile.profile_step_completed:
+        return render(
+            request,
+            "student/enrollment.html",
+            student_enrollment_context(request),
+        )
+
     if (
-        profile
-        and should_redirect_to_enrollment_pending(request.user)
+        should_redirect_to_enrollment_pending(request.user)
         and not can_edit_enrollment_application(request.user)
     ):
         return redirect("student_enrollment_pending")
@@ -301,24 +307,43 @@ def enrollment_requirements(request):
 
     if request.method == "POST":
         action = request.POST.get("action", "")
+        is_ajax = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or "application/json" in request.headers.get("Accept", "")
+        )
 
         if action == "upload":
             doc_type = request.POST.get("document_type", "")
             uploaded = request.FILES.get("file")
             id_type = request.POST.get("id_type", "")
             try:
-                save_enrollment_document(profile, doc_type, uploaded, id_type=id_type)
+                doc = save_enrollment_document(profile, doc_type, uploaded, id_type=id_type)
+                if is_ajax:
+                    return JsonResponse({
+                        "ok": True,
+                        "message": "Document uploaded successfully.",
+                        "document_type": doc_type,
+                        "filename": getattr(doc, "original_filename", ""),
+                        "file_url": doc.file.url if doc and doc.file else "",
+                    })
                 messages.success(request, "Document uploaded successfully.")
             except ValueError as exc:
+                if is_ajax:
+                    return JsonResponse({"ok": False, "error": str(exc)}, status=400)
                 messages.error(request, str(exc))
             return redirect("student_enrollment_requirements")
 
-        if action == "remove_rejected":
+        if action in ("remove", "remove_rejected", "cancel"):
             doc_type = request.POST.get("document_type", "")
             try:
-                remove_rejected_enrollment_document(profile, doc_type)
-                messages.success(request, "Rejected file removed. You can upload a replacement.")
+                from .enrollment_requirements import remove_enrollment_document
+                remove_enrollment_document(profile, doc_type)
+                if is_ajax:
+                    return JsonResponse({"ok": True, "message": "File removed."})
+                messages.success(request, "File removed.")
             except ValueError as exc:
+                if is_ajax:
+                    return JsonResponse({"ok": False, "error": str(exc)}, status=400)
                 messages.error(request, str(exc))
             return redirect("student_enrollment_requirements")
 
@@ -479,30 +504,49 @@ def my_profile_requirements(request):
 
     if request.method == "POST":
         action = request.POST.get("action", "")
+        is_ajax = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or "application/json" in request.headers.get("Accept", "")
+        )
 
         if action == "upload":
             doc_type = request.POST.get("document_type", "")
             uploaded = request.FILES.get("file")
             id_type = request.POST.get("id_type", "")
             try:
-                save_enrollment_document(
+                doc = save_enrollment_document(
                     profile,
                     doc_type,
                     uploaded,
                     id_type=id_type,
                     records_mode=True,
                 )
+                if is_ajax:
+                    return JsonResponse({
+                        "ok": True,
+                        "message": "Document updated successfully.",
+                        "document_type": doc_type,
+                        "filename": getattr(doc, "original_filename", ""),
+                        "file_url": doc.file.url if doc and doc.file else "",
+                    })
                 messages.success(request, "Document updated successfully.")
             except ValueError as exc:
+                if is_ajax:
+                    return JsonResponse({"ok": False, "error": str(exc)}, status=400)
                 messages.error(request, str(exc))
             return redirect("student_my_profile_requirements")
 
-        if action == "remove_rejected":
+        if action in ("remove", "remove_rejected", "cancel"):
             doc_type = request.POST.get("document_type", "")
             try:
-                remove_rejected_enrollment_document(profile, doc_type)
-                messages.success(request, "Rejected file removed. You can upload a replacement.")
+                from .enrollment_requirements import remove_enrollment_document
+                remove_enrollment_document(profile, doc_type)
+                if is_ajax:
+                    return JsonResponse({"ok": True, "message": "File removed."})
+                messages.success(request, "File removed.")
             except ValueError as exc:
+                if is_ajax:
+                    return JsonResponse({"ok": False, "error": str(exc)}, status=400)
                 messages.error(request, str(exc))
             return redirect("student_my_profile_requirements")
 

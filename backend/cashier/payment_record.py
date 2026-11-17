@@ -154,14 +154,6 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
     credited_amount = min(amount_paid, total_payable)
     change_due = max(Decimal("0"), amount_paid - total_payable)
     paid_amount = credited_amount
-    remaining_due = Decimal(str(balance_before["totalRemaining"]))
-
-    if balance_before["totalAssessed"] > 0 and remaining_due > 0:
-        if total_payable > remaining_due + Decimal("0.01"):
-            raise ValueError(
-                f"Total payable (₱{total_payable:,.2f}) exceeds the student's remaining "
-                f"balance (₱{remaining_due:,.2f})."
-            )
 
     remaining_balance = max(Decimal("0"), total_payable - amount_paid)
 

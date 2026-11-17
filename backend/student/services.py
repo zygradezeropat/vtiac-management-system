@@ -517,9 +517,6 @@ def can_edit_enrollment_application(user) -> bool:
     """Students may revise their application until the registrar approves it."""
     if registration_is_enrolled(user):
         return False
-    profile = get_enrollment_profile(user)
-    if not profile or not profile.profile_step_completed:
-        return False
     return True
 
 
@@ -531,7 +528,11 @@ def should_redirect_to_enrollment_pending(user) -> bool:
     if reg and reg.status == StudentRegistration.Status.REJECTED:
         return False
     profile = get_enrollment_profile(user)
-    return bool(profile and profile.requirements_submitted)
+    return bool(
+        profile
+        and profile.profile_step_completed
+        and profile.requirements_submitted
+    )
 
 
 def enrollment_pending_review(user) -> bool:

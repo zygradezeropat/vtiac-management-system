@@ -41,15 +41,6 @@ REQUIREMENT_SPECS = (
         "has_id_type": True,
     },
     {
-        "key": StudentEnrollmentDocument.DocumentType.PHOTO_2X2,
-        "title": "2x2 Photo",
-        "hint": "Recent photo, white background",
-        "required": True,
-        "requires_hard_copy": True,
-        "icon_bi": "bi-image",
-        "has_id_type": False,
-    },
-    {
         "key": StudentEnrollmentDocument.DocumentType.GOOD_MORAL,
         "title": "Certificate of Good Moral",
         "hint": "From previous school or barangay (optional)",
@@ -69,7 +60,9 @@ REQUIREMENT_SPECS = (
     },
 )
 
-VALID_DOC_KEYS = {spec["key"] for spec in REQUIREMENT_SPECS}
+VALID_DOC_KEYS = {spec["key"] for spec in REQUIREMENT_SPECS} | {
+    StudentEnrollmentDocument.DocumentType.PHOTO_2X2
+}
 REQUIRED_DOC_KEYS = {spec["key"] for spec in REQUIREMENT_SPECS if spec["required"]}
 
 
@@ -193,17 +186,18 @@ def save_enrollment_document(profile, document_type, uploaded_file, id_type="", 
     return doc
 
 
-def remove_rejected_enrollment_document(profile, document_type):
+def remove_enrollment_document(profile, document_type):
     if document_type not in VALID_DOC_KEYS:
         raise ValueError("Invalid document type.")
 
     doc = profile.documents.filter(document_type=document_type).first()
     if not doc or not doc.file:
         raise ValueError("No uploaded file found for this document.")
-    if doc.registrar_status != StudentEnrollmentProfile.PhotoRegistrarStatus.REJECTED:
-        raise ValueError("Only rejected documents can be removed.")
+    if doc.registrar_status == StudentEnrollmentProfile.PhotoRegistrarStatus.APPROVED:
+        raise ValueError("Approved documents cannot be removed.")
 
-    doc.file.delete(save=False)
+    if doc.file:
+        doc.file.delete(save=False)
     doc.file = ""
     doc.original_filename = ""
     doc.registrar_status = StudentEnrollmentProfile.PhotoRegistrarStatus.PENDING
@@ -225,6 +219,11 @@ def remove_rejected_enrollment_document(profile, document_type):
             "reviewed_at",
         ]
     )
+    return doc
+
+
+def remove_rejected_enrollment_document(profile, document_type):
+    return remove_enrollment_document(profile, document_type)
 
 
 def validate_requirements_complete(profile):
