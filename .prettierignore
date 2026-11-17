@@ -1,0 +1,2 @@
+# Ignore all HTML templates from Prettier so it doesn't break Django tags
+templates/**/*.html

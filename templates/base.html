@@ -11,8 +11,8 @@
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}" />
   <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}" />
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/main.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/dashboard-calendar.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/main.css' %}?v={% now 'U' %}" />
+  <link rel="stylesheet" href="{% static 'css/dashboard-calendar.css' %}?v={% now 'U' %}" />
   {# Module CSS: registrar/base.html, cashier/base.html, etc. — see static/css/modules/README.md #}
   {% block extra_head %}{% endblock %}
 </head>
