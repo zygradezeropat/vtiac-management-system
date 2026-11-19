@@ -93,6 +93,9 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (effectiveRole === "student") {
       scopeBadge.className = "badge rounded-pill px-3 py-2 small fw-semibold bg-info-subtle text-info border border-info-subtle";
       scopeBadge.innerHTML = `<i class="bi bi-mortarboard me-1"></i>${escapeHtml(userLabel || "My Enrolled Schedule")}`;
+    } else if (effectiveRole === "candidate") {
+      scopeBadge.className = "badge rounded-pill px-3 py-2 small fw-semibold bg-warning-subtle text-warning-emphasis border border-warning-subtle";
+      scopeBadge.innerHTML = `<i class="bi bi-award me-1"></i>${escapeHtml(userLabel || "My Assessment Schedule")}`;
     } else {
       scopeBadge.className = "badge rounded-pill px-3 py-2 small fw-semibold bg-secondary-subtle text-secondary border";
       scopeBadge.innerHTML = `<i class="bi bi-calendar3 me-1"></i>${escapeHtml(userLabel || "Academic Calendar")}`;
@@ -104,9 +107,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     filterProgram.innerHTML = "";
 
-    if (data.role === "student" && programs.length <= 1) {
-      // For student with 1 program, show locked/informative program title
-      const pName = programs[0] || "My Enrolled Program";
+    if ((data.role === "student" || data.role === "candidate") && programs.length <= 1) {
+      // For student or candidate with 1 program, show locked/informative program title
+      const pName = programs[0] || (data.role === "candidate" ? "My Assessment Program" : "My Enrolled Program");
       const opt = document.createElement("option");
       opt.value = "all";
       opt.textContent = `Qualification: ${pName}`;

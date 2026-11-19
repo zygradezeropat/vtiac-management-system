@@ -612,3 +612,114 @@ A person who has achieved this Qualification is competent to be:
         self.assertIn("must be a valid PDF", resp.json().get("error", ""))
 
 
+class StaffSubstituteDynamicExpirationTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from backend.core.models import StaffProfile
+
+        self.admin = User.objects.create_user(
+            username="admin_sub@vtiac.edu.ph",
+            email="admin_sub@vtiac.edu.ph",
+            password="StrongPassword123!",
+            first_name="Admin",
+            last_name="User",
+            is_staff=True,
+        )
+        StaffProfile.objects.create(user=self.admin, role=StaffProfile.Role.ADMIN)
+
+    def test_create_user_with_custom_dynamic_expiration(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from backend.system_admin.user_management import create_user
+
+        custom_expiry = timezone.now() + timedelta(hours=6)
+        user_dict = create_user(
+            account_type="staff",
+            email="registrar_sub@vtiac.edu.ph",
+            first_name="Jane",
+            last_name="Registrar",
+            password="StrongPassword123!",
+            role="registrar",
+            additional_roles=["cashier"],
+            expires_at=custom_expiry.isoformat(),
+        )
+
+        self.assertEqual(user_dict["role"], "registrar")
+        self.assertEqual(user_dict["additional_roles"], ["cashier"])
+        self.assertTrue(user_dict["substitute_info"]["is_active"])
+        self.assertFalse(user_dict["substitute_info"]["is_expired"])
+        self.assertIsNotNone(user_dict["substitute_info"]["hours_remaining"])
+        self.assertIn("cashier", user_dict["substitute_info"]["additional_roles"])
+
+    def test_create_user_default_24h_when_no_expires_at(self):
+        from backend.system_admin.user_management import create_user
+
+        user_dict = create_user(
+            account_type="staff",
+            email="cashier_sub@vtiac.edu.ph",
+            first_name="Bob",
+            last_name="Cashier",
+            password="StrongPassword123!",
+            role="cashier",
+            additional_roles=["trainer"],
+            expires_at="",
+        )
+
+        self.assertEqual(user_dict["role"], "cashier")
+        self.assertEqual(user_dict["additional_roles"], ["trainer"])
+        self.assertTrue(user_dict["substitute_info"]["is_active"])
+        # Should default to 24 hours (~23 or 24 hours remaining)
+        self.assertIn(user_dict["substitute_info"]["hours_remaining"], (23, 24))
+
+    def test_update_user_dynamic_expiration(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from backend.system_admin.user_management import create_user, update_user
+
+        user_dict = create_user(
+            account_type="staff",
+            email="trainer_staff@vtiac.edu.ph",
+            first_name="Sam",
+            last_name="Trainer",
+            password="StrongPassword123!",
+            role="trainer",
+        )
+
+        # Update to add registrar sub role with custom expiration of 3 days
+        custom_expiry = timezone.now() + timedelta(days=3)
+        updated = update_user(
+            user_dict["id"],
+            additional_roles=["registrar"],
+            expires_at=custom_expiry.isoformat(),
+        )
+
+        self.assertIn("registrar", updated["additional_roles"])
+        self.assertTrue(updated["substitute_info"]["is_active"])
+        self.assertGreaterEqual(updated["substitute_info"]["hours_remaining"], 71)
+
+    def test_expired_substitute_lapses_access(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from django.contrib.auth.models import User
+        from backend.system_admin.user_management import create_user
+
+        past_expiry = timezone.now() - timedelta(hours=2)
+        user_dict = create_user(
+            account_type="staff",
+            email="expired_sub@vtiac.edu.ph",
+            first_name="Expired",
+            last_name="User",
+            password="StrongPassword123!",
+            role="registrar",
+            additional_roles=["cashier"],
+            expires_at=past_expiry.isoformat(),
+        )
+
+        user = User.objects.get(pk=user_dict["id"])
+        # StaffProfile.get_allowed_roles() will only return primary 'registrar' because temporary access expired
+        allowed_roles = user.staff_profile.get_allowed_roles()
+        self.assertEqual(allowed_roles, {"registrar"})
+        self.assertFalse(user.staff_profile.is_substitute_active())
+
+
+

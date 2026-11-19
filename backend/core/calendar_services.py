@@ -54,6 +54,46 @@ def get_calendar_events_for_user(user=None, role="admin"):
         else:
             templates = templates.none()
 
+    elif role == "candidate":
+        # Candidates can only see their own assigned assessment batch schedule, no peer roster
+        show_roster = False
+        if user and getattr(user, "is_authenticated", False):
+            candidate_email = getattr(user, "email", "").strip().lower()
+            reg = (
+                getattr(user, "registration_application", None)
+                or StudentRegistration.objects.filter(
+                    models.Q(user=user) | models.Q(email__iexact=candidate_email)
+                ).first()
+            )
+            ref_id = (reg.reference_id if reg else "").strip()
+            user_full = (user.get_full_name() or "").strip().lower()
+            selected_prog = (reg.selected_program if reg else "").strip().lower()
+
+            matching_ids = []
+            for t in templates:
+                is_in_snapshot = False
+                if isinstance(t.students_snapshot, list) and t.students_snapshot:
+                    for entry in t.students_snapshot:
+                        e_email = (entry.get("email") or "").strip().lower()
+                        e_ref = (entry.get("referenceId") or entry.get("reference_id") or "").strip()
+                        e_name = (entry.get("fullName") or "").strip().lower()
+                        if (
+                            (e_email and e_email == candidate_email)
+                            or (ref_id and e_ref and e_ref.lower() == ref_id.lower())
+                            or (user_full and e_name and e_name == user_full)
+                        ):
+                            is_in_snapshot = True
+                            break
+
+                if is_in_snapshot:
+                    matching_ids.append(t.id)
+                elif selected_prog and t.course_name and t.course_name.strip().lower() == selected_prog:
+                    if t.batch_kind == "national_assessment" or t.assessment_at:
+                        matching_ids.append(t.id)
+
+            templates = templates.filter(id__in=matching_ids)
+        else:
+            templates = templates.none()
     elif role == "student":
         # Students can only see their own assigned batch schedule, no peer roster
         show_roster = False
@@ -138,7 +178,7 @@ def get_calendar_events_for_user(user=None, role="admin"):
                 ]
 
         # Class Start Date Event
-        if t.available_from:
+        if t.available_from and role != "candidate":
             events.append({
                 "id": f"class-start-{t.id}",
                 "title": f"Start of Class: {t.course_name} ({t.batch_label})",
@@ -156,7 +196,7 @@ def get_calendar_events_for_user(user=None, role="admin"):
             })
 
         # End of Class Date Event
-        if t.available_until:
+        if t.available_until and role != "candidate":
             events.append({
                 "id": f"class-end-{t.id}",
                 "title": f"End of Class: {t.course_name} ({t.batch_label})",
@@ -175,21 +215,28 @@ def get_calendar_events_for_user(user=None, role="admin"):
 
         # Assessment / Exam Date Event
         if t.assessment_at:
+            title_prefix = "National Assessment" if role == "candidate" else "Exam / Assessment"
+            category_label = "National Assessment" if role == "candidate" else "Exam & Assessment"
+            details_text = (
+                f"TESDA National Competency Assessment for {t.course_name} ({t.batch_label}). Venue: Room 302 Practical Assessment Lab. Assessor: {t.examiner_name or 'TESDA Representative'}."
+                if role == "candidate"
+                else f"National Competency Assessment / Exam for {t.course_name} ({t.batch_label}). Assessor: {t.examiner_name or 'TESDA Representative'}."
+            )
             events.append({
                 "id": f"exam-{t.id}",
-                "title": f"Exam / Assessment: {t.course_name}",
+                "title": f"{title_prefix}: {t.course_name}",
                 "date": t.assessment_at.strftime("%Y-%m-%d"),
                 "time": t.assessment_at.strftime("%I:%M %p"),
                 "type": "exam",
-                "category": "Exam & Assessment",
+                "category": category_label,
                 "badge_class": "badge-exam",
                 "course_name": t.course_name,
                 "batch_label": t.batch_label,
-                "trainer": t.trainer_name or "Assigned Trainer",
+                "trainer": t.trainer_name or ("Assigned Assessor" if role == "candidate" else "Assigned Trainer"),
                 "examiner": t.examiner_name or "TESDA Accredited Assessor",
                 "status": "Scheduled",
                 "students": students_list,
-                "details": f"National Competency Assessment / Exam for {t.course_name} ({t.batch_label}). Assessor: {t.examiner_name or 'TESDA Representative'}."
+                "details": details_text,
             })
 
     # 2. Student Assigned Schedule Options (Fallback ONLY if student has preferred_schedule and no matched template)
@@ -234,56 +281,108 @@ def get_calendar_events_for_user(user=None, role="admin"):
     today = date.today()
     current_year = today.year
 
-    institutional_events = [
-        {
-            "id": "inst-1",
-            "title": "Semester Enrollment Period Begins",
-            "date": f"{current_year}-01-15",
-            "time": "08:00 AM - 05:00 PM",
-            "type": "enrollment",
-            "category": "Academic Calendar",
-            "badge_class": "badge-enrollment",
-            "course_name": "Institutional",
-            "batch_label": "Institutional",
-            "details": "Official opening of online & walk-in student registration for all NC programs."
-        },
-        {
-            "id": "inst-2",
-            "title": "New Student Orientation & Briefing",
-            "date": f"{current_year}-05-10",
-            "time": "09:00 AM - 12:00 PM",
-            "type": "event",
-            "category": "Institutional",
-            "badge_class": "badge-event",
-            "course_name": "Institutional",
-            "batch_label": "Institutional",
-            "details": "Orientation for all newly enrolled students and trainees across all certification tracks."
-        },
-        {
-            "id": "inst-3",
-            "title": "Mid-Year National Assessment Week",
-            "date": f"{current_year}-07-20",
-            "time": "08:00 AM - 05:00 PM",
-            "type": "exam",
-            "category": "Exam & Assessment",
-            "badge_class": "badge-exam",
-            "course_name": "Institutional",
-            "batch_label": "Institutional",
-            "details": "Institutional competency assessment week for all completed training batches."
-        },
-        {
-            "id": "inst-4",
-            "title": "Year-End Graduation & Certification Ceremony",
-            "date": f"{current_year}-11-28",
-            "time": "01:00 PM - 05:00 PM",
-            "type": "event",
-            "category": "Institutional",
-            "badge_class": "badge-event",
-            "course_name": "Institutional",
-            "batch_label": "Institutional",
-            "details": "Commencement exercises and awarding of TESDA National Certificates."
-        }
-    ]
+    if role == "candidate":
+        institutional_events = [
+            {
+                "id": "inst-cand-1",
+                "title": "National Competency Assessment Application & Registration",
+                "date": f"{current_year}-01-15",
+                "time": "08:00 AM - 05:00 PM",
+                "type": "enrollment",
+                "category": "Assessment Calendar",
+                "badge_class": "badge-enrollment",
+                "course_name": "Institutional",
+                "batch_label": "Institutional",
+                "details": "Opening of national assessment applications and documentary submission for candidates.",
+            },
+            {
+                "id": "ann-cand-1",
+                "title": "Announcement: Assessment Admission Slips Releasing",
+                "date": f"{current_year}-04-02",
+                "time": "08:00 AM - 05:00 PM",
+                "type": "event",
+                "category": "Assessment Announcement",
+                "badge_class": "badge-event",
+                "course_name": "Institutional",
+                "batch_label": "All Candidates",
+                "details": "Admission slips release for cleared candidates. Please verify your clearance status in the portal.",
+            },
+            {
+                "id": "ann-cand-2",
+                "title": "Announcement: National Assessment Guidelines & Orientation",
+                "date": f"{current_year}-04-05",
+                "time": "09:00 AM - 11:30 AM",
+                "type": "event",
+                "category": "Assessment Announcement",
+                "badge_class": "badge-event",
+                "course_name": "Institutional",
+                "batch_label": "All Candidates",
+                "details": "Mandatory briefing on examination rules, PPE, and test center health & safety compliance.",
+            },
+            {
+                "id": "inst-cand-2",
+                "title": "Mid-Year National Assessment Week",
+                "date": f"{current_year}-07-20",
+                "time": "08:00 AM - 05:00 PM",
+                "type": "exam",
+                "category": "National Assessment",
+                "badge_class": "badge-exam",
+                "course_name": "Institutional",
+                "batch_label": "Institutional",
+                "details": "Institutional competency assessment week across all accredited qualifications and testing labs.",
+            },
+        ]
+    else:
+        institutional_events = [
+            {
+                "id": "inst-1",
+                "title": "Semester Enrollment Period Begins",
+                "date": f"{current_year}-01-15",
+                "time": "08:00 AM - 05:00 PM",
+                "type": "enrollment",
+                "category": "Academic Calendar",
+                "badge_class": "badge-enrollment",
+                "course_name": "Institutional",
+                "batch_label": "Institutional",
+                "details": "Official opening of online & walk-in student registration for all NC programs.",
+            },
+            {
+                "id": "inst-2",
+                "title": "New Student Orientation & Briefing",
+                "date": f"{current_year}-05-10",
+                "time": "09:00 AM - 12:00 PM",
+                "type": "event",
+                "category": "Institutional",
+                "badge_class": "badge-event",
+                "course_name": "Institutional",
+                "batch_label": "Institutional",
+                "details": "Orientation for all newly enrolled students and trainees across all certification tracks.",
+            },
+            {
+                "id": "inst-3",
+                "title": "Mid-Year National Assessment Week",
+                "date": f"{current_year}-07-20",
+                "time": "08:00 AM - 05:00 PM",
+                "type": "exam",
+                "category": "Exam & Assessment",
+                "badge_class": "badge-exam",
+                "course_name": "Institutional",
+                "batch_label": "Institutional",
+                "details": "Institutional competency assessment week for all completed training batches.",
+            },
+            {
+                "id": "inst-4",
+                "title": "Year-End Graduation & Certification Ceremony",
+                "date": f"{current_year}-11-28",
+                "time": "01:00 PM - 05:00 PM",
+                "type": "event",
+                "category": "Institutional",
+                "badge_class": "badge-event",
+                "course_name": "Institutional",
+                "batch_label": "Institutional",
+                "details": "Commencement exercises and awarding of TESDA National Certificates.",
+            },
+        ]
 
     events.extend(institutional_events)
 

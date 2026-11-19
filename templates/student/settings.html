@@ -148,7 +148,7 @@
 <script type="module">
   import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
 
-  initStaffHeader("Student", "{{ portal_display_name|default:'Student User' }}");
+  initStaffHeader("{{ portal_role_label|default:'Student' }}", "{{ portal_display_name|default:'Student User' }}");
 
   const clockEl = document.getElementById("student-clock");
   if (clockEl) {

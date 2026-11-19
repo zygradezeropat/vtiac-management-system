@@ -241,11 +241,14 @@ def _student_sidebar_menu(user=None):
     menu = []
     for item in STUDENT_SIDEBAR:
         route_name = item["route_name"]
+        item_copy = dict(item)
         if is_assessment:
             if route_name == "student_trainer_evaluation":
                 continue
             if route_name == "student_dashboard":
                 route_name = "candidate_dashboard"
+            if route_name == "student_enrollment":
+                item_copy["label"] = "Assessment"
         if enrolled and route_name == "student_enrollment":
             continue
         if not show_my_profile and route_name == "student_my_profile":
@@ -279,7 +282,7 @@ def _student_sidebar_menu(user=None):
 
         route = reverse(route_name) if (route_name and not is_disabled) else "#"
         menu.append({
-            **item,
+            **item_copy,
             "route": route,
             "is_disabled": is_disabled,
             "disabled_reason": disabled_reason,
@@ -330,6 +333,15 @@ def _student_portal_base(request, active_menu, page_title, page_subtitle, **extr
     user = request.user if request and request.user.is_authenticated else None
     snapshot = _registration_snapshot(user) if user else {}
     progress_percent = snapshot.get("progress_percent", 25)
+    is_assessment = is_assessment_only_user(user) or extra.get("is_assessment_only", False)
+
+    if is_assessment:
+        if active_menu == "Enrollment":
+            active_menu = "Assessment"
+        if page_title == "Registration Process":
+            page_title = "Assessment Application Process"
+        if page_subtitle == "Complete your registration step by step":
+            page_subtitle = "Complete your competency assessment application step by step"
 
     eval_open = trainer_evaluation_is_open()
     eval_status = trainer_evaluation_status()
@@ -893,9 +905,17 @@ def student_enrollment_context(request):
 
     return _student_portal_base(
         request,
-        active_menu="Enrollment",
-        page_title="Registration Process",
-        page_subtitle="Complete your registration step by step",
+        active_menu="Assessment" if is_assessment_only else "Enrollment",
+        page_title=(
+            "Assessment Application Process"
+            if is_assessment_only
+            else "Registration Process"
+        ),
+        page_subtitle=(
+            "Complete your competency assessment application step by step"
+            if is_assessment_only
+            else "Complete your registration step by step"
+        ),
         enrollment_step_label=(
             "Step 1: TESDA Application Form"
             if is_assessment_only
@@ -1169,12 +1189,26 @@ def candidate_dashboard_context(request):
     ring_circ = round(2 * math.pi * 54, 2)
     ring_offset = round(ring_circ * (1 - progress_percent / 100), 2)
 
+    if reg and reg.status == "approved":
+        candidate_status_label = "Assessment Scheduled"
+        application_status = "Scheduled"
+    elif reg and reg.status == "rejected":
+        candidate_status_label = "Application Needs Attention"
+        application_status = "Rejected"
+    elif profile and profile.requirements_submitted:
+        candidate_status_label = "Pending Verification"
+        application_status = "Under Review"
+    else:
+        candidate_status_label = "Application Incomplete"
+        application_status = "In Progress"
+
     return {
         "is_enrolled": bool(reg and reg.status == "approved"),
         "candidate_name": f"{reg.first_name} {reg.last_name}" if reg else (user.get_full_name() if user else "Candidate"),
         "reference_id": reg.reference_id if reg else "N/A",
         "program_name": reg.selected_program if reg else "Competency Assessment",
-        "application_status": "Enrolled" if (reg and reg.status == "approved") else ("Pending" if reg else "In Progress"),
+        "application_status": application_status,
+        "candidate_status_label": candidate_status_label,
         "examiner_name": examiner_name,
         "assessment_venue": assessment_venue,
         "assessment_date": assessment_date_str,

@@ -23,10 +23,33 @@ class StaffProfile(models.Model):
         related_name="staff_profile",
     )
     role = models.CharField(max_length=20, choices=Role.choices, db_index=True)
+    additional_roles = models.JSONField(default=list, blank=True)
+    additional_roles_expires_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Staff profile"
         verbose_name_plural = "Staff profiles"
+
+    def get_allowed_roles(self):
+        roles = {self.role}
+        if isinstance(self.additional_roles, list) and self.additional_roles:
+            from django.utils import timezone
+
+            if self.additional_roles_expires_at and timezone.now() > self.additional_roles_expires_at:
+                # Expired: temporary access automatically lapses
+                return roles
+
+            valid = set(StaffProfile.Role.values)
+            roles.update(r for r in self.additional_roles if r in valid)
+        return roles
+
+    def is_substitute_active(self):
+        if not self.additional_roles:
+            return False
+        if self.additional_roles_expires_at:
+            from django.utils import timezone
+            return timezone.now() <= self.additional_roles_expires_at
+        return True
 
     def __str__(self):
         return f"{self.user.email} ({self.get_role_display()})"

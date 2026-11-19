@@ -23,7 +23,7 @@ def calendar_events_api(request):
         staff_role = (staff_profile.role or "").strip().lower() if staff_profile else ""
 
         if user.is_superuser or staff_role == "admin" or session_role == "admin":
-            effective_role = requested_role if requested_role in ("admin", "registrar", "trainer", "student") else "admin"
+            effective_role = requested_role if requested_role in ("admin", "registrar", "trainer", "student", "candidate") else "admin"
             can_see_all = (effective_role in ("admin", "registrar"))
             user_label = "System Administrator (Full Access)" if effective_role == "admin" else f"Admin Preview ({effective_role.title()})"
         elif staff_role == "registrar" or session_role == "registrar":
@@ -39,9 +39,15 @@ def calendar_events_api(request):
             can_see_all = False
             user_label = f"Trainer: {user.get_full_name() or user.username}"
         else:
-            effective_role = "student"
-            can_see_all = False
-            user_label = f"Student: {user.get_full_name() or user.username}"
+            from backend.student.services import is_assessment_only_user
+            if is_assessment_only_user(user) or requested_role == "candidate":
+                effective_role = "candidate"
+                can_see_all = False
+                user_label = f"Candidate: {user.get_full_name() or user.username}"
+            else:
+                effective_role = "student"
+                can_see_all = False
+                user_label = f"Student: {user.get_full_name() or user.username}"
     else:
         effective_role = requested_role or "student"
         can_see_all = False

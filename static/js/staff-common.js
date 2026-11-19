@@ -6,7 +6,14 @@ export function initStaffHeader(roleLabel, fallbackName) {
   const roleEl = document.getElementById("staff-role-label");
   const display = (nameEl?.textContent || "").trim() || fallbackName;
   if (nameEl && !nameEl.textContent.trim()) nameEl.textContent = fallbackName;
-  if (roleEl) roleEl.textContent = roleLabel;
+  if (roleEl) {
+    const roleSpan = roleEl.querySelector("span");
+    if (roleSpan) {
+      if (roleLabel) roleSpan.textContent = roleLabel;
+    } else {
+      if (roleLabel) roleEl.textContent = roleLabel;
+    }
+  }
   if (initialsEl && initialsEl.textContent.length <= 1) {
     const initials = display
       .split(" ")
@@ -14,7 +21,7 @@ export function initStaffHeader(roleLabel, fallbackName) {
       .map((w) => w.charAt(0))
       .join("")
       .toUpperCase();
-    initialsEl.textContent = initials || roleLabel.charAt(0);
+    initialsEl.textContent = initials || (roleLabel ? roleLabel.charAt(0) : "S");
   }
 }
 

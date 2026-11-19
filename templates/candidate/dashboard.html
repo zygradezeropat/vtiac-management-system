@@ -43,11 +43,12 @@
           <span class="text-muted fs-8 fw-semibold d-block">Status</span>
           {% if is_enrolled %}
           <span class="badge bg-success text-white fs-6 px-3 py-2 mt-1 rounded-3">
-            <i class="bi bi-check-circle-fill me-1"></i>Officially Enrolled
+            <i class="bi bi-check-circle-fill me-1"></i>{{ candidate_status_label|default:"Assessment Scheduled" }}
           </span>
+          <span class="d-block text-xs text-muted mt-1">(Scheduled)</span>
           {% else %}
           <span class="badge bg-warning-subtle text-warning-emphasis border border-warning fs-6 px-3 py-2 mt-1 rounded-3 d-inline-flex align-items-center gap-1.5">
-            <span class="student-enrollment-badge-dot"></span>Not Yet Enrolled
+            <span class="student-enrollment-badge-dot"></span>{{ candidate_status_label|default:"Application Incomplete" }}
           </span>
           <span class="d-block text-xs text-muted mt-1">({{ application_status }})</span>
           {% endif %}
@@ -196,25 +197,41 @@
       </ul>
     </section>
 
-    <!-- Candidate Announcements Card -->
-    <section class="student-panel shadow-sm border-0 rounded-4 p-4 bg-white">
-      <div class="student-panel__head mb-3">
-        <h2 class="student-panel__title h6 fw-bold text-dark mb-0">
-          <i class="bi bi-megaphone me-2 text-danger"></i>Assessment Bulletins
-        </h2>
-      </div>
-      {% for ann in announcements %}
-      <div class="p-3 bg-light rounded-3 mb-2 border-start border-3 border-primary">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <h4 class="h7 fw-bold text-dark mb-0 fs-7">{{ ann.title }}</h4>
-          <span class="fs-9 text-muted">{{ ann.date }}</span>
-        </div>
-        <p class="fs-8 text-secondary mb-0">{{ ann.body }}</p>
-      </div>
-      {% endfor %}
-    </section>
 
   </div>
 </div>
 
+{% include "components/shared/dashboard_calendar.html" with calendar_role="candidate" %}
+
+{% include "components/student/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+
+  initStaffHeader("{{ portal_role_label|default:'Candidate' }}", "{{ portal_display_name|default:'Candidate' }}");
+
+  const clockEl = document.getElementById("student-clock");
+  if (clockEl) {
+    function tick() {
+      const now = new Date();
+      const date = now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      const time =
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }) + " - Philippine Standard Time";
+      clockEl.textContent = `${date} | ${time}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+</script>
 {% endblock %}

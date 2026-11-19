@@ -1,0 +1,38 @@
+{% if can_switch_portal and staff_allowed_portals %}
+<div class="dropdown portal-switcher-dropdown me-2">
+  <button
+    class="btn btn-sm dropdown-toggle d-flex align-items-center gap-1.5 fw-semibold rounded-pill px-2.5 py-1"
+    type="button"
+    data-bs-toggle="dropdown"
+    aria-expanded="false"
+    style="font-size: 0.78rem; border: 1px solid rgba(0, 168, 89, 0.4); background: rgba(0, 168, 89, 0.08); color: #007a41;"
+    title="Switch Portal Role"
+  >
+    <i class="bi bi-arrow-left-right me-1"></i>
+    <span>Switch Portal</span>
+    {% if substitute_badge_label %}
+    <span class="badge bg-warning text-dark ms-1" style="font-size: 0.65rem;">{{ substitute_badge_label }}</span>
+    {% endif %}
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end shadow-sm border py-1" style="min-width: 13rem; font-size: 0.85rem; z-index: 1050;">
+    <li class="dropdown-header d-flex align-items-center justify-content-between text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.5px;">
+      <span>Your Assigned Portals</span>
+      {% if substitute_badge_label %}
+      <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-lowercase" style="font-size: 0.62rem;">{{ substitute_badge_label }}</span>
+      {% endif %}
+    </li>
+    {% for item in staff_allowed_portals %}
+    <li>
+      <a class="dropdown-item d-flex align-items-center justify-content-between py-1.5 {% if item.is_active %}active fw-semibold text-white bg-success{% endif %}" href="{{ item.url }}">
+        <span>{{ item.label }} Portal</span>
+        {% if item.is_active %}
+        <i class="bi bi-check2"></i>
+        {% else %}
+        <span class="badge bg-secondary-subtle text-secondary border small" style="font-size: 0.65rem;">Switch</span>
+        {% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

@@ -13,6 +13,7 @@
         <i class="bi bi-list fs-4" aria-hidden="true"></i>
       </button>
       <div class="cashier-topbar-actions">
+        {% include "components/shared/portal_switch_dropdown.html" %}
         {% include "components/shared/portal_notifications_bell.html" with icon_btn_class="cashier-icon-btn" %}
         <div class="cashier-user-chip">
           <div id="staff-initials" class="cashier-user-avatar">{{ portal_initials|default:"C" }}</div>

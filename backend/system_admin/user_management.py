@@ -52,9 +52,37 @@ def _role_label(user):
 def serialize_user(user):
     account_type = _account_type_for(user)
     role = ""
+    additional_roles = []
+    substitute_info = {
+        "additional_roles": [],
+        "expires_at": "",
+        "expires_at_display": "",
+        "is_active": False,
+        "is_expired": False,
+        "hours_remaining": None,
+    }
     qualifications = []
     if account_type == "staff":
         role = user.staff_profile.role
+        additional_roles = getattr(user.staff_profile, "additional_roles", []) or []
+        prof = user.staff_profile
+        substitute_info["additional_roles"] = additional_roles
+        substitute_info["is_active"] = prof.is_substitute_active()
+        if prof.additional_roles_expires_at:
+            from django.utils import timezone
+
+            exp = prof.additional_roles_expires_at
+            exp_local = timezone.localtime(exp)
+            substitute_info["expires_at"] = exp_local.isoformat()
+            substitute_info["expires_at_display"] = exp_local.strftime("%b %d, %I:%M %p")
+            now = timezone.now()
+            if now > exp:
+                substitute_info["is_expired"] = True
+                substitute_info["hours_remaining"] = 0
+            else:
+                rem_seconds = (exp - now).total_seconds()
+                substitute_info["hours_remaining"] = max(1, int(rem_seconds // 3600))
+
         if role == StaffProfile.Role.TRAINER:
             from backend.trainer.models import TrainerAccountRequest
 
@@ -98,6 +126,8 @@ def serialize_user(user):
         "full_name": _display_name(user),
         "account_type": account_type,
         "role": role,
+        "additional_roles": additional_roles,
+        "substitute_info": substitute_info,
         "role_label": _role_label(user),
         "qualifications": qualifications,
         "is_active": user.is_active,
@@ -179,7 +209,49 @@ def _validate_email_unique(email, exclude_user_id=None):
     return email
 
 
-def create_user(*, account_type, email, first_name, last_name, password, role=""):
+def _calculate_expiration(duration_choice=None, expires_at=None):
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    from django.utils.dateparse import parse_datetime
+
+    now = timezone.now()
+
+    # 1. Custom dynamic expiration if provided
+    if expires_at:
+        dt = None
+        if isinstance(expires_at, str) and expires_at.strip():
+            expires_at_clean = expires_at.strip()
+            dt = parse_datetime(expires_at_clean)
+            if dt is None:
+                try:
+                    dt = datetime.fromisoformat(expires_at_clean)
+                except ValueError:
+                    dt = None
+        elif isinstance(expires_at, datetime):
+            dt = expires_at
+
+        if dt is not None:
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            return dt
+
+    # 2. Preset duration choices
+    choice = (duration_choice or "").strip().lower()
+    if choice in ("1_day", "daily", "24_hours", "24h"):
+        return now + timedelta(days=1)
+    if choice in ("end_of_day", "today"):
+        local_now = timezone.localtime(now)
+        return local_now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    if choice in ("3_days", "72h"):
+        return now + timedelta(days=3)
+    if choice in ("permanent", "no_expiry", "never"):
+        return None
+
+    # Default: 24 hours from current time
+    return now + timedelta(days=1)
+
+
+def create_user(*, account_type, email, first_name, last_name, password, role="", additional_roles=None, substitute_duration="1_day", expires_at=None):
     account_type = (account_type or "").strip().lower()
     if account_type not in ("staff", "student"):
         raise ValueError("Account type must be staff or student.")
@@ -210,7 +282,16 @@ def create_user(*, account_type, email, first_name, last_name, password, role=""
             role = (role or "").strip().lower()
             if role not in STAFF_ROLE_VALUES:
                 raise ValueError("Select a valid staff role.")
-            StaffProfile.objects.create(user=user, role=role)
+            valid_additionals = []
+            if isinstance(additional_roles, list):
+                valid_additionals = [r for r in additional_roles if r in STAFF_ROLE_VALUES and r != role]
+            exp_val = _calculate_expiration(substitute_duration, expires_at=expires_at) if valid_additionals else None
+            StaffProfile.objects.create(
+                user=user,
+                role=role,
+                additional_roles=valid_additionals,
+                additional_roles_expires_at=exp_val,
+            )
         else:
             StudentProfile.objects.create(user=user)
 
@@ -234,7 +315,7 @@ def create_trainer_staff_user(trainer_payload):
     return serialize_user(user)
 
 
-def update_user(user_id, *, email=None, first_name=None, last_name=None, role=None, is_active=None, qualifications=None):
+def update_user(user_id, *, email=None, first_name=None, last_name=None, role=None, is_active=None, qualifications=None, additional_roles=None, substitute_duration=None, expires_at=None):
     try:
         user = User.objects.select_related("staff_profile", "student_profile").get(pk=user_id)
     except User.DoesNotExist as exc:
@@ -256,12 +337,32 @@ def update_user(user_id, *, email=None, first_name=None, last_name=None, role=No
     if is_active is not None:
         user.is_active = bool(is_active)
 
-    if role is not None and hasattr(user, "staff_profile"):
-        role = (role or "").strip().lower()
-        if role not in STAFF_ROLE_VALUES:
-            raise ValueError("Select a valid staff role.")
-        user.staff_profile.role = role
-        user.staff_profile.save(update_fields=["role"])
+    if hasattr(user, "staff_profile"):
+        profile_changed = False
+        if role is not None:
+            role = (role or "").strip().lower()
+            if role not in STAFF_ROLE_VALUES:
+                raise ValueError("Select a valid staff role.")
+            user.staff_profile.role = role
+            profile_changed = True
+
+        if additional_roles is not None:
+            curr_primary = user.staff_profile.role
+            valid_additionals = []
+            if isinstance(additional_roles, list):
+                valid_additionals = [r for r in additional_roles if r in STAFF_ROLE_VALUES and r != curr_primary]
+            user.staff_profile.additional_roles = valid_additionals
+            if valid_additionals:
+                user.staff_profile.additional_roles_expires_at = _calculate_expiration(
+                    duration_choice=substitute_duration,
+                    expires_at=expires_at,
+                )
+            else:
+                user.staff_profile.additional_roles_expires_at = None
+            profile_changed = True
+
+        if profile_changed:
+            user.staff_profile.save()
 
     if qualifications is not None and hasattr(user, "staff_profile") and user.staff_profile.role == StaffProfile.Role.TRAINER:
         from backend.trainer.models import TrainerAccountRequest

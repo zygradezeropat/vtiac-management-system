@@ -302,13 +302,24 @@ def student_enrollment_requirements_context(request):
     profile = get_enrollment_profile(request.user)
     reg = getattr(request.user, "registration_application", None)
     doc_indicators = get_document_submission_indicators(profile, reg)
+    is_assessment_only = is_assessment_only_program(
+        enrollment_program_type_for_user(request.user)
+    )
     progress = enrollment_progress_percent(profile)
 
     return _student_portal_base(
         request,
-        active_menu="Enrollment",
-        page_title="Registration Process",
-        page_subtitle="Complete your registration step by step",
+        active_menu="Assessment" if is_assessment_only else "Enrollment",
+        page_title=(
+            "Assessment Application Process"
+            if is_assessment_only
+            else "Registration Process"
+        ),
+        page_subtitle=(
+            "Complete your competency assessment application step by step"
+            if is_assessment_only
+            else "Complete your registration step by step"
+        ),
         progress_percent=progress,
         enrollment_step_label="Step 2: Upload Requirements",
         enrollment_step_icon="bi-cloud-upload",
@@ -319,9 +330,7 @@ def student_enrollment_requirements_context(request):
         enrollment_under_review=enrollment_pending_review(request.user),
         records_mode=False,
         requirements_post_url_name="student_enrollment_requirements",
-        is_assessment_only=is_assessment_only_program(
-            enrollment_program_type_for_user(request.user)
-        ),
+        is_assessment_only=is_assessment_only,
         doc_indicators=doc_indicators,
         hard_copies_submitted=doc_indicators["hardCopy"]["isSubmitted"],
         hard_copies_submitted_at=doc_indicators["hardCopy"]["submittedAt"],

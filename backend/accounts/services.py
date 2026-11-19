@@ -94,16 +94,11 @@ def require_portal_access(request, role):
         messages.error(request, "Please sign in to continue.")
         return redirect("login", role=role)
 
-    session_role = request.session.get("portal_role")
-    if session_role != role:
-        if session_role in PORTAL_ROLES:
-            return redirect_to_dashboard(session_role, user=request.user)
-        return redirect("login", role=role)
-
     if role == STUDENT_ROLE:
         if not StudentProfile.objects.filter(user=request.user).exists():
             messages.error(request, "This account is not set up for student portal access.")
             return redirect("login", role=STUDENT_ROLE)
+        request.session["portal_role"] = STUDENT_ROLE
         return None
 
     if role not in STAFF_ROLES:
@@ -115,13 +110,15 @@ def require_portal_access(request, role):
         messages.error(request, "This account is not set up for staff portal access.")
         return redirect("login", role=role)
 
-    if profile.role != role:
+    allowed_roles = profile.get_allowed_roles()
+    if role not in allowed_roles:
         messages.error(
             request,
-            f"This account is registered as {profile.get_role_display()}, not {role}.",
+            f"You do not have access to the {role.title()} portal.",
         )
-        return redirect("login", role=role)
+        return redirect_to_dashboard(profile.role, user=request.user)
 
+    request.session["portal_role"] = role
     return None
 
 
@@ -188,7 +185,7 @@ def handle_portal_login_post(request, role):
         except StaffProfile.DoesNotExist:
             messages.error(request, LOGIN_CREDENTIALS_ERROR)
             return redirect("login", role=role)
-        if profile.role != role:
+        if role not in profile.get_allowed_roles():
             messages.error(request, LOGIN_CREDENTIALS_ERROR)
             return redirect("login", role=role)
 

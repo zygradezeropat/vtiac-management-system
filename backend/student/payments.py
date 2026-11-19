@@ -141,10 +141,19 @@ def student_enrollment_pending_context(request):
 
     return _student_portal_base(
         request,
-        active_menu="Enrollment",
-        page_title="Registration Process",
-        page_subtitle="Complete your registration step by step",
+        active_menu="Assessment" if is_assessment_only else "Enrollment",
+        page_title=(
+            "Assessment Application Process"
+            if is_assessment_only
+            else "Registration Process"
+        ),
+        page_subtitle=(
+            "Complete your competency assessment application step by step"
+            if is_assessment_only
+            else "Complete your registration step by step"
+        ),
         progress_percent=enrollment_progress_percent(profile),
+        is_assessment_only=is_assessment_only,
         awaiting_registrar=awaiting_registrar,
         awaiting_document_approval=awaiting_document_approval,
         documents_approved_can_pay=documents_approved_can_pay,

@@ -108,6 +108,60 @@
             </div>
           </div>
 
+          <div class="admin-form-field admin-form-field--full mt-1 mb-3" id="userFormAdditionalRolesWrap">
+            <label class="admin-form-label fw-semibold d-flex align-items-center justify-content-between">
+              <span><i class="bi bi-person-gear text-success me-1"></i>Temporary Substitute Portals (Multi-Role)</span>
+              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small fw-semibold" id="substituteActiveStatusBadge" style="display:none;">Active</span>
+            </label>
+            <p class="text-muted small mb-2">Check additional portals this staff member is temporarily authorized to cover:</p>
+            <div class="d-flex flex-wrap gap-3 p-2.5 rounded-3 border bg-light-subtle mb-2" id="userFormAdditionalRolesContainer">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="roleCheckRegistrar" value="registrar" data-staff-additional-role />
+                <label class="form-check-label small fw-medium" for="roleCheckRegistrar">Registrar</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="roleCheckCashier" value="cashier" data-staff-additional-role />
+                <label class="form-check-label small fw-medium" for="roleCheckCashier">Cashier</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="roleCheckTrainer" value="trainer" data-staff-additional-role />
+                <label class="form-check-label small fw-medium" for="roleCheckTrainer">Trainer</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="roleCheckAdmin" value="admin" data-staff-additional-role />
+                <label class="form-check-label small fw-medium" for="roleCheckAdmin">Admin</label>
+              </div>
+            </div>
+            <div class="row g-2 align-items-center mt-2" id="substituteDurationRow">
+              <div class="col-sm-7">
+                <label class="small text-muted fw-semibold mb-1 d-flex align-items-center justify-content-between" for="substituteExpiresAtInput">
+                  <span><i class="bi bi-calendar-event text-primary me-1"></i>Access Expiration Date &amp; Time</span>
+                  <span class="text-xs text-muted fw-normal">(Default: 24h)</span>
+                </label>
+                <div class="input-group input-group-sm">
+                  <input
+                    type="datetime-local"
+                    class="form-control form-control-sm admin-form-input"
+                    id="substituteExpiresAtInput"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    id="btnReset24h"
+                    title="Reset to 24 hours from now"
+                  >
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>24h
+                  </button>
+                </div>
+              </div>
+              <div class="col-sm-5">
+                <div class="small text-muted mt-sm-4" id="substituteExpiresHelp">
+                  <i class="bi bi-shield-check text-success me-1"></i>Defaults to 24 hours. Access lapses automatically.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div id="userFormStandardFields">
             <div class="admin-form-grid">
               <div class="admin-form-field">

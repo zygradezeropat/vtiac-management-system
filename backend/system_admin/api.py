@@ -80,6 +80,9 @@ def users_create(request):
                 last_name=data.get("last_name"),
                 password=data.get("password"),
                 role=role,
+                additional_roles=data.get("additional_roles"),
+                substitute_duration=data.get("substitute_duration"),
+                expires_at=data.get("expires_at"),
             )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
@@ -110,6 +113,9 @@ def users_update(request, user_id):
             role=data.get("role"),
             is_active=data.get("is_active"),
             qualifications=data.get("qualifications"),
+            additional_roles=data.get("additional_roles"),
+            substitute_duration=data.get("substitute_duration"),
+            expires_at=data.get("expires_at"),
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)

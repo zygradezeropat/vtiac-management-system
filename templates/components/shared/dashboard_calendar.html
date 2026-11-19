@@ -8,9 +8,12 @@
         <i class="bi bi-calendar3 fs-4 text-vtiac"></i>
       </div>
       <div>
-        <h2 class="h5 fw-bold mb-0 text-dark">Academic &amp; Events Calendar</h2>
-        <p class="text-secondary small mb-0">View upcoming class start dates, exams/assessments, and end of class
-          schedules</p>
+        <h2 class="h5 fw-bold mb-0 text-dark">
+          {% if calendar_role == "candidate" %}Assessment &amp; Events Calendar{% else %}Academic &amp; Events Calendar{% endif %}
+        </h2>
+        <p class="text-secondary small mb-0">
+          {% if calendar_role == "candidate" %}View your scheduled competency assessment, venue, examiner assignment, and institutional assessment schedules{% else %}View upcoming class start dates, exams/assessments, and end of class schedules{% endif %}
+        </p>
       </div>
     </div>
 
@@ -44,9 +47,11 @@
         </select>
         <select class="form-select form-select-sm rounded-3 shadow-none border-secondary-subtle" id="cal-filter-type" style="min-width: 150px;" aria-label="Filter by Event Type">
           <option value="all">All Event Types</option>
+          {% if calendar_role != "candidate" %}
           <option value="class_start">Class Starts</option>
           <option value="class_end">End of Classes</option>
-          <option value="exam">Assessments &amp; Exams</option>
+          {% endif %}
+          <option value="exam">{% if calendar_role == "candidate" %}National Assessments{% else %}Assessments &amp; Exams{% endif %}</option>
           <option value="institutional">Institutional Events</option>
         </select>
         <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-none" id="cal-filter-reset-btn" title="Reset Filters">
@@ -63,17 +68,19 @@
     <!-- Event Legend Bar -->
     <div class="vtiac-calendar-legend d-flex flex-wrap align-items-center gap-3 mb-4 p-3 bg-light rounded-3 small">
       <span class="fw-bold text-secondary me-1">Legend:</span>
+      {% if calendar_role != "candidate" %}
       <span class="badge badge-class-start d-inline-flex align-items-center gap-1">
         <span class="vtiac-dot bg-success"></span> Class Start
       </span>
       <span class="badge badge-class-end d-inline-flex align-items-center gap-1">
         <span class="vtiac-dot bg-warning"></span> End of Class
       </span>
+      {% endif %}
       <span class="badge badge-exam d-inline-flex align-items-center gap-1">
-        <span class="vtiac-dot bg-danger"></span> Exam / Assessment
+        <span class="vtiac-dot bg-danger"></span> {% if calendar_role == "candidate" %}National Assessment{% else %}Exam / Assessment{% endif %}
       </span>
       <span class="badge badge-enrollment d-inline-flex align-items-center gap-1">
-        <span class="vtiac-dot" style="background-color: #8b5cf6;"></span> Enrollment Period
+        <span class="vtiac-dot" style="background-color: #8b5cf6;"></span> {% if calendar_role == "candidate" %}Application Period{% else %}Enrollment Period{% endif %}
       </span>
       <span class="badge badge-event d-inline-flex align-items-center gap-1">
         <span class="vtiac-dot bg-info"></span> Institutional Event

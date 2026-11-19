@@ -30,7 +30,7 @@
       {% else %}
       <a
         href="{{ item.route }}"
-        class="student-nav-link{% if active_menu == item.label %} is-active{% endif %}"
+        class="student-nav-link{% if active_menu == item.label or item.label == 'Assessment' and active_menu == 'Enrollment' or item.label == 'Enrollment' and active_menu == 'Assessment' %} is-active{% endif %}"
         data-bs-dismiss="offcanvas"
       >
         <span class="student-nav-icon"><i class="bi {{ item.icon_bi }}" aria-hidden="true"></i></span>

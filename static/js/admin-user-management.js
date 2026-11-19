@@ -21,6 +21,24 @@ const PAGE_SIZE = 10;
 const PH_MOBILE_PATTERN = /^09\d{9}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function getDefault24HrDateTime() {
+  const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatIsoForDateTimeInput(isoStr) {
+  if (!isoStr) return "";
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return "";
+  }
+}
+
 let users = [];
 let totalUsers = 0;
 let currentPage = 1;
@@ -207,7 +225,22 @@ function renderUsersTable() {
       <td>${escapeHtml(user.full_name)}</td>
       <td>${escapeHtml(user.email)}</td>
       <td>${accountTypeBadge(user)}</td>
-      <td>${escapeHtml(user.role_label || (user.is_graduated ? "Graduate" : "—"))}</td>
+      <td>
+        <div class="d-flex flex-column align-items-start gap-1">
+          <span>${escapeHtml(user.role_label || (user.is_graduated ? "Graduate" : "—"))}</span>
+          ${
+            Array.isArray(user.additional_roles) && user.additional_roles.length
+              ? user.substitute_info?.is_expired
+                ? `<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size:0.65rem;" title="1-Day Temporary Access has expired">
+                    <i class="bi bi-clock-history me-0.5"></i>+ ${escapeHtml(user.additional_roles.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(", "))} (Expired)
+                  </span>`
+                : `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:0.65rem;" title="${user.substitute_info?.expires_at_display ? `Expires: ${user.substitute_info.expires_at_display}` : '1-Day Temporary Access'}">
+                    <i class="bi bi-stopwatch me-0.5"></i>+ ${escapeHtml(user.additional_roles.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(", "))} (Sub · ${user.substitute_info?.hours_remaining != null ? `${user.substitute_info.hours_remaining}h left` : '1 Day'})
+                  </span>`
+              : ""
+          }
+        </div>
+      </td>
       <td class="text-center">${statusBadge(user)}</td>
       <td class="text-end">
         <div class="admin-users-actions">
@@ -309,6 +342,20 @@ function syncUserFormPanels() {
     const role = document.getElementById("userFormRole")?.value;
     const isTrainer = accountType === "staff" && role === "trainer";
     document.getElementById("userFormTrainerEditQuals")?.classList.toggle("d-none", !isTrainer);
+  }
+
+  const addRolesWrap = document.getElementById("userFormAdditionalRolesWrap");
+  if (addRolesWrap) {
+    addRolesWrap.classList.toggle("d-none", accountType !== "staff");
+    const currentPrimary = document.getElementById("userFormRole")?.value;
+    document.querySelectorAll("[data-staff-additional-role]").forEach((cb) => {
+      if (cb.value === currentPrimary) {
+        cb.checked = false;
+        cb.disabled = true;
+      } else {
+        cb.disabled = false;
+      }
+    });
   }
 }
 
@@ -501,6 +548,13 @@ function openCreateModal() {
   document.getElementById("userFormAccountTypeWrap")?.classList.remove("d-none");
   document.getElementById("userFormActiveWrap")?.classList.add("d-none");
   document.getElementById("userFormPasswordWrap")?.classList.remove("d-none");
+  document.querySelectorAll("[data-staff-additional-role]").forEach((cb) => {
+    cb.checked = false;
+  });
+  const expInputAdd = document.getElementById("substituteExpiresAtInput");
+  if (expInputAdd) expInputAdd.value = getDefault24HrDateTime();
+  const subBadgeAdd = document.getElementById("substituteActiveStatusBadge");
+  if (subBadgeAdd) subBadgeAdd.style.display = "none";
   resetTrainerFields();
   syncUserFormPanels();
 
@@ -594,6 +648,35 @@ function openEditModal(userId) {
   document.getElementById("userFormActiveWrap")?.classList.remove("d-none");
   document.getElementById("userFormPasswordWrap")?.classList.add("d-none");
 
+  const addRoles = Array.isArray(user.additional_roles) ? user.additional_roles : [];
+  document.querySelectorAll("[data-staff-additional-role]").forEach((cb) => {
+    cb.checked = addRoles.includes(cb.value);
+  });
+
+  const subBadge = document.getElementById("substituteActiveStatusBadge");
+  const expInput = document.getElementById("substituteExpiresAtInput");
+  if (expInput) {
+    if (user.substitute_info?.expires_at && !user.substitute_info?.is_expired) {
+      expInput.value = formatIsoForDateTimeInput(user.substitute_info.expires_at) || getDefault24HrDateTime();
+    } else {
+      expInput.value = getDefault24HrDateTime();
+    }
+  }
+  if (subBadge) {
+    if (addRoles.length && user.substitute_info?.is_active) {
+      subBadge.style.display = "inline-block";
+      const hLeft = user.substitute_info.hours_remaining;
+      subBadge.className = "badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small fw-semibold";
+      subBadge.innerHTML = `<i class="bi bi-stopwatch me-1"></i>Active (${hLeft != null ? `${hLeft}h left` : '1 Day'})`;
+    } else if (addRoles.length && user.substitute_info?.is_expired) {
+      subBadge.style.display = "inline-block";
+      subBadge.className = "badge bg-secondary-subtle text-secondary border border-secondary-subtle small fw-semibold";
+      subBadge.innerHTML = `<i class="bi bi-clock-history me-1"></i>Expired`;
+    } else {
+      subBadge.style.display = "none";
+    }
+  }
+
   const isTrainer = user.account_type === "staff" && user.role === "trainer";
   const editQualsWrap = document.getElementById("userFormTrainerEditQuals");
   if (editQualsWrap) {
@@ -653,6 +736,12 @@ async function submitUserForm() {
     };
     if (document.getElementById("userFormAccountType").value === "staff") {
       body.role = document.getElementById("userFormRole").value;
+      const addRoles = [];
+      document.querySelectorAll("[data-staff-additional-role]:checked:not(:disabled)").forEach((el) => {
+        if (el.value) addRoles.push(el.value);
+      });
+      body.additional_roles = addRoles;
+      body.expires_at = document.getElementById("substituteExpiresAtInput")?.value || "";
       if (body.role === "trainer") {
         const quals = [];
         document.querySelectorAll("[data-edit-trainer-qualification]:checked").forEach((el) => {
@@ -718,6 +807,14 @@ async function submitUserForm() {
       password,
       role: document.getElementById("userFormRole").value,
     };
+    if (body.account_type === "staff") {
+      const addRoles = [];
+      document.querySelectorAll("[data-staff-additional-role]:checked:not(:disabled)").forEach((el) => {
+        if (el.value) addRoles.push(el.value);
+      });
+      body.additional_roles = addRoles;
+      body.expires_at = document.getElementById("substituteExpiresAtInput")?.value || "";
+    }
     const res = await fetch("/admin/api/users/create/", {
       method: "POST",
       credentials: "same-origin",
@@ -765,6 +862,10 @@ function bindEvents() {
   document.getElementById("addUserButton")?.addEventListener("click", openCreateModal);
   document.getElementById("userFormSubmit")?.addEventListener("click", submitUserForm);
   document.getElementById("resetPasswordSubmit")?.addEventListener("click", submitResetPassword);
+  document.getElementById("btnReset24h")?.addEventListener("click", () => {
+    const expInput = document.getElementById("substituteExpiresAtInput");
+    if (expInput) expInput.value = getDefault24HrDateTime();
+  });
   document.getElementById("userFormAccountType")?.addEventListener("change", syncUserFormPanels);
   document.getElementById("userFormRole")?.addEventListener("change", syncUserFormPanels);
 
