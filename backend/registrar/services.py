@@ -232,6 +232,7 @@ def module_page_context(module, request=None):
                 "release_date": r.release_date.strftime("%B %d, %Y") if r.release_date else "",
                 "release_date_iso": r.release_date.strftime("%Y-%m-%d") if r.release_date else "",
                 "requested_at": r.requested_at.strftime("%B %d, %Y %I:%M %p"),
+                "raw_requested_at": r.requested_at.isoformat() if r.requested_at else "",
             })
         ctx["document_requests"] = req_list
         ctx["total_requests"] = len(req_list)

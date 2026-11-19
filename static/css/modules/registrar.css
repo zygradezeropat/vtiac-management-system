@@ -999,14 +999,32 @@
   white-space: nowrap;
 }
 
+.registrar-student-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .registrar-student-search {
-  width: 11rem;
-  min-width: 8.5rem;
+  flex: 1 1 9.5rem;
+  width: 10.5rem;
+  min-width: 8rem;
+  max-width: 14rem;
 }
 
 .registrar-student-program-filter {
+  flex: 1 1 11.5rem;
   width: 13rem;
-  min-width: 10rem;
+  min-width: 9rem;
+  max-width: 16rem;
+}
+
+.registrar-student-doc-filter {
+  flex: 1 1 11rem;
+  width: 12.5rem;
+  min-width: 9rem;
+  max-width: 15rem;
 }
 
 #registrar-students-root .form-control,
@@ -1214,6 +1232,38 @@
 
 .registrar-verification-empty .bi {
   line-height: 1;
+}
+
+/* Pending enrollment approval filters (strictly one row) */
+.registrar-enrollment-filters {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.registrar-enrollment-filter-course {
+  width: 12rem;
+  min-width: 9rem;
+  max-width: 14rem;
+  border-radius: 0.625rem;
+  border-color: var(--registrar-border);
+  font-size: 0.875rem;
+}
+
+.registrar-enrollment-search-input {
+  width: 12rem;
+  min-width: 8.5rem;
+  max-width: 14rem;
+  border-radius: 0.625rem;
+  border-color: var(--registrar-border);
+  font-size: 0.875rem;
+}
+
+.registrar-enrollment-filter-course:focus,
+.registrar-enrollment-search-input:focus {
+  border-color: var(--vtiac-primary);
+  box-shadow: 0 0 0 0.2rem rgba(0, 168, 89, 0.15);
 }
 
 /* Pending enrollment approval */
@@ -3177,9 +3227,11 @@
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 0.5rem;
-  padding: 0.1rem 0.25rem;
+  padding: 0.125rem 0.35rem 0.125rem 0.5rem;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .gdrive-sort-wrap:hover,
 .gdrive-sort-wrap:focus-within {
@@ -3192,9 +3244,13 @@
   font-size: 0.8125rem !important;
   font-weight: 500 !important;
   color: #1e293b !important;
-  padding: 0.25rem 0.5rem !important;
+  padding: 0.25rem 2rem 0.25rem 0.35rem !important;
   cursor: pointer;
   box-shadow: none !important;
+  width: auto !important;
+  min-width: 12.5rem !important;
+  max-width: none !important;
+  flex: none !important;
 }
 .gdrive-sort-select:focus {
   outline: none !important;
@@ -3212,6 +3268,7 @@
   color: #475569;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
 }
 .gdrive-sort-btn:hover {
   background-color: #f1f5f9;

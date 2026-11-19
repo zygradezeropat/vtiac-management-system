@@ -159,9 +159,10 @@ function activeBatchStudentCount(course) {
 }
 
 function courseStatus(course) {
+  const isNational = batchingCourseCategory(course) === "national";
   const count = activeBatchStudentCount(course);
 
-  if (count >= MIN_STUDENTS_TO_FINALIZE) {
+  if (isNational || count >= MIN_STUDENTS_TO_FINALIZE) {
     return {
       key: "open",
       label: "Open",
@@ -177,6 +178,10 @@ function courseStatus(course) {
 }
 
 function studentsNeeded(course) {
+  if (batchingCourseCategory(course) === "national") {
+    return 0;
+  }
+
   const count = activeBatchStudentCount(course);
 
   return Math.max(
@@ -660,6 +665,86 @@ document.addEventListener(
         "template-custom-name"
       );
 
+    const trainingAyTermEl =
+      document.getElementById(
+        "training-academic-year-term"
+      );
+
+    const trainingFieldsEl =
+      document.getElementById(
+        "training-schedule-fields"
+      );
+
+    const assessmentFieldsEl =
+      document.getElementById(
+        "assessment-schedule-fields"
+      );
+
+    const assessmentDateEl =
+      document.getElementById(
+        "template-assessment-date"
+      );
+
+    const assessmentTimeFromEl =
+      document.getElementById(
+        "template-assessment-time-from"
+      );
+
+    const assessmentTimeToEl =
+      document.getElementById(
+        "template-assessment-time-to"
+      );
+
+    const assessmentVenueEl =
+      document.getElementById(
+        "template-assessment-venue"
+      );
+
+    const assessorNameEl =
+      document.getElementById(
+        "template-assessor-name"
+      );
+
+    const scheduleEyebrowEl =
+      document.querySelector(
+        ".registrar-schedule-template-form__eyebrow"
+      );
+
+    const noticeModalEl =
+      document.getElementById(
+        "batching-notice-modal"
+      );
+
+    function showNoticeModal(message, title = "Notice", type = "warning") {
+      if (!noticeModalEl || typeof bootstrap === "undefined") {
+        window.alert(message);
+        return;
+      }
+      const titleEl = document.getElementById("batching-notice-modal-title");
+      const msgEl = document.getElementById("batching-notice-modal-message");
+      const iconEl = document.getElementById("batching-notice-modal-icon");
+      const iconWrapEl = document.getElementById("batching-notice-modal-icon-wrap");
+
+      if (titleEl) titleEl.textContent = title;
+      if (msgEl) msgEl.textContent = message;
+
+      if (iconEl && iconWrapEl) {
+        if (type === "danger" || type === "error") {
+          iconEl.className = "bi bi-x-circle-fill text-danger fs-3";
+          iconWrapEl.style.backgroundColor = "rgba(239, 68, 68, 0.12)";
+        } else if (type === "success") {
+          iconEl.className = "bi bi-check-circle-fill text-success fs-3";
+          iconWrapEl.style.backgroundColor = "rgba(16, 185, 129, 0.12)";
+        } else {
+          iconEl.className = "bi bi-exclamation-triangle-fill text-warning fs-3";
+          iconWrapEl.style.backgroundColor = "rgba(245, 158, 11, 0.12)";
+        }
+      }
+
+      const modalInstance = bootstrap.Modal.getOrCreateInstance(noticeModalEl);
+      modalInstance.show();
+    }
+
     const batchNameErrorEl =
       document.getElementById(
         "template-batch-name-error"
@@ -690,10 +775,16 @@ document.addEventListener(
 
     function updateBatchIdentifierPreview() {
       if (!identifierPreviewEl) return;
+      const course = selectedCourse();
+      const isNational = Boolean(course && batchingCourseCategory(course) === "national");
       const ay = academicYearEl?.value || "AY 2026–2027";
       const tm = termEl?.value || "1st Semester";
       const nm = getEffectiveBatchName() || "Batch 1";
-      identifierPreviewEl.textContent = `${ay} · ${tm} · ${nm}`;
+      if (isNational) {
+        identifierPreviewEl.textContent = `${ay} · ${nm}`;
+      } else {
+        identifierPreviewEl.textContent = `${ay} · ${tm} · ${nm}`;
+      }
     }
 
     const enrolledStudentsEl =
@@ -856,6 +947,7 @@ document.addEventListener(
       const openableCourses =
         visibleCourses.filter(
           (c) =>
+            batchingCourseCategory(c) === "national" ||
             activeBatchStudentCount(c) >=
             MIN_STUDENTS_TO_FINALIZE
         );
@@ -1135,6 +1227,7 @@ document.addEventListener(
       const openableCourses =
         visibleCourses.filter(
           (c) =>
+            batchingCourseCategory(c) === "national" ||
             activeBatchStudentCount(c) >=
             MIN_STUDENTS_TO_FINALIZE
         );
@@ -1239,6 +1332,8 @@ document.addEventListener(
       const courseName = (course?.name || "").trim().toLowerCase();
       const selectedAy = normAy(academicYearEl?.value || "AY 2026–2027");
       const occupied = new Set();
+      const isNational = Boolean(course && batchingCourseCategory(course) === "national");
+      const targetBatchKind = isNational ? "national_assessment" : "training";
 
       for (const [cId, list] of Object.entries(templatesByCourse)) {
         if (!Array.isArray(list)) continue;
@@ -1246,6 +1341,9 @@ document.addEventListener(
           if (excludeTemplateId && String(tpl.id) === String(excludeTemplateId)) {
             continue;
           }
+          const tplKind = tpl.batchKind || "training";
+          if (tplKind !== targetBatchKind) continue;
+
           const tplCourseName = (tpl.courseName || "").trim().toLowerCase();
           const tplCourseId = String(tpl.courseId || "").trim().toLowerCase();
           const matchCourse =
@@ -1276,6 +1374,9 @@ document.addEventListener(
           continue;
         }
         const draftCourse = getCourse(wId);
+        const draftKind = draft.batchKind || (draftCourse && batchingCourseCategory(draftCourse) === "national" ? "national_assessment" : "training");
+        if (draftKind !== targetBatchKind) continue;
+
         const draftCourseName = (draftCourse?.name || "").trim().toLowerCase();
         const matchCourse =
           String(wId).toLowerCase() === String(courseId).toLowerCase() ||
@@ -1609,14 +1710,15 @@ document.addEventListener(
           course
         );
 
-      const scheduleLocked =
-        count <
-        MIN_STUDENTS_TO_FINALIZE;
-
       const isNational =
         batchingCourseCategory(
           course
         ) === "national";
+
+      const scheduleLocked =
+        !isNational &&
+        count <
+        MIN_STUDENTS_TO_FINALIZE;
 
       if (templateForm) {
         templateForm.classList.toggle(
@@ -2078,19 +2180,23 @@ document.addEventListener(
           ) &&
           data.failed.length
         ) {
-          window.alert(
+          showNoticeModal(
             `Approved ${
               data.approvedCount ||
               approvedItems.length
             } student(s). ${
               data.failed.length
-            } could not be approved.`
+            } could not be approved.`,
+            "Approval Summary",
+            "warning"
           );
         }
       } catch (err) {
-        window.alert(
+        showNoticeModal(
           err.message ||
-            "Could not approve selected students."
+            "Could not approve selected students.",
+          "Approval Error",
+          "danger"
         );
       } finally {
         bulkApproveInFlight =
@@ -2199,6 +2305,31 @@ document.addEventListener(
           ok: false,
           missing: ["schedule not configured"],
           state: null,
+          studentCount: activeBatchStudentCount(course),
+        };
+      }
+
+      const isNational = batchingCourseCategory(course) === "national";
+      if (isNational) {
+        const missing = [];
+        if (!state.availableFrom) {
+          missing.push("assessment date");
+        }
+        if (!state.timeFrom || !state.timeTo) {
+          missing.push("assessment start & end times");
+        } else if (state.timeFrom >= state.timeTo) {
+          missing.push("end time after start time");
+        }
+        if (!state.assessmentVenue?.trim()) {
+          missing.push("assessment place / venue");
+        }
+        if (!state.assessorName?.trim()) {
+          missing.push("assessor name");
+        }
+        return {
+          ok: missing.length === 0,
+          missing,
+          state,
           studentCount: activeBatchStudentCount(course),
         };
       }
@@ -2439,6 +2570,16 @@ document.addEventListener(
         "trainer_name",
         template.trainerName ||
           ""
+      );
+
+      body.set(
+        "examiner_name",
+        template.examinerName || template.assessorName || template.trainerName || ""
+      );
+
+      body.set(
+        "assessment_venue",
+        template.assessmentVenue || ""
       );
 
       const res =
@@ -3067,6 +3208,27 @@ document.addEventListener(
       }
     }
 
+    function syncNationalFormLayout() {
+      const course = selectedCourse();
+      const isNational = Boolean(course && batchingCourseCategory(course) === "national");
+
+      if (isNational) {
+        trainingAyTermEl?.classList.add("d-none");
+        trainingFieldsEl?.classList.add("d-none");
+        assessmentFieldsEl?.classList.remove("d-none");
+        if (scheduleEyebrowEl) {
+          scheduleEyebrowEl.textContent = "National Assessment Schedule";
+        }
+      } else {
+        trainingAyTermEl?.classList.remove("d-none");
+        trainingFieldsEl?.classList.remove("d-none");
+        assessmentFieldsEl?.classList.add("d-none");
+        if (scheduleEyebrowEl) {
+          scheduleEyebrowEl.textContent = "Class schedule";
+        }
+      }
+    }
+
     function applyFormToInputs() {
       if (timeFromEl) {
         timeFromEl.value =
@@ -3087,6 +3249,33 @@ document.addEventListener(
         availableUntilEl.value =
           formState.availableUntil;
       }
+
+      if (assessmentDateEl) {
+        assessmentDateEl.value =
+          formState.availableFrom || "";
+      }
+
+      if (assessmentTimeFromEl) {
+        assessmentTimeFromEl.value =
+          formState.timeFrom || "08:00";
+      }
+
+      if (assessmentTimeToEl) {
+        assessmentTimeToEl.value =
+          formState.timeTo || "17:00";
+      }
+
+      if (assessmentVenueEl) {
+        assessmentVenueEl.value =
+          formState.assessmentVenue || "";
+      }
+
+      if (assessorNameEl) {
+        assessorNameEl.value =
+          formState.assessorName || formState.trainerName || "";
+      }
+
+      syncNationalFormLayout();
 
       updateTypePills();
 
@@ -3122,53 +3311,83 @@ document.addEventListener(
     }
 
     function readFormFromInputs() {
-      formState.timeFrom =
-        timeFromEl?.value ||
-        "";
+      const course = selectedCourse();
+      const isNational = Boolean(course && batchingCourseCategory(course) === "national");
 
-      formState.timeTo =
-        timeToEl?.value ||
-        "";
+      if (isNational) {
+        formState.availableFrom =
+          assessmentDateEl?.value || "";
 
-      formState.availableFrom =
-        availableFromEl?.value ||
-        "";
+        formState.availableUntil =
+          assessmentDateEl?.value || "";
 
-      formState.availableUntil =
-        availableUntilEl?.value ||
-        "";
+        formState.timeFrom =
+          assessmentTimeFromEl?.value || "08:00";
 
-      formState.trainerId =
-        trainerEl?.value ||
-        "";
+        formState.timeTo =
+          assessmentTimeToEl?.value || "17:00";
 
-      if (
-        formState.trainerId
-      ) {
-        const selected =
-          qualifiedTrainersForCourse(
-            selectedCourse()
-          ).find(
-            (t) =>
-              t.id ===
-              formState.trainerId
-          );
+        formState.assessmentVenue =
+          assessmentVenueEl?.value || "";
+
+        formState.assessorName =
+          assessorNameEl?.value || "";
 
         formState.trainerName =
-          selected?.name ||
-          "";
+          assessorNameEl?.value || "";
+
+        formState.trainerId = "";
+        formState.scheduleType = "custom";
+        formState.days = ["mon"];
       } else {
-        formState.trainerName =
+        formState.timeFrom =
+          timeFromEl?.value ||
           "";
+
+        formState.timeTo =
+          timeToEl?.value ||
+          "";
+
+        formState.availableFrom =
+          availableFromEl?.value ||
+          "";
+
+        formState.availableUntil =
+          availableUntilEl?.value ||
+          "";
+
+        formState.trainerId =
+          trainerEl?.value ||
+          "";
+
+        if (
+          formState.trainerId
+        ) {
+          const selected =
+            qualifiedTrainersForCourse(
+              course
+            ).find(
+              (t) =>
+                t.id ===
+                formState.trainerId
+            );
+
+          formState.trainerName =
+            selected?.name ||
+            "";
+        } else {
+          formState.trainerName =
+            "";
+        }
+
+        formState.academicYear =
+          academicYearEl?.value ||
+          "AY 2026–2027";
+
+        formState.term =
+          termEl?.value ||
+          "1st Semester";
       }
-
-      formState.academicYear =
-        academicYearEl?.value ||
-        "AY 2026–2027";
-
-      formState.term =
-        termEl?.value ||
-        "1st Semester";
 
       formState.name =
         getEffectiveBatchName();
@@ -3335,6 +3554,17 @@ document.addEventListener(
         batchKind:
           template.batchKind ||
           "training",
+
+        assessmentVenue:
+          template.assessmentVenue ||
+          template.examinationCourse ||
+          "",
+
+        assessorName:
+          template.examinerName ||
+          template.assessorName ||
+          template.trainerName ||
+          "",
       };
 
       applyFormToInputs();
@@ -3343,16 +3573,56 @@ document.addEventListener(
     function validateForm() {
       readFormFromInputs();
 
+      const course = selectedCourse();
+      const isNational = Boolean(course && batchingCourseCategory(course) === "national");
+
+      if (isNational) {
+        const batchCheck = validateBatchName();
+        if (!batchCheck.ok) {
+          if (batchCheck.reason === "occupied") {
+            showNoticeModal(
+              `Batch name "${batchCheck.name}" is already occupied for this course. Please choose a different batch name to avoid duplicates.`,
+              "Batch Name Conflict"
+            );
+          } else {
+            showNoticeModal("Please enter a valid batch name.", "Invalid Batch Name");
+          }
+          return false;
+        }
+        if (!formState.availableFrom) {
+          showNoticeModal("Please select the assessment date.", "Incomplete Assessment Schedule");
+          return false;
+        }
+        if (!formState.timeFrom || !formState.timeTo) {
+          showNoticeModal("Please specify the assessment start and end time.", "Incomplete Assessment Schedule");
+          return false;
+        }
+        if (formState.timeFrom >= formState.timeTo) {
+          showNoticeModal("End time must be after start time.", "Invalid Schedule Time");
+          return false;
+        }
+        if (!formState.assessmentVenue?.trim()) {
+          showNoticeModal("Please type the assessment place / venue.", "Incomplete Assessment Schedule");
+          return false;
+        }
+        if (!formState.assessorName?.trim()) {
+          showNoticeModal("Please type the assessor name.", "Incomplete Assessment Schedule");
+          return false;
+        }
+        return true;
+      }
+
       let ok = true;
 
       const batchCheck = validateBatchName();
       if (!batchCheck.ok) {
         if (batchCheck.reason === "occupied") {
-          alert(
-            `Batch name "${batchCheck.name}" is already occupied for this course. Please choose a different batch name to avoid duplicates.`
+          showNoticeModal(
+            `Batch name "${batchCheck.name}" is already occupied for this course. Please choose a different batch name to avoid duplicates.`,
+            "Batch Name Conflict"
           );
         } else {
-          alert("Please enter a valid batch name.");
+          showNoticeModal("Please enter a valid batch name.", "Invalid Batch Name");
         }
         ok = false;
       }
@@ -3381,8 +3651,9 @@ document.addEventListener(
         formState.timeFrom >=
         formState.timeTo
       ) {
-        alert(
-          "End time must be after start time."
+        showNoticeModal(
+          "End time must be after start time.",
+          "Invalid Schedule Time"
         );
 
         ok = false;
@@ -3394,8 +3665,9 @@ document.addEventListener(
         formState.availableUntil <
           formState.availableFrom
       ) {
-        alert(
-          "Available until must be on or after available from."
+        showNoticeModal(
+          "Available until must be on or after available from.",
+          "Invalid Date Range"
         );
 
         ok = false;
@@ -3404,8 +3676,9 @@ document.addEventListener(
       if (
         !formState.trainerId
       ) {
-        alert(
-          "Please select a qualified trainer for this schedule."
+        showNoticeModal(
+          "Please select a qualified trainer for this schedule.",
+          "Trainer Required"
         );
 
         ok = false;
@@ -3440,10 +3713,11 @@ document.addEventListener(
             : null;
 
         if (conflict) {
-          alert(
+          showNoticeModal(
             `Schedule conflict: ${trainer.name} is already assigned to ${formatBatchConflictLabel(
               conflict
-            )} on overlapping days, times, or dates.`
+            )} on overlapping days, times, or dates.`,
+            "Trainer Schedule Conflict"
           );
 
           refreshTrainerScheduleUI();
@@ -3735,11 +4009,15 @@ document.addEventListener(
                   )
               );
 
+            const isNational =
+              batchingCourseCategory(course) === "national";
+
             const locked =
+              !isNational &&
               count <
               MIN_STUDENTS_TO_FINALIZE;
 
-            // Only becomes open when at least 3 students are enrolled!
+            // Only becomes open when at least 3 students are enrolled! (Except National Competency assessment which has no quota)
             const canOpen = !locked;
 
             const qualifiedTrainers =
@@ -3778,6 +4056,7 @@ document.addEventListener(
                 : "";
 
             const barClass =
+              isNational ||
               count >=
               MIN_STUDENTS_TO_FINALIZE
                 ? "registrar-batch-card__bar-fill--ready"
@@ -3980,7 +4259,7 @@ document.addEventListener(
         activeBatchStudentCount(course);
 
       const scheduleLocked =
-        count < MIN_STUDENTS_TO_FINALIZE;
+        !isNational && count < MIN_STUDENTS_TO_FINALIZE;
 
       if (templateForm) {
         templateForm.classList.toggle(
@@ -4383,6 +4662,18 @@ document.addEventListener(
     availableUntilEl?.addEventListener("input", onScheduleFieldInput);
     availableUntilEl?.addEventListener("change", onScheduleFieldInput);
 
+    assessmentDateEl?.addEventListener("input", onScheduleFieldInput);
+    assessmentDateEl?.addEventListener("change", onScheduleFieldInput);
+
+    assessmentTimeFromEl?.addEventListener("input", onScheduleFieldInput);
+    assessmentTimeFromEl?.addEventListener("change", onScheduleFieldInput);
+
+    assessmentTimeToEl?.addEventListener("input", onScheduleFieldInput);
+    assessmentTimeToEl?.addEventListener("change", onScheduleFieldInput);
+
+    assessmentVenueEl?.addEventListener("input", onScheduleFieldInput);
+    assessorNameEl?.addEventListener("input", onScheduleFieldInput);
+
     trainerEl?.addEventListener(
       "change",
       () => {
@@ -4490,6 +4781,15 @@ document.addEventListener(
 
         batchLabel:
           `${state.academicYear || "AY 2026–2027"} · ${state.name || "Batch 1"}`,
+
+        assessmentVenue:
+          state.assessmentVenue || "",
+
+        examinerName:
+          state.assessorName || state.trainerName || "",
+
+        assessorName:
+          state.assessorName || state.trainerName || "",
 
         createdAt:
           new Date().toISOString(),
@@ -4628,9 +4928,11 @@ document.addEventListener(
             }
           );
         } catch (err) {
-          window.alert(
+          showNoticeModal(
             err.message ||
-              "Could not save schedule."
+              "Could not save schedule.",
+            "Schedule Save Notice",
+            "warning"
           );
         }
       }
@@ -4659,8 +4961,10 @@ document.addEventListener(
         for (const c of targetCourses) {
           const check = checkCourseRequirements(c.id);
           if (!check.ok) {
-            window.alert(
-              `Cannot save for all: "${c.name}" schedule is incomplete (missing ${check.missing.join(", ")}). Click its tab to set its schedule.`
+            showNoticeModal(
+              `Cannot save for all: "${c.name}" schedule is incomplete (missing ${check.missing.join(", ")}). Click its tab to set its schedule.`,
+              "Incomplete Schedule",
+              "warning"
             );
             return;
           }
@@ -4740,9 +5044,11 @@ document.addEventListener(
             courseName: `${targetCourses.length} selected programs (${savedNames.join(", ")})`,
           });
         } catch (err) {
-          window.alert(
+          showNoticeModal(
             err.message ||
-              "Could not save schedules for selected programs."
+              "Could not save schedules for selected programs.",
+            "Save All Notice",
+            "warning"
           );
         } finally {
           updateActionButtonsState();
@@ -4838,8 +5144,10 @@ document.addEventListener(
           tpl?.status === "finalized" ||
           tpl?.status === "active"
         ) {
-          window.alert(
-            "This batch is finalized. View it on Finalized Batches."
+          showNoticeModal(
+            "This batch is finalized. View it on Finalized Batches.",
+            "Batch Finalized",
+            "info"
           );
 
           loadDraftForSelectedCourse();
@@ -4932,7 +5240,7 @@ document.addEventListener(
       .getElementById("batching-override-student-btn")
       ?.addEventListener("click", () => {
         if (!selectedCourseId) {
-          alert("Please select a course card first.");
+          showNoticeModal("Please select a course card first.", "Course Selection Required");
           return;
         }
         if (overrideSearchEl) overrideSearchEl.value = "";
@@ -4978,14 +5286,14 @@ document.addEventListener(
           if (!res.ok) throw new Error(data.error || "Failed to insert student.");
 
           overrideModal?.hide();
-          alert(data.message || "Student inserted into batch successfully.");
+          showNoticeModal(data.message || "Student inserted into batch successfully.", "Override Success", "success");
           window.location.reload();
         } catch (err) {
-          alert(err.message || "Override insertion failed.");
+          showNoticeModal(err.message || "Override insertion failed.", "Override Error", "danger");
           btn.disabled = false;
         }
       } else {
-        alert("Please save this schedule template first by clicking 'Save schedule', then you can insert override students.");
+        showNoticeModal("Please save this schedule template first by clicking 'Save schedule', then you can insert override students.", "Schedule Not Saved", "warning");
         btn.disabled = false;
       }
     });

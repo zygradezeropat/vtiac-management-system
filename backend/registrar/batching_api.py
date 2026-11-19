@@ -837,6 +837,17 @@ def _serialize_template(
             or ""
         ),
 
+        "examinerName": (
+            t.examiner_name
+            or t.trainer_name
+            or ""
+        ),
+
+        "assessmentVenue": (
+            t.examination_course
+            or ""
+        ),
+
         "batchLabel": (
             t.batch_label
             or f"{t.academic_year or 'AY 2026–2027'} · {t.term or '1st Semester'}"
@@ -1128,7 +1139,10 @@ def batching_template_activate(
     # MINIMUM STUDENTS
     # ---------------------------------------------------------
 
-    if len(students) < MIN_STUDENTS_TO_ACTIVATE:
+    if (
+        obj.batch_kind != BatchKind.NATIONAL_ASSESSMENT
+        and len(students) < MIN_STUDENTS_TO_ACTIVATE
+    ):
 
         return JsonResponse(
             {
@@ -1463,7 +1477,8 @@ def batching_template_upsert(request):
     norm_current_ay = academic_year.replace("–", "-").strip().lower()
 
     dup_candidates = RegistrarScheduleTemplate.objects.filter(
-        course_name__iexact=course_name.strip()
+        course_name__iexact=course_name.strip(),
+        batch_kind=batch_kind,
     )
     if obj.pk:
         dup_candidates = dup_candidates.exclude(pk=obj.pk)
@@ -1556,30 +1571,50 @@ def batching_template_upsert(request):
     # ASSESSMENT
     # ---------------------------------------------------------
 
+    examiner_name = (
+        data.get("examiner_name")
+        or data.get("examinerName")
+        or data.get("assessor_name")
+        or data.get("assessorName")
+        or ""
+    ).strip()
+
+    assessment_venue = (
+        data.get("assessment_venue")
+        or data.get("assessmentVenue")
+        or data.get("place")
+        or ""
+    ).strip()
+
     obj.assessment_at = None
-
-    obj.examiner_name = ""
-
-    obj.examination_course = ""
+    obj.examiner_name = examiner_name[:150]
+    obj.examination_course = assessment_venue[:200]
 
     # ---------------------------------------------------------
     # TRAINER
     # ---------------------------------------------------------
 
-    obj.trainer_request = trainer
-
-    obj.trainer_name = (
-        data.get(
-            "trainer_name",
-            "",
-        ).strip()
-    )
+    if batch_kind == BatchKind.NATIONAL_ASSESSMENT:
+        obj.trainer_request = None
+        obj.trainer_name = examiner_name[:150]
+        if not obj.schedule_type:
+            obj.schedule_type = "custom"
+        if not obj.days:
+            obj.days = ["mon"]
+    else:
+        obj.trainer_request = trainer
+        obj.trainer_name = (
+            data.get(
+                "trainer_name",
+                "",
+            ).strip()
+        )
 
     # ---------------------------------------------------------
     # CHECK ACTIVE TRAINER SCHEDULE CONFLICT
     # ---------------------------------------------------------
 
-    if (
+    if batch_kind != BatchKind.NATIONAL_ASSESSMENT and (
         obj.trainer_request_id
         or obj.trainer_name
     ):

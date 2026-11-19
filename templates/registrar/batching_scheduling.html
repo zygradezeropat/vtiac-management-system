@@ -288,8 +288,8 @@
       </p>
 
 
-      <!-- Academic Year & Term Batching Identifier -->
-      <div class="row g-3 mb-4">
+      <!-- Academic Year & Term Batching Identifier (Training batches) -->
+      <div id="training-academic-year-term" class="row g-3 mb-4">
 
         <div class="col-sm-6">
 
@@ -373,8 +373,8 @@
       </div>
 
 
-      <!-- Batch Label / Name -->
-      <div class="mb-4">
+      <!-- Batch Label / Name (Shared by both Training and National Assessment) -->
+      <div id="batch-name-field-group" class="mb-4">
 
         <div class="d-flex align-items-center justify-content-between mb-1">
           <label
@@ -420,6 +420,7 @@
       </div>
 
 
+      <div id="training-schedule-fields">
       <!-- Schedule type -->
       <div class="mb-4">
 
@@ -668,6 +669,82 @@
         </small>
 
       </div>
+      </div>
+      <!-- /#training-schedule-fields -->
+
+      <!-- Assessment Only Fields (National Competency: Date, Time, Place, Assessor) -->
+      <div id="assessment-schedule-fields" class="d-none">
+        <!-- Date and Time Schedule -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="template-assessment-date">
+              Assessment Date <span class="text-danger">*</span>
+            </label>
+            <input
+              type="date"
+              id="template-assessment-date"
+              class="form-control form-control-vtiac"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="template-assessment-time-from">
+              Time from <span class="text-danger">*</span>
+            </label>
+            <input
+              type="time"
+              id="template-assessment-time-from"
+              class="form-control form-control-vtiac"
+              value="08:00"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold" for="template-assessment-time-to">
+              Time to <span class="text-danger">*</span>
+            </label>
+            <input
+              type="time"
+              id="template-assessment-time-to"
+              class="form-control form-control-vtiac"
+              value="17:00"
+            />
+          </div>
+        </div>
+
+        <!-- Place (type only) -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="template-assessment-venue">
+            Place / Assessment Venue <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            id="template-assessment-venue"
+            class="form-control form-control-vtiac"
+            placeholder="Type assessment place / venue (e.g. VTIAC Assessment Center / Room 302)"
+            maxlength="200"
+          />
+          <small class="text-muted d-block mt-1">
+            Specify the testing location, room number, or assessment center.
+          </small>
+        </div>
+
+        <!-- Assessor (type only cause we dont know the names of the assessor) -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="template-assessor-name">
+            Assessor <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            id="template-assessor-name"
+            class="form-control form-control-vtiac"
+            placeholder="Type assessor name (e.g. TESDA Accredited Assessor)"
+            maxlength="150"
+          />
+          <small class="text-muted d-block mt-1">
+            Type the assigned competency assessor's name.
+          </small>
+        </div>
+      </div>
+      <!-- /#assessment-schedule-fields -->
 
 
       <!-- Form buttons -->
@@ -714,6 +791,26 @@
 
 {% include "components/registrar/schedule_saved_confirm_modal.html" %}
 {% include "components/registrar/finalize_batch_confirm_modal.html" %}
+
+<!-- Modal: Batching Notice / Alert -->
+<div class="modal fade" id="batching-notice-modal" tabindex="-1" aria-labelledby="batching-notice-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-body p-4 p-md-5 text-center">
+        <div id="batching-notice-modal-icon-wrap" class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3" style="width: 56px; height: 56px; background-color: rgba(245, 158, 11, 0.12);">
+          <i id="batching-notice-modal-icon" class="bi bi-exclamation-triangle-fill text-warning fs-3"></i>
+        </div>
+        <h3 id="batching-notice-modal-title" class="h5 fw-bold mb-2">Notice</h3>
+        <p id="batching-notice-modal-message" class="text-secondary mb-0"></p>
+        <div class="d-flex justify-content-center mt-4">
+          <button type="button" class="btn btn-primary fw-semibold rounded-3 px-4" data-bs-dismiss="modal">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: Manual Student Batch Override -->
 <div class="modal fade" id="batching-override-modal" tabindex="-1" aria-labelledby="batching-override-modal-title" aria-hidden="true">

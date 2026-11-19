@@ -101,10 +101,10 @@
         </button>
       </div>
 
-      <div class="d-flex flex-wrap align-items-center gap-2">
-        <div class="d-flex align-items-center gap-1.5 text-muted small me-md-2">
+      <div class="d-flex flex-nowrap align-items-center gap-2 registrar-doc-req-filters flex-shrink-0">
+        <div class="d-flex align-items-center gap-1.5 text-muted small me-md-1 flex-shrink-0">
           <span>Show</span>
-          <select id="docReqPageSize" class="form-select form-select-sm rounded-3 py-1 ps-2.5 pe-4" style="width: auto; min-width: 4.5rem;">
+          <select id="docReqPageSize" class="form-select form-select-sm rounded-3 py-1 ps-2.5 pe-4" style="width: auto; min-width: 4rem;">
             <option value="10" selected>10</option>
             <option value="25">25</option>
             <option value="50">50</option>
@@ -112,15 +112,17 @@
           </select>
           <span>entries</span>
         </div>
-        <div class="position-relative">
+        <div class="position-relative flex-shrink-1">
           <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-2.5 text-muted small pointer-events-none" style="z-index: 4;"></i>
           <input type="search" id="docReqSearchInput" class="form-control form-control-sm rounded-3 ps-4"
-            placeholder="Search student, document..." style="min-width: 14rem;">
+            placeholder="Search student, document..." style="width: 12.5rem; min-width: 8.5rem;">
         </div>
-        <div class="gdrive-sort-wrap" title="Sort order">
+        <div class="gdrive-sort-wrap flex-shrink-0" title="Sort order">
           <select id="docReqSort" class="form-select gdrive-sort-select" aria-label="Sort document requests">
             <option value="name_asc" selected>Name (A–Z)</option>
             <option value="name_desc">Name (Z–A)</option>
+            <option value="date_desc">Date Requested (Newest)</option>
+            <option value="date_asc">Date Requested (Oldest)</option>
           </select>
           <button type="button" class="gdrive-sort-btn" id="docReqSortDirBtn" title="Reverse sort direction (A–Z / Z–A)">
             <i class="bi bi-sort-alpha-down" id="docReqSortDirIcon" aria-hidden="true"></i>
@@ -143,7 +145,9 @@
             </th>
             <th>Requested Document</th>
             <th>Purpose</th>
-            <th>Date Requested</th>
+            <th class="th-sortable" id="thSortDocReqDate" style="cursor: pointer; user-select: none;">
+              Date Requested <i class="bi bi-arrow-down-up text-muted ms-1" id="thSortDocReqDateIcon"></i>
+            </th>
             <th>Status</th>
             <th>Claim / Pick-Up Date</th>
             <th>Remarks</th>
@@ -152,7 +156,7 @@
         </thead>
         <tbody>
           {% for req in document_requests %}
-          <tr data-req-id="{{ req.id }}" data-status="{{ req.status }}" data-student-name="{{ req.student_name }}"
+          <tr data-req-id="{{ req.id }}" data-status="{{ req.status }}" data-student-name="{{ req.student_name }}" data-date-requested="{{ req.raw_requested_at|default:req.requested_at }}"
             data-text="{{ req.student_name }} {{ req.student_email }} {{ req.document_name }} {{ req.program_name }} {{ req.purpose }} {{ req.status_display }} {{ req.release_date }}">
             <td>
               <div class="fw-semibold text-dark">{{ req.student_name }}</div>
@@ -371,15 +375,27 @@
     const sortDirIcon = document.getElementById("docReqSortDirIcon");
     const thSortStudent = document.getElementById("thSortDocReqStudent");
     const thSortIcon = document.getElementById("thSortDocReqIcon");
+    const thSortDate = document.getElementById("thSortDocReqDate");
+    const thSortDateIcon = document.getElementById("thSortDocReqDateIcon");
 
     function syncSortUi(val) {
       currentSort = val;
       if (sortSelect) sortSelect.value = val;
       if (sortDirIcon) {
-        sortDirIcon.className = val === "name_desc" ? "bi bi-sort-alpha-down-alt" : "bi bi-sort-alpha-down";
+        if (val === "name_desc") sortDirIcon.className = "bi bi-sort-alpha-down-alt";
+        else if (val === "name_asc") sortDirIcon.className = "bi bi-sort-alpha-down";
+        else if (val === "date_asc") sortDirIcon.className = "bi bi-sort-numeric-down";
+        else sortDirIcon.className = "bi bi-sort-numeric-down-alt";
       }
       if (thSortIcon) {
-        thSortIcon.className = val === "name_desc" ? "bi bi-arrow-down text-primary ms-1" : "bi bi-arrow-up text-primary ms-1";
+        if (val === "name_desc") thSortIcon.className = "bi bi-arrow-down text-primary ms-1";
+        else if (val === "name_asc") thSortIcon.className = "bi bi-arrow-up text-primary ms-1";
+        else thSortIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+      }
+      if (thSortDateIcon) {
+        if (val === "date_desc") thSortDateIcon.className = "bi bi-arrow-down text-primary ms-1";
+        else if (val === "date_asc") thSortDateIcon.className = "bi bi-arrow-up text-primary ms-1";
+        else thSortDateIcon.className = "bi bi-arrow-down-up text-muted ms-1";
       }
     }
 
@@ -435,7 +451,18 @@
       return filtered.sort((a, b) => {
         const nameA = (a.dataset.studentName || "").toLowerCase().trim();
         const nameB = (b.dataset.studentName || "").toLowerCase().trim();
-        return currentSort === "name_desc" ? nameB.localeCompare(nameA) : nameA.localeCompare(nameB);
+        if (currentSort === "name_desc") return nameB.localeCompare(nameA);
+        if (currentSort === "date_desc") {
+          const dateA = new Date(a.dataset.dateRequested || 0).getTime();
+          const dateB = new Date(b.dataset.dateRequested || 0).getTime();
+          return dateB - dateA;
+        }
+        if (currentSort === "date_asc") {
+          const dateA = new Date(a.dataset.dateRequested || 0).getTime();
+          const dateB = new Date(b.dataset.dateRequested || 0).getTime();
+          return dateA - dateB;
+        }
+        return nameA.localeCompare(nameB);
       });
     }
 
@@ -618,7 +645,11 @@
 
     if (sortDirBtn) {
       sortDirBtn.addEventListener("click", () => {
-        const nextSort = currentSort === "name_asc" ? "name_desc" : "name_asc";
+        let nextSort = "name_asc";
+        if (currentSort === "name_asc") nextSort = "name_desc";
+        else if (currentSort === "name_desc") nextSort = "name_asc";
+        else if (currentSort === "date_desc") nextSort = "date_asc";
+        else if (currentSort === "date_asc") nextSort = "date_desc";
         syncSortUi(nextSort);
         currentPage = 1;
         renderTable();
@@ -628,6 +659,15 @@
     if (thSortStudent) {
       thSortStudent.addEventListener("click", () => {
         const nextSort = currentSort === "name_asc" ? "name_desc" : "name_asc";
+        syncSortUi(nextSort);
+        currentPage = 1;
+        renderTable();
+      });
+    }
+
+    if (thSortDate) {
+      thSortDate.addEventListener("click", () => {
+        const nextSort = currentSort === "date_desc" ? "date_asc" : "date_desc";
         syncSortUi(nextSort);
         currentPage = 1;
         renderTable();

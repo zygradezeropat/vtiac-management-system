@@ -17,15 +17,15 @@
   <div id="module-tabs" class="registrar-tabs" role="group"></div>
   <div class="registrar-panel">
     <div class="registrar-panel__body">
-      <div class="registrar-student-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 mb-3">
-        <div class="d-flex align-items-center gap-2 min-w-0">
+      <div class="registrar-student-toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 gap-md-3 mb-3">
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
           <h3 id="module-title" class="registrar-panel__title registrar-student-toolbar__title mb-0"></h3>
           <span id="module-badge" class="registrar-pill registrar-pill--primary flex-shrink-0"></span>
         </div>
-        <div class="d-flex flex-nowrap align-items-center gap-2 registrar-student-filters flex-shrink-0">
+        <div class="d-flex flex-wrap align-items-center gap-2 registrar-student-filters flex-grow-1 justify-content-end">
           <input type="text" id="student-search" placeholder="Search student..." class="form-control form-control-sm registrar-student-search" />
-          <select id="program-filter" class="form-select form-select-sm registrar-student-program-filter" style="min-width:16rem"></select>
-          <select id="doc-status-filter" class="form-select form-select-sm registrar-student-doc-filter" style="min-width:13rem">
+          <select id="program-filter" class="form-select form-select-sm registrar-student-program-filter"></select>
+          <select id="doc-status-filter" class="form-select form-select-sm registrar-student-doc-filter">
             <option value="all">All Submission Records</option>
             <option value="hard_submitted">Hard Copies: Received</option>
             <option value="hard_pending">Hard Copies: Pending</option>
