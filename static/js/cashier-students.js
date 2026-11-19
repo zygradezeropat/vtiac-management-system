@@ -126,6 +126,16 @@ function applyFilters(students) {
     switch (filterState.sort) {
       case "name_desc":
         return b.name.localeCompare(a.name);
+      case "date_desc": {
+        const dateA = a.registrationDate ? new Date(a.registrationDate).getTime() : 0;
+        const dateB = b.registrationDate ? new Date(b.registrationDate).getTime() : 0;
+        return dateB - dateA;
+      }
+      case "date_asc": {
+        const dateA = a.registrationDate ? new Date(a.registrationDate).getTime() : 0;
+        const dateB = b.registrationDate ? new Date(b.registrationDate).getTime() : 0;
+        return dateA - dateB;
+      }
       case "balance_desc":
         return Number(b.totalRemaining || 0) - Number(a.totalRemaining || 0);
       case "balance_asc":
@@ -791,6 +801,10 @@ function resetAllFilters() {
 
   const sortSelect = document.getElementById("studentSort");
   if (sortSelect) sortSelect.value = "name_asc";
+  const sortDirIcon = document.getElementById("studentSortDirIcon");
+  if (sortDirIcon) sortDirIcon.className = "bi bi-sort-alpha-down";
+  const thStudentSortIcon = document.getElementById("thStudentSortIcon");
+  if (thStudentSortIcon) thStudentSortIcon.className = "bi bi-arrow-up text-primary ms-1";
 
   document.querySelectorAll(".cashier-status-pill").forEach((pill) => {
     pill.classList.toggle("is-active", pill.dataset.status === "all");
@@ -903,10 +917,56 @@ export async function initCashierStudents() {
     refreshView(true);
   });
 
-  // Sort
-  sortSelect?.addEventListener("change", () => {
-    filterState.sort = sortSelect.value;
+  // Sort (Google Drive inspired)
+  const sortDirBtn = document.getElementById("studentSortDirBtn");
+  const sortDirIcon = document.getElementById("studentSortDirIcon");
+  const thStudentSortName = document.getElementById("thStudentSortName");
+  const thStudentSortIcon = document.getElementById("thStudentSortIcon");
+
+  function syncSortUi(val) {
+    filterState.sort = val;
+    if (sortSelect) sortSelect.value = val;
+    if (sortDirIcon) {
+      if (val === "name_desc") {
+        sortDirIcon.className = "bi bi-sort-alpha-down-alt";
+      } else if (val === "name_asc") {
+        sortDirIcon.className = "bi bi-sort-alpha-down";
+      } else if (val === "date_asc" || val === "due_asc" || val === "balance_asc") {
+        sortDirIcon.className = "bi bi-sort-up";
+      } else {
+        sortDirIcon.className = "bi bi-sort-down";
+      }
+    }
+    if (thStudentSortIcon) {
+      if (val === "name_desc") {
+        thStudentSortIcon.className = "bi bi-arrow-down text-primary ms-1";
+      } else if (val === "name_asc") {
+        thStudentSortIcon.className = "bi bi-arrow-up text-primary ms-1";
+      } else {
+        thStudentSortIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+      }
+    }
     refreshView(false);
+  }
+
+  sortSelect?.addEventListener("change", () => {
+    syncSortUi(sortSelect.value);
+  });
+
+  sortDirBtn?.addEventListener("click", () => {
+    let nextSort = "name_asc";
+    if (filterState.sort === "name_asc") nextSort = "name_desc";
+    else if (filterState.sort === "name_desc") nextSort = "name_asc";
+    else if (filterState.sort === "date_desc") nextSort = "date_asc";
+    else if (filterState.sort === "date_asc") nextSort = "date_desc";
+    else if (filterState.sort === "balance_desc") nextSort = "balance_asc";
+    else if (filterState.sort === "balance_asc") nextSort = "balance_desc";
+    syncSortUi(nextSort);
+  });
+
+  thStudentSortName?.addEventListener("click", () => {
+    const nextSort = filterState.sort === "name_asc" ? "name_desc" : "name_asc";
+    syncSortUi(nextSort);
   });
 
   // Reset Filters

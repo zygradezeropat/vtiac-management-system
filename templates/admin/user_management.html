@@ -30,6 +30,17 @@
         <option value="cashier">Cashier</option>
         <option value="trainer">Trainer</option>
       </select>
+      <div class="gdrive-sort-wrap" title="Sort order">
+        <select id="userSortFilter" class="form-select gdrive-sort-select" aria-label="Sort users">
+          <option value="name_asc" selected>Name (A–Z)</option>
+          <option value="name_desc">Name (Z–A)</option>
+          <option value="date_desc">Date Enrolled / Created (Newest)</option>
+          <option value="date_asc">Date Enrolled / Created (Oldest)</option>
+        </select>
+        <button type="button" class="gdrive-sort-btn" id="userSortDirBtn" title="Reverse sort direction">
+          <i class="bi bi-sort-alpha-down" id="userSortDirIcon" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
     <button type="button" class="btn admin-save-button" id="addUserButton">
       <i class="bi bi-person-plus" aria-hidden="true"></i>
@@ -44,7 +55,9 @@
       <table class="admin-egace-table admin-users-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th class="th-sortable" id="thSortName" title="Click to sort A-Z / Z-A" style="cursor: pointer; user-select: none;">
+              Name <i class="bi bi-arrow-up text-primary ms-1" id="thSortNameIcon"></i>
+            </th>
             <th>Email</th>
             <th>Account</th>
             <th>Role</th>

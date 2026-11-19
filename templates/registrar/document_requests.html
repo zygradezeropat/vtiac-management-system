@@ -117,6 +117,15 @@
           <input type="search" id="docReqSearchInput" class="form-control form-control-sm rounded-3 ps-4"
             placeholder="Search student, document..." style="min-width: 14rem;">
         </div>
+        <div class="gdrive-sort-wrap" title="Sort order">
+          <select id="docReqSort" class="form-select gdrive-sort-select" aria-label="Sort document requests">
+            <option value="name_asc" selected>Name (A–Z)</option>
+            <option value="name_desc">Name (Z–A)</option>
+          </select>
+          <button type="button" class="gdrive-sort-btn" id="docReqSortDirBtn" title="Reverse sort direction (A–Z / Z–A)">
+            <i class="bi bi-sort-alpha-down" id="docReqSortDirIcon" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -129,7 +138,9 @@
       <table class="table align-middle table-hover mb-0" id="docReqTable">
         <thead class="table-light">
           <tr>
-            <th>Student Details</th>
+            <th class="th-sortable" id="thSortDocReqStudent" style="cursor: pointer; user-select: none;">
+              Student Details <i class="bi bi-arrow-up text-primary ms-1" id="thSortDocReqIcon"></i>
+            </th>
             <th>Requested Document</th>
             <th>Purpose</th>
             <th>Date Requested</th>
@@ -141,7 +152,7 @@
         </thead>
         <tbody>
           {% for req in document_requests %}
-          <tr data-req-id="{{ req.id }}" data-status="{{ req.status }}"
+          <tr data-req-id="{{ req.id }}" data-status="{{ req.status }}" data-student-name="{{ req.student_name }}"
             data-text="{{ req.student_name }} {{ req.student_email }} {{ req.document_name }} {{ req.program_name }} {{ req.purpose }} {{ req.status_display }} {{ req.release_date }}">
             <td>
               <div class="fw-semibold text-dark">{{ req.student_name }}</div>
@@ -349,10 +360,28 @@
     let activeTab = "all";
     let currentPage = 1;
     let pageSize = 10;
+    let currentSort = "name_asc";
     let pendingReqId = null;
     let pendingStatus = "";
     let pendingRemarks = "";
     let pendingReleaseDate = "";
+
+    const sortSelect = document.getElementById("docReqSort");
+    const sortDirBtn = document.getElementById("docReqSortDirBtn");
+    const sortDirIcon = document.getElementById("docReqSortDirIcon");
+    const thSortStudent = document.getElementById("thSortDocReqStudent");
+    const thSortIcon = document.getElementById("thSortDocReqIcon");
+
+    function syncSortUi(val) {
+      currentSort = val;
+      if (sortSelect) sortSelect.value = val;
+      if (sortDirIcon) {
+        sortDirIcon.className = val === "name_desc" ? "bi bi-sort-alpha-down-alt" : "bi bi-sort-alpha-down";
+      }
+      if (thSortIcon) {
+        thSortIcon.className = val === "name_desc" ? "bi bi-arrow-down text-primary ms-1" : "bi bi-arrow-up text-primary ms-1";
+      }
+    }
 
     function toggleReleaseDateGroup() {
       const val = statusSelect ? statusSelect.value : "";
@@ -389,7 +418,7 @@
 
     function getMatchingRows() {
       const q = (searchInput?.value || "").toLowerCase().trim();
-      return tableRows.filter(row => {
+      const filtered = tableRows.filter(row => {
         const st = (row.dataset.status || "").toLowerCase();
         const text = (row.dataset.text || "").toLowerCase();
 
@@ -401,6 +430,12 @@
         if (!matchesTab) return false;
         if (!q) return true;
         return text.includes(q);
+      });
+
+      return filtered.sort((a, b) => {
+        const nameA = (a.dataset.studentName || "").toLowerCase().trim();
+        const nameB = (b.dataset.studentName || "").toLowerCase().trim();
+        return currentSort === "name_desc" ? nameB.localeCompare(nameA) : nameA.localeCompare(nameB);
       });
     }
 
@@ -439,7 +474,10 @@
         tbody.appendChild(emptyTr);
       } else {
         const visibleRows = matchingRows.slice(startIdx, endIdx);
-        visibleRows.forEach(row => row.style.display = "");
+        visibleRows.forEach(row => {
+          tbody.appendChild(row);
+          row.style.display = "";
+        });
       }
 
       const displayStart = totalMatching === 0 ? 0 : startIdx + 1;
@@ -565,6 +603,32 @@
     if (pageSizeSelect) {
       pageSizeSelect.addEventListener("change", (e) => {
         pageSize = e.target.value;
+        currentPage = 1;
+        renderTable();
+      });
+    }
+
+    if (sortSelect) {
+      sortSelect.addEventListener("change", (e) => {
+        syncSortUi(e.target.value);
+        currentPage = 1;
+        renderTable();
+      });
+    }
+
+    if (sortDirBtn) {
+      sortDirBtn.addEventListener("click", () => {
+        const nextSort = currentSort === "name_asc" ? "name_desc" : "name_asc";
+        syncSortUi(nextSort);
+        currentPage = 1;
+        renderTable();
+      });
+    }
+
+    if (thSortStudent) {
+      thSortStudent.addEventListener("click", () => {
+        const nextSort = currentSort === "name_asc" ? "name_desc" : "name_asc";
+        syncSortUi(nextSort);
         currentPage = 1;
         renderTable();
       });

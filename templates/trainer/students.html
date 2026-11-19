@@ -35,6 +35,17 @@
         <option value="{{ schedule }}">{{ schedule }}</option>
         {% endfor %}
       </select>
+      <div class="gdrive-sort-wrap" title="Sort order">
+        <select class="form-select trainer-filter-select gdrive-sort-select" id="trainer-student-sort" aria-label="Sort students">
+          <option value="name_asc" selected>Name (A–Z)</option>
+          <option value="name_desc">Name (Z–A)</option>
+          <option value="date_desc">Date Enrolled (Newest)</option>
+          <option value="date_asc">Date Enrolled (Oldest)</option>
+        </select>
+        <button type="button" class="gdrive-sort-btn" id="trainerStudentSortDirBtn" title="Reverse sort direction (A–Z / Z–A)">
+          <i class="bi bi-sort-alpha-down" id="trainerStudentSortDirIcon" aria-hidden="true"></i>
+        </button>
+      </div>
       {% if attendance_print_students %}
       <button
         type="button"
@@ -56,7 +67,9 @@
       <table class="table trainer-table mb-0">
         <thead>
           <tr>
-            <th>Name</th>
+            <th class="th-sortable" id="th-trainer-student-sort" style="cursor: pointer; user-select: none;">
+              Name <i class="bi bi-arrow-up text-primary ms-1" id="th-trainer-student-icon"></i>
+            </th>
             <th>Program</th>
             <th>Batch</th>
             <th>Schedule</th>
@@ -67,6 +80,8 @@
           {% for student in assigned_students %}
           <tr
             data-search="{{ student.search_text }}"
+            data-name="{{ student.name }}"
+            data-date="{{ student.enrolled_date }}"
             data-program="{{ student.program }}"
             data-batch="{{ student.batch_label }}"
             data-schedule="{{ student.schedule }}"

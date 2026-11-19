@@ -64,8 +64,8 @@
 
   <!-- Filter & Search Toolbar -->
   <div class="card border-0 shadow-sm rounded-3 p-3 bg-white mb-3">
-    <form method="get" action="/admin/touch-logs/" class="row g-2 align-items-center">
-      <div class="col-md-5">
+    <form method="get" action="/admin/touch-logs/" class="row g-2 align-items-center" id="touchLogForm">
+      <div class="col-md-4">
         <div class="input-group">
           <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
           <input
@@ -73,12 +73,12 @@
             name="q"
             value="{{ search_query }}"
             class="form-control border-start-0"
-            placeholder="Search by staff, email, student, or target ID..."
+            placeholder="Search staff, student, target..."
             autocomplete="off"
           />
         </div>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <select name="module" class="form-select" onchange="this.form.submit()">
           <option value="all" {% if active_module_filter == "all" %}selected{% endif %}>All Modules</option>
           <option value="cashier" {% if active_module_filter == "cashier" %}selected{% endif %}>Cashier Module</option>
@@ -86,11 +86,24 @@
           <option value="user_management" {% if active_module_filter == "user_management" %}selected{% endif %}>User Management</option>
         </select>
       </div>
-      <div class="col-md-3 d-flex gap-2">
+      <div class="col-md-3">
+        <div class="gdrive-sort-wrap w-100" title="Sort order">
+          <select name="sort" id="touchLogSort" class="form-select gdrive-sort-select" onchange="this.form.submit()">
+            <option value="date_desc" {% if sort == "date_desc" or not sort %}selected{% endif %}>Date (Newest)</option>
+            <option value="date_asc" {% if sort == "date_asc" %}selected{% endif %}>Date (Oldest)</option>
+            <option value="name_asc" {% if sort == "name_asc" %}selected{% endif %}>Staff Name (A–Z)</option>
+            <option value="name_desc" {% if sort == "name_desc" %}selected{% endif %}>Staff Name (Z–A)</option>
+          </select>
+          <button type="button" class="gdrive-sort-btn" id="touchLogSortDirBtn" title="Reverse sort direction">
+            <i class="bi {% if sort == 'name_desc' %}bi-sort-alpha-down-alt{% elif sort == 'name_asc' %}bi-sort-alpha-down{% elif sort == 'date_asc' %}bi-sort-up{% else %}bi-sort-down{% endif %}" id="touchLogSortDirIcon" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
         <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
           <i class="bi bi-funnel me-1"></i>Filter
         </button>
-        {% if search_query or active_module_filter != "all" %}
+        {% if search_query or active_module_filter != "all" or sort and sort != "date_desc" %}
         <a href="/admin/touch-logs/" class="btn btn-outline-secondary btn-sm" title="Clear Filters">
           <i class="bi bi-x-circle"></i>
         </a>
@@ -105,8 +118,12 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light text-muted small text-uppercase">
           <tr>
-            <th scope="col" style="width: 17%;">Date &amp; Time</th>
-            <th scope="col" style="width: 22%;">Staff Member (Last Touch)</th>
+            <th scope="col" class="th-sortable" style="width: 17%; cursor: pointer; user-select: none;" onclick="toggleTouchLogSort('date')">
+              Date &amp; Time <i class="bi {% if sort == 'date_asc' %}bi-arrow-up text-primary{% else %}bi-arrow-down text-primary{% endif %} ms-1"></i>
+            </th>
+            <th scope="col" class="th-sortable" style="width: 22%; cursor: pointer; user-select: none;" onclick="toggleTouchLogSort('name')">
+              Staff Member (Last Touch) <i class="bi {% if sort == 'name_desc' %}bi-arrow-down text-primary{% elif sort == 'name_asc' %}bi-arrow-up text-primary{% else %}bi-arrow-down-up text-muted{% endif %} ms-1"></i>
+            </th>
             <th scope="col" style="width: 13%;">Module</th>
             <th scope="col" style="width: 18%;">Action Performed</th>
             <th scope="col" style="width: 15%;">Target Record</th>
@@ -198,7 +215,7 @@
       </div>
       <div class="btn-group btn-group-sm">
         {% if touch_logs.has_previous %}
-        <a href="?page={{ touch_logs.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if active_module_filter != 'all' %}&module={{ active_module_filter }}{% endif %}" class="btn btn-outline-secondary">
+        <a href="?page={{ touch_logs.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if active_module_filter != 'all' %}&module={{ active_module_filter }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}" class="btn btn-outline-secondary">
           <i class="bi bi-chevron-left me-1"></i>Prev
         </a>
         {% else %}
@@ -206,7 +223,7 @@
         {% endif %}
 
         {% if touch_logs.has_next %}
-        <a href="?page={{ touch_logs.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if active_module_filter != 'all' %}&module={{ active_module_filter }}{% endif %}" class="btn btn-outline-secondary">
+        <a href="?page={{ touch_logs.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if active_module_filter != 'all' %}&module={{ active_module_filter }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}" class="btn btn-outline-secondary">
           Next<i class="bi bi-chevron-right ms-1"></i>
         </a>
         {% else %}
@@ -217,6 +234,36 @@
     {% endif %}
   </div>
 </section>
+
+<script>
+  function toggleTouchLogSort(type) {
+    const current = "{{ sort|default:'date_desc' }}";
+    let next = "date_desc";
+    if (type === "name") {
+      next = current === "name_asc" ? "name_desc" : "name_asc";
+    } else {
+      next = current === "date_desc" ? "date_asc" : "date_desc";
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("sort", next);
+    url.searchParams.set("page", "1");
+    window.location.href = url.toString();
+  }
+
+  document.getElementById("touchLogSortDirBtn")?.addEventListener("click", () => {
+    const sel = document.getElementById("touchLogSort");
+    const current = sel ? sel.value : "{{ sort|default:'date_desc' }}";
+    let next = "date_desc";
+    if (current === "date_desc") next = "date_asc";
+    else if (current === "date_asc") next = "date_desc";
+    else if (current === "name_asc") next = "name_desc";
+    else if (current === "name_desc") next = "name_asc";
+    const url = new URL(window.location.href);
+    url.searchParams.set("sort", next);
+    url.searchParams.set("page", "1");
+    window.location.href = url.toString();
+  });
+</script>
 
 {% include "components/admin/layout_end.html" %}
 {% endblock %}

@@ -34,6 +34,7 @@ let masterlistFilter = "";
 let masterlistAyFilter = "AY 2026–2027";
 let masterlistTypeFilter = "";
 let masterlistPage = 1;
+let masterlistSort = "name_asc";
 const MASTERLIST_PAGE_SIZE = 10;
 
 const COLUMN_ALIASES = {
@@ -447,7 +448,7 @@ function filteredMasterlist() {
   const ay = masterlistAyFilter.trim().toLowerCase();
   const stype = masterlistTypeFilter.trim().toLowerCase();
 
-  return MASTERLIST_RECORDS.filter((r) => {
+  const filtered = MASTERLIST_RECORDS.filter((r) => {
     if (ay) {
       const recordAy = (r.academicYear || "ay 2026–2027").toLowerCase();
       // Handle en-dash vs hyphen
@@ -474,6 +475,17 @@ function filteredMasterlist() {
     }
 
     return true;
+  });
+
+  return filtered.sort((a, b) => {
+    if (masterlistSort === "date_desc" || masterlistSort === "date_asc") {
+      const timeA = a.grantedAt && a.grantedAt !== "—" ? new Date(a.grantedAt).getTime() : 0;
+      const timeB = b.grantedAt && b.grantedAt !== "—" ? new Date(b.grantedAt).getTime() : 0;
+      return masterlistSort === "date_asc" ? timeA - timeB : timeB - timeA;
+    }
+    const nameA = (a.scholarName || `${a.firstName || ""} ${a.lastName || ""}`.trim() || "").toLowerCase();
+    const nameB = (b.scholarName || `${b.firstName || ""} ${b.lastName || ""}`.trim() || "").toLowerCase();
+    return masterlistSort === "name_desc" ? nameB.localeCompare(nameA) : nameA.localeCompare(nameB);
   });
 }
 
@@ -608,12 +620,21 @@ function renderMasterlist() {
     )
     .join("");
 
+  const sortSelect = document.getElementById("masterlist-sort");
+  const sortDirIcon = document.getElementById("masterlistSortDirIcon");
+  if (sortSelect) sortSelect.value = masterlistSort;
+  if (sortDirIcon) {
+    sortDirIcon.className = masterlistSort === "name_desc" ? "bi bi-sort-alpha-down-alt" : "bi bi-sort-alpha-down";
+  }
+
   container.innerHTML = `
     <table class="table table-hover registrar-table registrar-scholarship-table align-middle mb-0" style="font-size:0.875rem">
       <thead class="table-light">
         <tr>
           <th class="text-center" style="width:3rem">#</th>
-          <th>Scholar Name</th>
+          <th class="th-sortable" id="th-masterlist-sort-name" style="cursor: pointer; user-select: none;">
+            Scholar Name <i class="bi ${masterlistSort === 'name_desc' ? 'bi-arrow-down text-primary' : 'bi-arrow-up text-primary'} ms-1"></i>
+          </th>
           <th>Course / Program</th>
           <th>Grant Type</th>
           <th>Sponsor</th>
@@ -626,6 +647,18 @@ function renderMasterlist() {
       </thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+
+  const thSortName = container.querySelector("#th-masterlist-sort-name");
+  thSortName?.addEventListener("click", () => {
+    const nextSort = masterlistSort === "name_asc" ? "name_desc" : "name_asc";
+    masterlistSort = nextSort;
+    if (sortSelect) sortSelect.value = nextSort;
+    if (sortDirIcon) {
+      sortDirIcon.className = nextSort === "name_desc" ? "bi bi-sort-alpha-down-alt" : "bi bi-sort-alpha-down";
+    }
+    masterlistPage = 1;
+    renderMasterlist();
+  });
 
   const endIdx = Math.min(startIdx + MASTERLIST_PAGE_SIZE, total);
   if (infoEl) {
@@ -1080,6 +1113,36 @@ document.addEventListener("DOMContentLoaded", () => {
     masterlistTypeFilter = e.target.value;
     masterlistPage = 1;
     renderMasterlist();
+  });
+
+  const masterlistSortEl = document.getElementById("masterlist-sort");
+  const masterlistSortDirBtnEl = document.getElementById("masterlistSortDirBtn");
+
+  function syncMasterlistSort(val) {
+    masterlistSort = val;
+    if (masterlistSortEl) masterlistSortEl.value = val;
+    const sortDirIcon = document.getElementById("masterlistSortDirIcon");
+    if (sortDirIcon) {
+      if (val === "name_desc") sortDirIcon.className = "bi bi-sort-alpha-down-alt";
+      else if (val === "name_asc") sortDirIcon.className = "bi bi-sort-alpha-down";
+      else if (val === "date_asc") sortDirIcon.className = "bi bi-sort-up";
+      else sortDirIcon.className = "bi bi-sort-down";
+    }
+    masterlistPage = 1;
+    renderMasterlist();
+  }
+
+  masterlistSortEl?.addEventListener("change", (e) => {
+    syncMasterlistSort(e.target.value);
+  });
+
+  masterlistSortDirBtnEl?.addEventListener("click", () => {
+    let nextSort = "name_asc";
+    if (masterlistSort === "name_asc") nextSort = "name_desc";
+    else if (masterlistSort === "name_desc") nextSort = "name_asc";
+    else if (masterlistSort === "date_desc") nextSort = "date_asc";
+    else if (masterlistSort === "date_asc") nextSort = "date_desc";
+    syncMasterlistSort(nextSort);
   });
 
   // -------------------------------------------------------------

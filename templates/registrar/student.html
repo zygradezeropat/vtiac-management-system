@@ -31,6 +31,17 @@
             <option value="hard_pending">Hard Copies: Pending</option>
             <option value="digital_uploaded">Digital: Uploaded</option>
           </select>
+          <div class="gdrive-sort-wrap" title="Sort order">
+            <select id="student-sort" class="form-select gdrive-sort-select" aria-label="Sort students">
+              <option value="name_asc" selected>Name (A–Z)</option>
+              <option value="name_desc">Name (Z–A)</option>
+              <option value="date_desc">Date Enrolled (Newest)</option>
+              <option value="date_asc">Date Enrolled (Oldest)</option>
+            </select>
+            <button type="button" class="gdrive-sort-btn" id="studentSortDirBtn" title="Reverse sort direction (A–Z / Z–A)">
+              <i class="bi bi-sort-alpha-down" id="studentSortDirIcon" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
       </div>
       <div id="student-table-container"></div>

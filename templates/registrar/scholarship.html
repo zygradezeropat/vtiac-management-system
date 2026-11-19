@@ -91,6 +91,17 @@
             </select>
             <input type="search" id="masterlist-search" class="form-control form-control-sm"
               placeholder="Search by name, ID, sponsor..." style="max-width:14rem" />
+            <div class="gdrive-sort-wrap" title="Sort order">
+              <select id="masterlist-sort" class="form-select gdrive-sort-select" aria-label="Sort scholars">
+                <option value="name_asc" selected>Name (A–Z)</option>
+                <option value="name_desc">Name (Z–A)</option>
+                <option value="date_desc">Date Enrolled / Granted (Newest)</option>
+                <option value="date_asc">Date Enrolled / Granted (Oldest)</option>
+              </select>
+              <button type="button" class="gdrive-sort-btn" id="masterlistSortDirBtn" title="Reverse sort direction (A–Z / Z–A)">
+                <i class="bi bi-sort-alpha-down" id="masterlistSortDirIcon" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
         </div>
 

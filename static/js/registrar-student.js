@@ -80,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeTab = "training";
   const filters = { training: "All Programs", assessment: "All Programs", graduates: "All Programs" };
   const docFilters = { training: "all", assessment: "all", graduates: "all" };
+  const sortOrders = { training: "name_asc", assessment: "name_asc", graduates: "name_asc" };
   const searchQueries = { training: "", assessment: "", graduates: "" };
   const pages = { training: 1, assessment: 1, graduates: 1 };
 
@@ -89,6 +90,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchEl = document.getElementById("student-search");
   const filterEl = document.getElementById("program-filter");
   const docFilterEl = document.getElementById("doc-status-filter");
+  const sortEl = document.getElementById("student-sort");
+  const sortDirBtn = document.getElementById("studentSortDirBtn");
+  const sortDirIcon = document.getElementById("studentSortDirIcon");
   const tableContainer = document.getElementById("student-table-container");
   const paginationContainer = document.getElementById("pagination-container");
   const viewModal = initStudentViewModal(document.getElementById("view-student-modal"));
@@ -294,6 +298,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
       return matchesProgram && matchesQuery && matchesDoc;
     });
+
+    const sortOrder = sortOrders[key] || "name_asc";
+    students.sort((a, b) => {
+      if (sortOrder === "date_desc" || sortOrder === "date_asc") {
+        const isGrad = key === "graduates";
+        const valA = isGrad ? (a.graduatedAt || a.date) : a.date;
+        const valB = isGrad ? (b.graduatedAt || b.date) : b.date;
+        const timeA = valA && valA !== "—" ? new Date(valA).getTime() : 0;
+        const timeB = valB && valB !== "—" ? new Date(valB).getTime() : 0;
+        return sortOrder === "date_asc" ? timeA - timeB : timeB - timeA;
+      }
+      const nameA = String(a.name || "").trim().toLowerCase();
+      const nameB = String(b.name || "").trim().toLowerCase();
+      return sortOrder === "name_desc" ? nameB.localeCompare(nameA) : nameA.localeCompare(nameB);
+    });
+
     return { ...mod, students };
   }
 
@@ -410,17 +430,35 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .join("");
 
+    const currentSort = sortOrders[activeTab] || "name_asc";
+    if (sortEl) sortEl.value = currentSort;
+    if (sortDirIcon) {
+      if (currentSort === "name_desc") {
+        sortDirIcon.className = "bi bi-sort-alpha-down-alt";
+      } else if (currentSort === "name_asc") {
+        sortDirIcon.className = "bi bi-sort-alpha-down";
+      } else if (currentSort === "date_asc") {
+        sortDirIcon.className = "bi bi-sort-up";
+      } else {
+        sortDirIcon.className = "bi bi-sort-down";
+      }
+    }
+
     tableContainer.innerHTML = `
       <div class="table-responsive">
         <table class="table registrar-table table-hover align-middle mb-0">
           <thead>
             <tr>
               <th style="width:3rem">#</th>
-              <th>Name</th>
+              <th class="th-sortable" id="th-sort-name" style="cursor: pointer; user-select: none;">
+                Name <i class="bi ${currentSort === 'name_desc' ? 'bi-arrow-down text-primary' : (currentSort === 'name_asc' ? 'bi-arrow-up text-primary' : 'bi-arrow-down-up text-muted')} ms-1"></i>
+              </th>
               <th>Program</th>
               <th>Status</th>
               <th>Document Submissions</th>
-              <th>${activeTab === "graduates" ? "Graduation Date" : "Date"}</th>
+              <th class="th-sortable" id="th-sort-date" style="cursor: pointer; user-select: none;">
+                ${activeTab === "graduates" ? "Graduation Date" : "Date Enrolled"} <i class="bi ${currentSort === 'date_desc' ? 'bi-arrow-down text-primary' : (currentSort === 'date_asc' ? 'bi-arrow-up text-primary' : 'bi-arrow-down-up text-muted')} ms-1"></i>
+              </th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>
@@ -448,9 +486,41 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   tableContainer?.addEventListener("click", (e) => {
+    const thName = e.target.closest("#th-sort-name");
+    if (thName) {
+      sortOrders[activeTab] = sortOrders[activeTab] === "name_asc" ? "name_desc" : "name_asc";
+      pages[activeTab] = 1;
+      renderTable();
+      return;
+    }
+    const thDate = e.target.closest("#th-sort-date");
+    if (thDate) {
+      sortOrders[activeTab] = sortOrders[activeTab] === "date_desc" ? "date_asc" : "date_desc";
+      pages[activeTab] = 1;
+      renderTable();
+      return;
+    }
     const btn = e.target.closest(".view-student-btn");
     if (!btn) return;
     openViewStudentModal(btn.dataset.moduleKey, btn.dataset.studentId, btn.dataset.registrationId);
+  });
+
+  sortEl?.addEventListener("change", (e) => {
+    sortOrders[activeTab] = e.target.value;
+    pages[activeTab] = 1;
+    renderTable();
+  });
+
+  sortDirBtn?.addEventListener("click", () => {
+    const cur = sortOrders[activeTab] || "name_asc";
+    let next = "name_asc";
+    if (cur === "name_asc") next = "name_desc";
+    else if (cur === "name_desc") next = "name_asc";
+    else if (cur === "date_desc") next = "date_asc";
+    else if (cur === "date_asc") next = "date_desc";
+    sortOrders[activeTab] = next;
+    pages[activeTab] = 1;
+    renderTable();
   });
 
   searchEl?.addEventListener("input", (e) => {

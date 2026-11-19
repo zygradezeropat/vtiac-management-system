@@ -256,16 +256,21 @@
         </select>
       </div>
 
-      <!-- Sort Selection -->
-      <div class="cashier-filter-field">
-        <select class="form-select cashier-filter-select" id="studentSort" aria-label="Sort student records">
-          <option value="name_asc">Name (A–Z)</option>
+      <!-- Sort Selection (Google Drive style) -->
+      <div class="cashier-filter-field gdrive-sort-wrap" title="Sort order">
+        <select class="form-select cashier-filter-select gdrive-sort-select" id="studentSort" aria-label="Sort student records">
+          <option value="name_asc" selected>Name (A–Z)</option>
           <option value="name_desc">Name (Z–A)</option>
+          <option value="date_desc">Date Enrolled (Newest)</option>
+          <option value="date_asc">Date Enrolled (Oldest)</option>
           <option value="balance_desc">Highest Balance Due</option>
           <option value="balance_asc">Lowest Balance Due</option>
           <option value="overdue_desc">Most Days Overdue</option>
           <option value="due_asc">Due Date (Earliest First)</option>
         </select>
+        <button type="button" class="gdrive-sort-btn" id="studentSortDirBtn" title="Reverse sort direction (A–Z / Z–A)">
+          <i class="bi bi-sort-alpha-down" id="studentSortDirIcon" aria-hidden="true"></i>
+        </button>
       </div>
 
       <!-- Reset Filters Button -->
@@ -292,7 +297,9 @@
         <thead>
           <tr>
             <th scope="col" style="min-width: 7.5rem;">Student / Candidate ID</th>
-            <th scope="col" style="min-width: 13rem;">Name &amp; Type</th>
+            <th scope="col" class="th-sortable" id="thStudentSortName" style="min-width: 13rem; cursor: pointer; user-select: none;">
+              Name &amp; Type <i class="bi bi-arrow-up text-primary ms-1" id="thStudentSortIcon"></i>
+            </th>
             <th scope="col" style="min-width: 14rem;">Academic Course &amp; Dimension</th>
             <th scope="col" style="min-width: 8.5rem;">Fee Category</th>
             <th scope="col" class="text-end" style="min-width: 8rem;">Total Assessed</th>

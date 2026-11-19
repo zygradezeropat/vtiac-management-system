@@ -10,6 +10,7 @@ const PAGE_SIZE = 10;
 
 let allTransactions = [];
 let currentPage = 1;
+let currentSort = "date_desc";
 
 function particularsSummary(particulars) {
   if (!particulars?.length) return "—";
@@ -48,10 +49,48 @@ function txnLocalDate(txn) {
   return `${y}-${m}-${day}`;
 }
 
+function sortTransactions(txns, sortKey) {
+  return [...txns].sort((a, b) => {
+    switch (sortKey) {
+      case "name_asc": {
+        const nameA = (a.studentName || "").toLowerCase();
+        const nameB = (b.studentName || "").toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+      case "name_desc": {
+        const nameA = (a.studentName || "").toLowerCase();
+        const nameB = (b.studentName || "").toLowerCase();
+        return nameB.localeCompare(nameA);
+      }
+      case "date_asc": {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeA - timeB;
+      }
+      case "amount_desc": {
+        const amtA = Number(a.amountPaid ?? a.amount ?? 0);
+        const amtB = Number(b.amountPaid ?? b.amount ?? 0);
+        return amtB - amtA;
+      }
+      case "amount_asc": {
+        const amtA = Number(a.amountPaid ?? a.amount ?? 0);
+        const amtB = Number(b.amountPaid ?? b.amount ?? 0);
+        return amtA - amtB;
+      }
+      case "date_desc":
+      default: {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      }
+    }
+  });
+}
+
 function filterTransactions(txns) {
   const { date, type, name, status, ref } = readFilters();
 
-  return txns.filter((t) => {
+  const filtered = txns.filter((t) => {
     if (date && txnLocalDate(t) !== date) return false;
     if (type && t.receiptType !== type) return false;
     if (status && t.status !== status) return false;
@@ -63,6 +102,8 @@ function filterTransactions(txns) {
     }
     return true;
   });
+
+  return sortTransactions(filtered, currentSort);
 }
 
 function paginate(txns, page) {
@@ -229,6 +270,16 @@ function clearFilters() {
     if (el.tagName === "SELECT") el.selectedIndex = 0;
     else el.value = "";
   });
+  currentSort = "date_desc";
+  const sortSelect = document.getElementById("historySort");
+  if (sortSelect) sortSelect.value = "date_desc";
+  const sortDirIcon = document.getElementById("historySortDirIcon");
+  if (sortDirIcon) sortDirIcon.className = "bi bi-sort-down";
+  const thStudentIcon = document.getElementById("thHistorySortStudentIcon");
+  if (thStudentIcon) thStudentIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+  const thDateIcon = document.getElementById("thHistorySortDateIcon");
+  if (thDateIcon) thDateIcon.className = "bi bi-arrow-down text-primary ms-1";
+
   currentPage = 1;
   render();
 }
@@ -283,6 +334,69 @@ export function initCashierHistory() {
   );
 
   document.getElementById("historyClearFiltersBtn")?.addEventListener("click", clearFilters);
+
+  // Google Drive inspired sort
+  const sortSelect = document.getElementById("historySort");
+  const sortDirBtn = document.getElementById("historySortDirBtn");
+  const sortDirIcon = document.getElementById("historySortDirIcon");
+  const thStudent = document.getElementById("thHistorySortStudent");
+  const thStudentIcon = document.getElementById("thHistorySortStudentIcon");
+  const thDate = document.getElementById("thHistorySortDate");
+  const thDateIcon = document.getElementById("thHistorySortDateIcon");
+
+  function syncSortUi(val) {
+    currentSort = val;
+    if (sortSelect) sortSelect.value = val;
+    if (sortDirIcon) {
+      if (val.startsWith("name")) {
+        sortDirIcon.className = val === "name_desc" ? "bi bi-sort-alpha-down-alt" : "bi bi-sort-alpha-down";
+      } else if (val.startsWith("amount")) {
+        sortDirIcon.className = val === "amount_asc" ? "bi bi-sort-numeric-down" : "bi bi-sort-numeric-down-alt";
+      } else {
+        sortDirIcon.className = val === "date_asc" ? "bi bi-sort-up" : "bi bi-sort-down";
+      }
+    }
+
+    if (thStudentIcon) {
+      if (val === "name_asc") thStudentIcon.className = "bi bi-arrow-up text-primary ms-1";
+      else if (val === "name_desc") thStudentIcon.className = "bi bi-arrow-down text-primary ms-1";
+      else thStudentIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+    }
+
+    if (thDateIcon) {
+      if (val === "date_desc") thDateIcon.className = "bi bi-arrow-down text-primary ms-1";
+      else if (val === "date_asc") thDateIcon.className = "bi bi-arrow-up text-primary ms-1";
+      else thDateIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+    }
+
+    currentPage = 1;
+    render();
+  }
+
+  sortSelect?.addEventListener("change", () => {
+    syncSortUi(sortSelect.value);
+  });
+
+  sortDirBtn?.addEventListener("click", () => {
+    let nextSort = "date_desc";
+    if (currentSort === "date_desc") nextSort = "date_asc";
+    else if (currentSort === "date_asc") nextSort = "date_desc";
+    else if (currentSort === "name_asc") nextSort = "name_desc";
+    else if (currentSort === "name_desc") nextSort = "name_asc";
+    else if (currentSort === "amount_desc") nextSort = "amount_asc";
+    else if (currentSort === "amount_asc") nextSort = "amount_desc";
+    syncSortUi(nextSort);
+  });
+
+  thStudent?.addEventListener("click", () => {
+    const nextSort = currentSort === "name_asc" ? "name_desc" : "name_asc";
+    syncSortUi(nextSort);
+  });
+
+  thDate?.addEventListener("click", () => {
+    const nextSort = currentSort === "date_desc" ? "date_asc" : "date_desc";
+    syncSortUi(nextSort);
+  });
 
   const refresh = async () => {
     allTransactions = await fetchTransactions();

@@ -50,6 +50,7 @@ def users_list(request):
         search=request.GET.get("q", ""),
         account_type=request.GET.get("account_type", ""),
         role=request.GET.get("role", ""),
+        sort=request.GET.get("sort", "name_asc"),
         page=request.GET.get("page", 1),
     )
     return JsonResponse(result)

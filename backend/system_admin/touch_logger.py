@@ -93,6 +93,16 @@ def get_touch_logs_page_context(request=None):
             | Q(details__icontains=search_query)
         )
 
+    sort = (request.GET.get("sort") or "date_desc").strip() if request else "date_desc"
+    if sort == "date_asc":
+        qs = qs.order_by("created_at")
+    elif sort == "name_asc":
+        qs = qs.order_by("user_name", "-created_at")
+    elif sort == "name_desc":
+        qs = qs.order_by("-user_name", "-created_at")
+    else:
+        qs = qs.order_by("-created_at")
+
     page_num = request.GET.get("page", 1) if request else 1
     paginator = Paginator(qs, 20)
     page_obj = paginator.get_page(page_num)
@@ -105,4 +115,5 @@ def get_touch_logs_page_context(request=None):
         "admin_count": admin_count,
         "active_module_filter": module_filter or "all",
         "search_query": search_query,
+        "sort": sort,
     }

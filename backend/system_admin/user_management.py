@@ -152,7 +152,7 @@ def serialize_user(user):
     }
 
 
-def list_users(*, search="", account_type="", role="", page=1):
+def list_users(*, search="", account_type="", role="", sort="", page=1):
     qs = (
         User.objects.select_related("staff_profile", "student_profile", "candidate_profile")
         .filter(
@@ -161,7 +161,6 @@ def list_users(*, search="", account_type="", role="", page=1):
             | Q(candidate_profile__isnull=False)
             | Q(registration_application__program_type="assessment_only")
         )
-        .order_by("-date_joined")
     )
 
     search = (search or "").strip()
@@ -203,6 +202,18 @@ def list_users(*, search="", account_type="", role="", page=1):
     role = (role or "").strip().lower()
     if role in STAFF_ROLE_VALUES:
         qs = qs.filter(staff_profile__role=role)
+
+    sort = (sort or "").strip().lower()
+    if sort == "name_desc":
+        qs = qs.order_by("-first_name", "-last_name", "-username")
+    elif sort == "name_asc":
+        qs = qs.order_by("first_name", "last_name", "username")
+    elif sort == "date_asc":
+        qs = qs.order_by("date_joined")
+    elif sort == "date_desc":
+        qs = qs.order_by("-date_joined")
+    else:
+        qs = qs.order_by("first_name", "last_name", "username")
 
     try:
         page = max(1, int(page))

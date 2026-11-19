@@ -38,6 +38,17 @@
             placeholder="Search by name..."
             autocomplete="off"
           />
+          <div class="gdrive-sort-wrap" title="Sort order">
+            <select id="enrollment-sort" class="form-select gdrive-sort-select" aria-label="Sort enrollments">
+              <option value="name_asc" selected>Name (A–Z)</option>
+              <option value="name_desc">Name (Z–A)</option>
+              <option value="date_desc">Date Enrolled (Newest)</option>
+              <option value="date_asc">Date Enrolled (Oldest)</option>
+            </select>
+            <button type="button" class="gdrive-sort-btn" id="enrollmentSortDirBtn" title="Reverse sort direction (A–Z / Z–A)">
+              <i class="bi bi-sort-alpha-down" id="enrollmentSortDirIcon" aria-hidden="true"></i>
+            </button>
+          </div>
         </div>
       </div>
       <p class="text-muted small mb-3">The status capsule shows what each applicant still needs. Approve only when payment proof is on file.</p>

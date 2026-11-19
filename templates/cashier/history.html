@@ -51,6 +51,22 @@
             autocomplete="off"
           />
         </div>
+        <div class="cashier-history-filter">
+          <label class="cashier-history-filter__label" for="historySort">Sort</label>
+          <div class="gdrive-sort-wrap" title="Sort order">
+            <select class="form-select form-select-sm gdrive-sort-select" id="historySort" aria-label="Sort transactions">
+              <option value="date_desc" selected>Date (Newest)</option>
+              <option value="date_asc">Date (Oldest)</option>
+              <option value="name_asc">Name (A–Z)</option>
+              <option value="name_desc">Name (Z–A)</option>
+              <option value="amount_desc">Amount (High–Low)</option>
+              <option value="amount_asc">Amount (Low–High)</option>
+            </select>
+            <button type="button" class="gdrive-sort-btn" id="historySortDirBtn" title="Reverse sort direction">
+              <i class="bi bi-sort-down" id="historySortDirIcon" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
         <div class="cashier-history-filter cashier-history-filter--actions">
           <button type="button" class="btn btn-sm cashier-btn-outline" id="historyClearFiltersBtn">Clear</button>
         </div>
@@ -65,12 +81,16 @@
             <th>Control Number</th>
             <th>OR Number</th>
             <th>Type</th>
-            <th>Student</th>
+            <th class="th-sortable" id="thHistorySortStudent" style="cursor: pointer; user-select: none;">
+              Student <i class="bi bi-arrow-down-up text-muted ms-1" id="thHistorySortStudentIcon"></i>
+            </th>
             <th>Particulars</th>
             <th>Amount Paid</th>
             <th>Status</th>
             <th>Balance</th>
-            <th>Date &amp; Time</th>
+            <th class="th-sortable" id="thHistorySortDate" style="cursor: pointer; user-select: none;">
+              Date &amp; Time <i class="bi bi-arrow-down text-primary ms-1" id="thHistorySortDateIcon"></i>
+            </th>
             <th>Actions</th>
           </tr>
         </thead>

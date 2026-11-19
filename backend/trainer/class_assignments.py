@@ -399,6 +399,7 @@ def _student_row(entry: dict, template: RegistrarScheduleTemplate, schedule_disp
         "batch_label": template.batch_label or "Batch 1",
         "batch_id": str(template.pk),
         "reference_id": registration.reference_id if registration else "",
+        "enrolled_date": registration.created_at.strftime("%Y-%m-%d") if registration and registration.created_at else (template.available_from.strftime("%Y-%m-%d") if template.available_from else ""),
         "search_text": f"{name} {program} {schedule_display}".lower(),
     }
 

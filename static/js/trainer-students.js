@@ -1,5 +1,6 @@
 let pageSize = 5;
 let currentPage = 1;
+let currentSort = "name_asc";
 
 const searchEl = document.getElementById("student-search");
 const programEl = document.getElementById("filter-program");
@@ -38,7 +39,19 @@ function rowMatchesFilters(row) {
 
 function getMatchingRows() {
   if (!tbody) return [];
-  return [...tbody.querySelectorAll("tr[data-search]")].filter(rowMatchesFilters);
+  const rows = [...tbody.querySelectorAll("tr[data-search]")].filter(rowMatchesFilters);
+  return rows.sort((a, b) => {
+    if (currentSort === "date_desc" || currentSort === "date_asc") {
+      const dateA = a.getAttribute("data-date") || "";
+      const dateB = b.getAttribute("data-date") || "";
+      const timeA = dateA ? new Date(dateA).getTime() : 0;
+      const timeB = dateB ? new Date(dateB).getTime() : 0;
+      return currentSort === "date_asc" ? timeA - timeB : timeB - timeA;
+    }
+    const nameA = (a.getAttribute("data-name") || a.querySelector(".trainer-student-cell__name")?.textContent || "").toLowerCase().trim();
+    const nameB = (b.getAttribute("data-name") || b.querySelector(".trainer-student-cell__name")?.textContent || "").toLowerCase().trim();
+    return currentSort === "name_desc" ? nameB.localeCompare(nameA) : nameA.localeCompare(nameB);
+  });
 }
 
 function renderPagination(totalRows, page, totalPages) {
@@ -116,6 +129,7 @@ function applyStudentFilters(resetPage = false) {
 
   const start = (currentPage - 1) * pageSize;
   matchingRows.slice(start, start + pageSize).forEach((row) => {
+    tbody.appendChild(row);
     row.classList.remove("hidden");
   });
 
@@ -144,6 +158,51 @@ if (tbody) {
       currentPage = 1;
       applyStudentFilters(false);
     }
+  });
+
+  const sortEl = document.getElementById("trainer-student-sort");
+  const sortDirBtn = document.getElementById("trainerStudentSortDirBtn");
+  const sortDirIcon = document.getElementById("trainerStudentSortDirIcon");
+  const thSort = document.getElementById("th-trainer-student-sort");
+  const thSortIcon = document.getElementById("th-trainer-student-icon");
+
+  function syncSortUi(val) {
+    currentSort = val;
+    if (sortEl) sortEl.value = val;
+    if (sortDirIcon) {
+      if (val === "name_desc") sortDirIcon.className = "bi bi-sort-alpha-down-alt";
+      else if (val === "name_asc") sortDirIcon.className = "bi bi-sort-alpha-down";
+      else if (val === "date_asc") sortDirIcon.className = "bi bi-sort-up";
+      else sortDirIcon.className = "bi bi-sort-down";
+    }
+    if (thSortIcon) {
+      if (val === "name_desc") {
+        thSortIcon.className = "bi bi-arrow-down text-primary ms-1";
+      } else if (val === "name_asc") {
+        thSortIcon.className = "bi bi-arrow-up text-primary ms-1";
+      } else {
+        thSortIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+      }
+    }
+    applyStudentFilters(false);
+  }
+
+  sortEl?.addEventListener("change", (e) => {
+    syncSortUi(e.target.value);
+  });
+
+  sortDirBtn?.addEventListener("click", () => {
+    let nextSort = "name_asc";
+    if (currentSort === "name_asc") nextSort = "name_desc";
+    else if (currentSort === "name_desc") nextSort = "name_asc";
+    else if (currentSort === "date_desc") nextSort = "date_asc";
+    else if (currentSort === "date_asc") nextSort = "date_desc";
+    syncSortUi(nextSort);
+  });
+
+  thSort?.addEventListener("click", () => {
+    const nextSort = currentSort === "name_asc" ? "name_desc" : "name_asc";
+    syncSortUi(nextSort);
   });
 
   paginationEl?.addEventListener("click", (event) => {

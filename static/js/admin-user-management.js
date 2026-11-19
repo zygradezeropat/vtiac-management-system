@@ -261,11 +261,15 @@ async function fetchUsers(page = currentPage) {
   const q = document.getElementById("userSearchInput")?.value?.trim() || "";
   const accountType = document.getElementById("userAccountTypeFilter")?.value || "";
   const role = document.getElementById("userRoleFilter")?.value || "";
+  const sort = document.getElementById("userSortFilter")?.value || "name_asc";
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   if (accountType) params.set("account_type", accountType);
   if (role) params.set("role", role);
+  if (sort) params.set("sort", sort);
   params.set("page", String(page));
+
+  updateUserSortIndicators(sort);
 
   const res = await fetch(`/admin/api/users/?${params}`, { credentials: "same-origin" });
   if (!res.ok) throw new Error("Failed to load users.");
@@ -275,6 +279,39 @@ async function fetchUsers(page = currentPage) {
   currentPage = data.page ?? page;
   totalPages = data.total_pages ?? 1;
   renderUsersTable();
+}
+
+function updateUserSortIndicators(sort) {
+  const dirIcon = document.getElementById("userSortDirIcon");
+  const thIcon = document.getElementById("thSortNameIcon");
+  if (sort === "name_asc") {
+    if (dirIcon) dirIcon.className = "bi bi-sort-alpha-down";
+    if (thIcon) thIcon.className = "bi bi-arrow-up text-primary ms-1";
+  } else if (sort === "name_desc") {
+    if (dirIcon) dirIcon.className = "bi bi-sort-alpha-down-alt";
+    if (thIcon) thIcon.className = "bi bi-arrow-down text-primary ms-1";
+  } else if (sort === "date_asc") {
+    if (dirIcon) dirIcon.className = "bi bi-sort-numeric-down";
+    if (thIcon) thIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+  } else {
+    if (dirIcon) dirIcon.className = "bi bi-sort-numeric-down-alt";
+    if (thIcon) thIcon.className = "bi bi-arrow-down-up text-muted ms-1";
+  }
+}
+
+function toggleSortDirection() {
+  const select = document.getElementById("userSortFilter");
+  if (!select) return;
+  if (select.value === "name_asc") {
+    select.value = "name_desc";
+  } else if (select.value === "name_desc") {
+    select.value = "name_asc";
+  } else if (select.value === "date_desc") {
+    select.value = "date_asc";
+  } else {
+    select.value = "date_desc";
+  }
+  resetToFirstPage();
 }
 
 function resetToFirstPage() {
@@ -887,6 +924,9 @@ function bindEvents() {
 
   document.getElementById("userAccountTypeFilter")?.addEventListener("change", resetToFirstPage);
   document.getElementById("userRoleFilter")?.addEventListener("change", resetToFirstPage);
+  document.getElementById("userSortFilter")?.addEventListener("change", resetToFirstPage);
+  document.getElementById("userSortDirBtn")?.addEventListener("click", toggleSortDirection);
+  document.getElementById("thSortName")?.addEventListener("click", toggleSortDirection);
 
   document.getElementById("usersPagination")?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-users-page]");

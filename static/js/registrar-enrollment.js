@@ -123,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeTab = "training";
   const searchQueries = { training: "", assessment: "" };
   const courseFilters = { training: "", assessment: "" };
+  const sortOrders = { training: "name_asc", assessment: "name_asc" };
   const pageByTab = { training: 1, assessment: 1 };
   let pendingAction = null;
   let actionInFlight = false;
@@ -239,11 +240,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const q = (searchQueries[activeTab] || "").trim().toLowerCase();
     const course = (courseFilters[activeTab] || "").trim();
     const items = getActiveItems();
-    return items.filter((p) => {
+    const filtered = items.filter((p) => {
       const matchesName = !q || p.name.toLowerCase().includes(q);
       const matchesCourse = !course || (p.program || "").trim() === course;
       return matchesName && matchesCourse;
     });
+
+    const sortOrder = sortOrders[activeTab] || "name_asc";
+    filtered.sort((a, b) => {
+      if (sortOrder === "date_desc" || sortOrder === "date_asc") {
+        const timeA = a.verifiedDate ? new Date(a.verifiedDate).getTime() : 0;
+        const timeB = b.verifiedDate ? new Date(b.verifiedDate).getTime() : 0;
+        return sortOrder === "date_asc" ? timeA - timeB : timeB - timeA;
+      }
+      const nameA = String(a.name || "").trim().toLowerCase();
+      const nameB = String(b.name || "").trim().toLowerCase();
+      return sortOrder === "name_desc" ? nameB.localeCompare(nameA) : nameA.localeCompare(nameB);
+    });
+    return filtered;
   }
 
   function totalPages(rows) {
@@ -379,6 +393,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function render() {
     refreshModuleBadges();
+    syncSortUi();
     const mod = getModule(activeTab);
     const rows = filteredItems();
     const pages = totalPages(rows);
@@ -531,6 +546,46 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmActionBtn.innerHTML = originalBtnHtml;
       }
     }
+  });
+
+  const sortEl = document.getElementById("enrollment-sort");
+  const sortDirBtn = document.getElementById("enrollmentSortDirBtn");
+  const sortDirIcon = document.getElementById("enrollmentSortDirIcon");
+
+  function syncSortUi() {
+    const currentSort = sortOrders[activeTab] || "name_asc";
+    if (sortEl) sortEl.value = currentSort;
+    if (sortDirIcon) {
+      if (currentSort === "name_desc") {
+        sortDirIcon.className = "bi bi-sort-alpha-down-alt";
+      } else if (currentSort === "name_asc") {
+        sortDirIcon.className = "bi bi-sort-alpha-down";
+      } else if (currentSort === "date_asc") {
+        sortDirIcon.className = "bi bi-sort-up";
+      } else {
+        sortDirIcon.className = "bi bi-sort-down";
+      }
+    }
+  }
+
+  sortEl?.addEventListener("change", (e) => {
+    sortOrders[activeTab] = e.target.value;
+    syncSortUi();
+    pageByTab[activeTab] = 1;
+    render();
+  });
+
+  sortDirBtn?.addEventListener("click", () => {
+    const cur = sortOrders[activeTab] || "name_asc";
+    let next = "name_asc";
+    if (cur === "name_asc") next = "name_desc";
+    else if (cur === "name_desc") next = "name_asc";
+    else if (cur === "date_desc") next = "date_asc";
+    else if (cur === "date_asc") next = "date_desc";
+    sortOrders[activeTab] = next;
+    syncSortUi();
+    pageByTab[activeTab] = 1;
+    render();
   });
 
   searchEl?.addEventListener("input", (e) => {
