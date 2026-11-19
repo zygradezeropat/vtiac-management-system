@@ -302,8 +302,28 @@ export function printReceiptOnly() {
 
   document.body.classList.add(bodyClass);
   window.addEventListener("afterprint", cleanup);
-  window.print();
+  setTimeout(() => {
+    window.print();
+  }, 50);
 }
+
+// Ensure cashier-print-invoice is toggled when user presses Ctrl+P while receipt modal is open
+window.addEventListener("beforeprint", () => {
+  const rm = document.getElementById("receiptModal");
+  if (
+    rm &&
+    (rm.classList.contains("is-open") ||
+      rm.classList.contains("show") ||
+      rm.style.display === "block" ||
+      rm.getAttribute("aria-hidden") === "false")
+  ) {
+    document.body.classList.add("cashier-print-invoice");
+  }
+});
+
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("cashier-print-invoice");
+});
 
 function getParticularRows() {
   return [...document.querySelectorAll("#particularsBody .particular-row")];
@@ -1162,7 +1182,7 @@ function buildCuttingLineHtml() {
       <span class="receipt-cutting-line__scissors">✂</span>
       <span class="receipt-cutting-line__line"></span>
       <span class="receipt-cutting-line__label">
-        <span class="receipt-cutting-line__text">CUT ALONG THIS LINE</span>
+        <span class="receipt-cutting-line__text">✂ - - - - - - CUT HERE - - - - - - ✂</span>
       </span>
       <span class="receipt-cutting-line__line"></span>
       <span class="receipt-cutting-line__scissors">✂</span>
@@ -1174,24 +1194,24 @@ function buildReceiptHtml(txn) {
   if (txn.receiptType === "AR") {
     return `
       <div class="receipt-dual-copy-wrapper">
-        <div class="receipt-copy receipt-copy--cashier">
-          ${buildArReceiptHtml(txn, "CASHIER'S COPY")}
-        </div>
-        ${buildCuttingLineHtml()}
         <div class="receipt-copy receipt-copy--payer">
           ${buildArReceiptHtml(txn, "PAYER'S COPY")}
+        </div>
+        ${buildCuttingLineHtml()}
+        <div class="receipt-copy receipt-copy--cashier">
+          ${buildArReceiptHtml(txn, "CASHIER'S COPY")}
         </div>
       </div>
     `;
   }
   return `
     <div class="receipt-dual-copy-wrapper">
-      <div class="receipt-copy receipt-copy--cashier">
-        ${buildServiceInvoiceHtml(txn, "CASHIER'S COPY")}
-      </div>
-      ${buildCuttingLineHtml()}
       <div class="receipt-copy receipt-copy--payer">
         ${buildServiceInvoiceHtml(txn, "PAYER'S COPY")}
+      </div>
+      ${buildCuttingLineHtml()}
+      <div class="receipt-copy receipt-copy--cashier">
+        ${buildServiceInvoiceHtml(txn, "CASHIER'S COPY")}
       </div>
     </div>
   `;

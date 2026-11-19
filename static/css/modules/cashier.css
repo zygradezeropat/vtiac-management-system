@@ -1852,202 +1852,317 @@
 
 @media print {
   @page {
-    margin: 0.22in 0.35in;
+    margin: 8mm 10mm;
     size: portrait;
   }
 
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Completely remove dashboard chrome, sidebar, topbar, tables and all siblings from print flow */
+  body.cashier-print-invoice > *:not(.cashier-layout),
+  body.cashier-print-invoice .cashier-sidebar,
+  body.cashier-print-invoice .cashier-topbar,
+  body.cashier-print-invoice .cashier-page-header,
+  body.cashier-print-invoice .cashier-panel,
+  body.cashier-print-invoice .cashier-aging-panel,
+  body.cashier-print-invoice #paymentModal,
+  body.cashier-print-invoice #paymentMessageModal,
+  body.cashier-print-invoice #mobileCashierSidebar,
+  body.cashier-print-invoice .cashier-modal__overlay,
+  body.cashier-print-invoice .cashier-modal__header,
+  body.cashier-print-invoice .cashier-modal__footer,
+  body.cashier-print-invoice footer,
+  body.cashier-print-invoice nav,
+  body.cashier-print-invoice .modal-backdrop {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.cashier-print-invoice .cashier-main > *:not(#receiptModal) {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reset layout wrappers to pure flow blocks with 0 margin/padding */
   body.cashier-print-invoice {
     background: #fff !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  /* Only when Print Invoice is used (body class set in JS) */
-  body.cashier-print-invoice * {
-    visibility: hidden !important;
-  }
-
-  body.cashier-print-invoice #receiptModal,
-  body.cashier-print-invoice #receiptModal #receiptContent,
-  body.cashier-print-invoice #receiptContent * {
-    visibility: visible !important;
+  body.cashier-print-invoice .cashier-layout,
+  body.cashier-print-invoice .cashier-layout__content,
+  body.cashier-print-invoice .cashier-main {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow: visible !important;
   }
 
   body.cashier-print-invoice #receiptModal {
     display: block !important;
     position: static !important;
     inset: auto !important;
-    z-index: auto !important;
-    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
     margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
     background: #fff !important;
     overflow: visible !important;
-    width: 100% !important;
-  }
-
-  body.cashier-print-invoice #receiptModal .cashier-modal__overlay,
-  body.cashier-print-invoice #receiptModal .cashier-modal__header,
-  body.cashier-print-invoice #receiptModal .cashier-modal__footer {
-    display: none !important;
-    visibility: hidden !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
   }
 
   body.cashier-print-invoice #receiptModal .cashier-modal__dialog {
+    display: block !important;
     position: static !important;
-    max-width: none !important;
+    inset: auto !important;
     width: 100% !important;
-    max-height: none !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+    border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
+    background: transparent !important;
     overflow: visible !important;
-    background: #fff !important;
+    transform: none !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
   }
 
-  body.cashier-print-invoice #receiptModal .cashier-modal__body--receipt {
-    padding: 0 !important;
-  }
-
+  body.cashier-print-invoice #receiptModal .cashier-modal__body--receipt,
   body.cashier-print-invoice #receiptContent {
+    display: block !important;
     position: static !important;
     width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    border: none !important;
+    overflow: visible !important;
   }
 
+  /* Dual copy wrapper & half-page distribution */
   body.cashier-print-invoice .receipt-dual-copy-wrapper {
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
     gap: 0 !important;
-    page-break-after: avoid !important;
+    width: 100% !important;
+    max-width: 100% !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   body.cashier-print-invoice .receipt-copy {
+    box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    overflow: hidden !important;
   }
 
+  /* Compact Service Invoice for print (takes ~46% of standard page height) */
   body.cashier-print-invoice .service-invoice {
-    font-size: 7.2pt !important;
+    font-size: 6.8pt !important;
     line-height: 1.15 !important;
     box-shadow: none !important;
+    border: 1px solid #222 !important;
     position: relative !important;
     overflow: hidden !important;
-    padding: 0.1rem 0 !important;
+    padding: 0.08rem 0.15rem !important;
     margin: 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
   body.cashier-print-invoice .service-invoice__header {
-    margin-bottom: 0.18rem !important;
-    grid-template-columns: 3.5rem 1fr 6rem !important;
-    gap: 0.35rem !important;
+    margin-bottom: 0.1rem !important;
+    grid-template-columns: 3.2rem 1fr 5.8rem !important;
+    gap: 0.25rem !important;
   }
 
   body.cashier-print-invoice .service-invoice__logo--left img {
-    max-height: 2.65rem !important;
+    max-height: 2.2rem !important;
   }
 
   body.cashier-print-invoice .service-invoice__logo--right img {
-    max-height: 2.75rem !important;
+    max-height: 2.3rem !important;
   }
 
   body.cashier-print-invoice .service-invoice__company-name {
-    font-size: 0.7rem !important;
-    margin-bottom: 0.1rem !important;
+    font-size: 0.65rem !important;
+    margin-bottom: 0.04rem !important;
     line-height: 1.1 !important;
   }
 
   body.cashier-print-invoice .service-invoice__company p {
-    font-size: 0.52rem !important;
+    font-size: 0.48rem !important;
     line-height: 1.1 !important;
+    margin-bottom: 0.02rem !important;
   }
 
-  body.cashier-print-invoice .service-invoice__meta {
-    margin-bottom: 0.18rem !important;
-    font-size: 0.58rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__sold-to {
-    padding: 0.3rem 0.3rem 0.18rem !important;
-    margin-bottom: 0.18rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__sold-to p {
-    margin-bottom: 0.12rem !important;
-    font-size: 0.56rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__table {
-    margin-bottom: 0.18rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__table th,
-  body.cashier-print-invoice .service-invoice__table td {
-    padding: 0.07rem 0.2rem !important;
-    font-size: 0.56rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__blank-row td {
-    height: 0.8rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__footer {
-    gap: 0.25rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__id-sign > div {
-    min-height: 1.35rem !important;
-    padding: 0.1rem 0.2rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__mini-line {
-    margin-top: 0.12rem !important;
-    min-height: 0.35rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__issued-name {
-    font-size: 0.65rem !important;
-    padding: 0.08rem 0 0.15rem !important;
-    min-height: 0.75rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__totals th,
-  body.cashier-print-invoice .service-invoice__totals td {
-    padding: 0.07rem 0.2rem !important;
-    font-size: 0.55rem !important;
-  }
-
-  body.cashier-print-invoice .service-invoice__disclaimer {
-    margin: 0.12rem 0 0.08rem !important;
+  body.cashier-print-invoice .service-invoice__doc-badge {
     font-size: 0.52rem !important;
+    padding: 0.04rem 0.22rem !important;
   }
 
-  body.cashier-print-invoice .receipt-cutting-line {
-    margin: 0.25rem 0 !important;
-    padding: 0.08rem 0 !important;
-    page-break-before: avoid !important;
-    page-break-after: avoid !important;
-  }
-
-  body.cashier-print-invoice .receipt-cutting-line__line {
-    border-top: 1.5px dashed #000 !important;
-  }
-
-  body.cashier-print-invoice .receipt-cutting-line__text {
-    background: #fff !important;
-    border: 1px dashed #000 !important;
-    color: #000 !important;
+  body.cashier-print-invoice .service-invoice__copy-badge {
+    font-size: 0.52rem !important;
+    padding: 0.04rem 0.28rem !important;
+    font-weight: 800 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  body.cashier-print-invoice .service-invoice__copy-badge {
+  body.cashier-print-invoice .service-invoice__invoice-no {
+    margin-top: 0.06rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__invoice-no span {
+    font-size: 0.46rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__invoice-no strong {
+    font-size: 0.72rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__meta {
+    margin-bottom: 0.08rem !important;
+    font-size: 0.52rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__sold-to {
+    padding: 0.16rem 0.22rem 0.08rem !important;
+    margin-bottom: 0.1rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__sold-to p {
+    margin-bottom: 0.06rem !important;
+    font-size: 0.52rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__table {
+    margin-bottom: 0.1rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__table th,
+  body.cashier-print-invoice .service-invoice__table td {
+    padding: 0.04rem 0.16rem !important;
+    font-size: 0.51rem !important;
+    line-height: 1.15 !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__blank-row td {
+    height: 0.5rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__footer {
+    gap: 0.18rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__id-sign > div {
+    min-height: 1.05rem !important;
+    padding: 0.06rem 0.16rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__mini-line {
+    margin-top: 0.06rem !important;
+    min-height: 0.22rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__issued-name {
+    font-size: 0.58rem !important;
+    padding: 0.04rem 0 0.08rem !important;
+    min-height: 0.6rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__totals th,
+  body.cashier-print-invoice .service-invoice__totals td {
+    padding: 0.04rem 0.16rem !important;
+    font-size: 0.50rem !important;
+  }
+
+  body.cashier-print-invoice .service-invoice__disclaimer {
+    margin: 0.06rem 0 0.02rem !important;
+    font-size: 0.46rem !important;
+  }
+
+  /* Cutting line in middle */
+  body.cashier-print-invoice .receipt-cutting-line {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.35rem !important;
+    margin: 0.12rem 0 !important;
+    padding: 0.04rem 0 !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body.cashier-print-invoice .receipt-cutting-line__line {
+    flex: 1 !important;
+    border-top: 1.5px dashed #333 !important;
+    height: 0 !important;
+  }
+
+  body.cashier-print-invoice .receipt-cutting-line__text {
+    background: #fff !important;
+    border: 1px dashed #333 !important;
+    border-radius: 3px !important;
+    color: #111 !important;
+    font-size: 0.54rem !important;
+    font-weight: 700 !important;
+    padding: 0.03rem 0.35rem !important;
+    white-space: nowrap !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.cashier-print-invoice .receipt-cutting-line__scissors {
+    font-size: 0.7rem !important;
+    color: #222 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -2064,17 +2179,17 @@
 
   body.cashier-print-invoice .service-invoice__watermark span {
     visibility: visible !important;
-    color: rgba(30, 41, 59, 0.1) !important;
-    font-size: 2.2rem !important;
+    color: rgba(30, 41, 59, 0.08) !important;
+    font-size: 2rem !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
   body.cashier-print-invoice .cashier-receipt-simple {
-    padding: 0.2rem;
+    padding: 0.12rem;
     position: relative !important;
     overflow: hidden !important;
-    font-size: 7.5pt !important;
+    font-size: 6.8pt !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
