@@ -105,41 +105,57 @@ def get_document_submission_indicators(
 
     # 1. Digital uploads status
     uploaded_keys = set()
+    doc_by_type = {}
 
     if profile:
-        doc_types = set(
-            profile.documents.filter(file__isnull=False)
-            .exclude(file="")
-            .values_list("document_type", flat=True)
-        )
-        uploaded_keys.update(doc_types)
+        for d in profile.documents.filter(file__isnull=False).exclude(file=""):
+            uploaded_keys.add(d.document_type)
+            doc_by_type[d.document_type] = d
+
+        # Also connect payment proof if uploaded for assessment_fee_receipt
+        if "assessment_fee_receipt" not in doc_by_type:
+            proof = (
+                profile.payment_proofs.filter(file__isnull=False)
+                .exclude(file="")
+                .order_by("-uploaded_at")
+                .first()
+            )
+            if proof:
+                uploaded_keys.add("assessment_fee_receipt")
+                doc_by_type["assessment_fee_receipt"] = proof
 
     req_uploaded_count = len(uploaded_keys.intersection(required_keys))
+    active_specs = [s for s in req_specs if s["required"] or s["key"] in uploaded_keys]
+    total_active = len(active_specs)
+    total_uploaded = len([s for s in active_specs if s["key"] in uploaded_keys])
+
     if profile and profile.requirements_submitted:
         # If requirements were formally submitted, ensure count reaches required
         req_uploaded_count = max(req_uploaded_count, total_required)
 
     if req_uploaded_count >= total_required and total_required > 0:
         digital_status = "uploaded"
-        digital_label = f"Uploaded ({req_uploaded_count}/{total_required})"
+        digital_label = f"Uploaded ({total_uploaded}/{total_active})"
         digital_badge_class = "registrar-doc-badge--uploaded"
         is_digital_uploaded = True
-    elif req_uploaded_count > 0:
+    elif total_uploaded > 0:
         digital_status = "partial"
-        digital_label = f"Incomplete ({req_uploaded_count}/{total_required})"
+        digital_label = f"Incomplete ({total_uploaded}/{total_active})"
         digital_badge_class = "registrar-doc-badge--partial"
         is_digital_uploaded = False
     else:
         digital_status = "pending"
-        digital_label = f"Pending ({req_uploaded_count}/{total_required})"
+        digital_label = f"Pending (0/{total_required})"
         digital_badge_class = "registrar-doc-badge--pending"
         is_digital_uploaded = False
 
-    # Breakdown of digital documents
+    # Breakdown of digital documents (exclude optional documents not uploaded)
     digital_docs = []
     for spec in req_specs:
         key = spec["key"]
         has_file = key in uploaded_keys
+        if not spec["required"] and not has_file:
+            continue
         digital_docs.append(
             {
                 "key": key,
@@ -185,16 +201,34 @@ def get_document_submission_indicators(
         else ""
     )
 
-    # Hard copy item breakdown
+    # Hard copy item breakdown (exclude optional documents that weren't uploaded)
     hard_copy_specs = get_hard_copy_specs(profile, reg)
     hard_copy_items = []
     for spec in hard_copy_specs:
         key = spec["key"]
-        # Default received state: if whole hard copy submitted and not explicitly false, or true in dict
-        if is_hard_submitted:
-            received = saved_doc_map.get(key, True if spec["required"] else False)
+        doc = doc_by_type.get(key)
+        is_uploaded = bool(doc and getattr(doc, "file", None))
+        if not spec["required"] and not is_uploaded:
+            continue
+        filename = (
+            (getattr(doc, "original_filename", "") or doc.file.name.split("/")[-1])
+            if is_uploaded
+            else ""
+        )
+        file_url = doc.file.url if is_uploaded else ""
+        uploaded_at = (
+            timezone.localtime(doc.uploaded_at).strftime("%b %d, %Y")
+            if (is_uploaded and getattr(doc, "uploaded_at", None))
+            else ""
+        )
+
+        if key in saved_doc_map:
+            received = bool(saved_doc_map[key])
+        elif is_hard_submitted:
+            received = is_uploaded or spec["required"]
         else:
-            received = bool(saved_doc_map.get(key, False))
+            received = is_uploaded
+
         hard_copy_items.append(
             {
                 "key": key,
@@ -203,6 +237,10 @@ def get_document_submission_indicators(
                 "required": spec["required"],
                 "icon_bi": spec["icon_bi"],
                 "received": bool(received),
+                "isUploaded": is_uploaded,
+                "filename": filename,
+                "fileUrl": file_url,
+                "uploadedAt": uploaded_at,
             }
         )
 
@@ -255,14 +293,24 @@ def update_hard_copies_submission(
         elif not submitted:
             profile.hard_copies_received_by = None
 
+        uploaded_keys = set(
+            profile.documents.filter(file__isnull=False)
+            .exclude(file="")
+            .values_list("document_type", flat=True)
+        )
+        if profile.payment_proofs.filter(file__isnull=False).exclude(file="").exists():
+            uploaded_keys.add("assessment_fee_receipt")
+
         if documents_map is not None:
             profile.hard_copy_documents = {
                 k: bool(v) for k, v in documents_map.items()
             }
         elif submitted:
-            # Mark all required specs as received by default
+            # Mark all required specs and uploaded documents as received by default
             profile.hard_copy_documents = {
-                spec["key"]: True for spec in hard_copy_specs if spec["required"]
+                spec["key"]: True
+                for spec in hard_copy_specs
+                if spec["required"] or spec["key"] in uploaded_keys
             }
         else:
             profile.hard_copy_documents = {}

@@ -10,6 +10,16 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from backend.accounts.services import require_portal_access
+from backend.student.assessment_enrollment import (
+    ASSESSMENT_CLIENT_TYPES,
+    ASSESSMENT_DEFAULT_SCHOOL_ADDRESS,
+    ASSESSMENT_DEFAULT_SCHOOL_NAME,
+    ASSESSMENT_TYPE_OPTIONS,
+    TESDA_ASSESSMENT_EDUCATION_CHOICES,
+    TESDA_ASSESSMENT_EMPLOYMENT_CHOICES,
+    assessment_form_initial_extra,
+    merge_assessment_application_data,
+)
 from backend.student.document_review import (
     all_reviewable_documents_approved,
     get_document_review_status,
@@ -144,7 +154,7 @@ def _build_review_documents(profile: StudentEnrollmentProfile | None) -> list:
                     "reviewable": True,
                 }
             )
-        else:
+        elif spec["required"]:
             items.append(
                 {
                     "key": key,
@@ -153,7 +163,7 @@ def _build_review_documents(profile: StudentEnrollmentProfile | None) -> list:
                     "fileUrl": "",
                     "subtitle": subtitle,
                     "uploadedAt": "",
-                    "required": spec["required"],
+                    "required": True,
                     "uploaded": False,
                     "isMissing": True,
                     "reviewStatus": "missing",
@@ -221,6 +231,11 @@ def build_learner_profile_detail(profile: StudentEnrollmentProfile | None, reg: 
     else:
         return {"error": "No enrollment record found."}
 
+    if not photo_url and profile:
+        passport_doc = profile.documents.filter(document_type="passport_photo").first()
+        if passport_doc and passport_doc.file:
+            photo_url = passport_doc.file.url
+
     program_type = initial.get("program_type") or StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT
     is_training = program_type == StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT
 
@@ -239,6 +254,139 @@ def build_learner_profile_detail(profile: StudentEnrollmentProfile | None, reg: 
         for p in [initial.get("first_name"), initial.get("middle_name"), last_display]
         if p
     ).strip()
+
+    aa_raw = initial.get("assessment_application")
+    if not aa_raw:
+        if profile and profile.assessment_application_data:
+            aa_raw = merge_assessment_application_data(profile.assessment_application_data)
+        else:
+            aa_raw = assessment_form_initial_extra(profile, reg).get("assessment_application", {})
+    else:
+        aa_raw = merge_assessment_application_data(aa_raw)
+
+    birth_raw = initial.get("birth_date", "")
+    birth_mm, birth_dd, birth_yy = "", "", ""
+    if birth_raw:
+        try:
+            parts = str(birth_raw)[:10].split("-")
+            if len(parts) == 3:
+                birth_yy = parts[0]
+                birth_mm = parts[1]
+                birth_dd = parts[2]
+        except Exception:
+            pass
+
+    age_val = str(aa_raw.get("age") or "").strip()
+    if not age_val and birth_raw:
+        try:
+            from datetime import date
+            bdate = date.fromisoformat(str(birth_raw)[:10])
+            today = timezone.localdate()
+            age_val = str(today.year - bdate.year - ((today.month, today.day) < (bdate.month, bdate.day)))
+        except Exception:
+            pass
+
+    mid_name = (initial.get("middle_name") or "").strip()
+    middle_initial = f"{mid_name[0].upper()}." if mid_name else ""
+
+    edu_val = initial.get("educational_attainment", "")
+    edu_dict = dict(TESDA_ASSESSMENT_EDUCATION_CHOICES)
+    edu_dict.update(dict(EDUCATIONAL_ATTAINMENT_CHOICES))
+    edu_label = edu_dict.get(edu_val, edu_val)
+
+    emp_val = initial.get("employment_status", "")
+    emp_dict = dict(TESDA_ASSESSMENT_EMPLOYMENT_CHOICES)
+    emp_dict.update(dict(EMPLOYMENT_STATUS_CHOICES))
+    emp_label = emp_dict.get(emp_val, emp_val)
+
+    cs_val = initial.get("civil_status", "")
+    cs_dict = dict(StudentRegistration.CivilStatus.choices)
+    cs_label = cs_dict.get(cs_val, cs_val)
+
+    assessment_payload = {
+        "header": {
+            "formCode": "TESDA-OP-CO-05-F26",
+            "revision": "Rev. 00 — 03/01/17",
+            "referenceNumber": reg.reference_id if reg else initial.get("reference_id", ""),
+            "uli": initial.get("uli") or "",
+            "signature": initial.get("signature") or full_name,
+            "dateOfApplication": _format_date(initial.get("date_accomplished", "")) if initial.get("date_accomplished") else entry_date,
+            "photoUrl": photo_url,
+        },
+        "school": {
+            "name": aa_raw.get("school_name") or ASSESSMENT_DEFAULT_SCHOOL_NAME,
+            "address": aa_raw.get("school_address") or ASSESSMENT_DEFAULT_SCHOOL_ADDRESS,
+            "assessmentTitle": aa_raw.get("assessment_title") or initial.get("program_name", "—"),
+            "assessmentTypes": list(aa_raw.get("assessment_types") or []),
+            "assessmentTypeOptions": [
+                {"value": val, "label": lbl} for val, lbl in ASSESSMENT_TYPE_OPTIONS
+            ],
+        },
+        "section1_clientType": {
+            "options": [
+                {"value": val, "label": lbl} for val, lbl in ASSESSMENT_CLIENT_TYPES
+            ],
+            "selected": list(aa_raw.get("client_types") or []),
+        },
+        "section2_profile": {
+            "name": {
+                "surname": initial.get("last_name") or "",
+                "firstName": initial.get("first_name") or "",
+                "middleName": initial.get("middle_name") or "",
+                "middleInitial": middle_initial,
+                "nameExtension": initial.get("name_extension") or "",
+            },
+            "address": {
+                "street": initial.get("street_house") or "—",
+                "barangay": addr["barangay"],
+                "district": initial.get("district") or "—",
+                "city": addr["city"],
+                "province": addr["province"],
+                "region": addr["region"],
+                "zipCode": aa_raw.get("zip_code") or "—",
+            },
+            "parents": {
+                "motherName": aa_raw.get("mother_name") or "—",
+                "fatherName": aa_raw.get("father_name") or "—",
+            },
+            "sex": initial.get("sex") or "",
+            "civilStatus": cs_val,
+            "civilStatusLabel": cs_label,
+            "contact": {
+                "tel": aa_raw.get("tel_number") or "—",
+                "mobile": initial.get("contact_number") or "—",
+                "email": initial.get("email") or "—",
+                "fax": aa_raw.get("fax") or "—",
+                "others": aa_raw.get("contact_other") or "—",
+            },
+            "education": {
+                "value": edu_val,
+                "label": edu_label,
+                "options": [
+                    {"value": val, "label": lbl} for val, lbl in TESDA_ASSESSMENT_EDUCATION_CHOICES
+                ],
+            },
+            "employment": {
+                "value": emp_val,
+                "label": emp_label,
+                "options": [
+                    {"value": val, "label": lbl} for val, lbl in TESDA_ASSESSMENT_EMPLOYMENT_CHOICES
+                ],
+            },
+            "birth": {
+                "date": _format_date(initial.get("birth_date", "")),
+                "mm": birth_mm,
+                "dd": birth_dd,
+                "yy": birth_yy,
+                "birthplace": initial.get("birthplace") or "—",
+                "age": age_val or "—",
+            },
+        },
+        "section3_workExperience": aa_raw.get("work_experience") or [],
+        "section4_trainingSeminars": aa_raw.get("training_seminars") or [],
+        "section5_licensureExams": aa_raw.get("licensure_exams") or [],
+        "section6_competencyAssessments": aa_raw.get("competency_assessments") or [],
+    }
 
     return {
         "source": source,
@@ -314,6 +462,7 @@ def build_learner_profile_detail(profile: StudentEnrollmentProfile | None, reg: 
         "allDocumentsApproved": all_reviewable_documents_approved(profile) if profile else False,
         "documentsReviewReleased": bool(profile and profile.documents_review_released),
         "docIndicators": get_document_submission_indicators(profile, reg),
+        "assessmentApplication": assessment_payload,
     }
 
 

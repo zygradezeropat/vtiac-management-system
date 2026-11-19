@@ -157,7 +157,11 @@ export function initEnrollmentDocReview({ viewBodyEl, getItem, onReleased, onUpd
           checks[cb.dataset.key] = cb.checked;
         });
         const notes = (viewBodyEl.querySelector(".hard-copies-notes-input")?.value || "").trim();
-        const hasRequiredChecked = ["birth_certificate", "valid_id", "photo_2x2"].every((k) => checks[k]);
+        const requiredCbs = Array.from(viewBodyEl.querySelectorAll(".hard-copy-doc-check")).filter((cb) => {
+          const lbl = cb.closest(".registrar-hard-copies-item");
+          return Boolean(lbl?.querySelector(".text-danger"));
+        });
+        const hasRequiredChecked = requiredCbs.length ? requiredCbs.every((cb) => cb.checked) : true;
 
         const detail = await postHardCopiesAction({
           hard_copies_submitted: hasRequiredChecked ? "1" : "0",

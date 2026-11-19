@@ -1663,6 +1663,172 @@
   border: 1px solid #e2e8f0;
 }
 
+/* TESDA Competency Assessment Application Form (TESDA-OP-CO-05-F26) */
+.tesda-official-form {
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  border-radius: 4px;
+  padding: 1.25rem;
+  font-size: 0.8125rem;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1rem;
+}
+
+.tesda-official-form__top-bar {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
+.tesda-official-form__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.tesda-official-form__logo {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.tesda-official-form__agency-en {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.tesda-official-form__agency-fil {
+  font-size: 0.72rem;
+  color: #475569;
+  line-height: 1.2;
+}
+
+.tesda-official-form__title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0d6efd;
+  letter-spacing: 0.06em;
+  margin-top: 0.25rem;
+}
+
+.tesda-official-box {
+  border: 1.5px solid #0f172a;
+}
+
+.tesda-official-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  border: 1px solid #0f172a;
+}
+
+.tesda-official-table th {
+  background: #f1f5f9;
+  border: 1px solid #0f172a;
+  color: #0f172a;
+  font-weight: 700;
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+
+.tesda-official-table td {
+  border: 1px solid #0f172a;
+  padding: 4px 6px;
+  vertical-align: top;
+  min-height: 1.6rem;
+}
+
+.tesda-name-table {
+  border: 1px solid #0f172a;
+  border-collapse: collapse;
+}
+
+.tesda-name-table td {
+  border: 1px solid #0f172a;
+  vertical-align: middle;
+}
+
+.tesda-name-label {
+  background: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f172a;
+  padding: 4px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.tesda-char-boxes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.tesda-char-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.45rem;
+  border: 1px solid #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: #fff;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.tesda-ref-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.5rem;
+  padding: 0 0.2rem;
+  border: 1px solid #475569;
+  border-radius: 2px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #0f172a;
+}
+
+.tesda-ref-box--y { background: #fef9c3; }
+.tesda-ref-box--b { background: #dbeafe; }
+.tesda-ref-box--pink { background: #fce7f3; }
+.tesda-ref-box--g { background: #dcfce7; }
+.tesda-ref-box--o { background: #ffedd5; }
+.tesda-ref-box--p { background: #f3e8ff; }
+
+.tesda-form-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.tesda-form-check--on {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.tesda-form-check .bi-check-square-fill {
+  color: #0d6efd;
+}
+
+.tesda-form-check .bi-square {
+  color: #94a3b8;
+}
+
 @media (max-width: 767.98px) {
   .tesda-view-layout__photo {
     flex-direction: row;

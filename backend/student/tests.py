@@ -376,3 +376,90 @@ class AssessmentOnlyLabelAndContextTests(TestCase):
         self.assertTrue(data_cancel["ok"])
         self.assertIn("requirements_list_html", data_cancel)
 
+    def test_registrar_enrollment_detail_assessment_only(self):
+        from backend.registrar.enrollment_detail import build_learner_profile_detail
+        from backend.student.models import StudentEnrollmentProfile
+
+        candidate_profile = StudentEnrollmentProfile.objects.create(
+            user=self.candidate_user,
+            entry_date=datetime.date(2026, 11, 19),
+            birth_date=datetime.date(2001, 10, 11),
+            last_name="Cagang",
+            first_name="Katelyne Marie",
+            middle_name="Patana",
+            program_type="assessment_only",
+            selected_program="Driving NC III (Passenger Bus / Straight Truck)",
+            profile_step_completed=True,
+            assessment_application_data={
+                "school_name": "Valiant Technical Institute and Assessment Center, Inc.",
+                "school_address": "Bangoy St., Salvacion, Panabo, Philippines, 8105",
+                "assessment_title": "Driving NC III (Passenger Bus / Straight Truck)",
+                "assessment_types": ["full_qualification"],
+                "client_types": ["industry_worker"],
+                "mother_name": "Maria Cagang",
+                "father_name": "Jose Cagang",
+                "tel_number": "082-123456",
+                "fax": "",
+                "contact_other": "",
+                "zip_code": "8105",
+                "age": "25",
+                "work_experience": [
+                    {
+                        "company": "Bus Liner Inc.",
+                        "position": "Driver",
+                        "inclusive_dates": "01/2022",
+                        "monthly_salary": "25000",
+                        "appointment_status": "Regular",
+                        "years_experience": "3",
+                    }
+                ],
+                "training_seminars": [
+                    {
+                        "title": "Defensive Driving",
+                        "venue": "Davao City",
+                        "inclusive_dates": "03/2023",
+                        "hours": "16",
+                        "conducted_by": "LTO",
+                    }
+                ],
+                "licensure_exams": [
+                    {
+                        "title": "Professional Driver License",
+                        "year_taken": "2020",
+                        "venue": "Panabo",
+                        "rating": "Passed",
+                        "remarks": "Active",
+                        "expiry_date": "10/2028",
+                    }
+                ],
+                "competency_assessments": [
+                    {
+                        "title": "Driving NC II",
+                        "qualification_level": "NC II",
+                        "industry_sector": "Automotive and Land Transportation",
+                        "certificate_number": "CERT-12345",
+                        "date_issued": "05/2021",
+                        "expiration_date": "05/2026",
+                    }
+                ],
+            },
+        )
+
+        detail = build_learner_profile_detail(candidate_profile, None)
+        self.assertEqual(detail["formType"], "assessment_only")
+        aa = detail["assessmentApplication"]
+        self.assertEqual(aa["header"]["formCode"], "TESDA-OP-CO-05-F26")
+        self.assertEqual(aa["school"]["assessmentTypes"], ["full_qualification"])
+        self.assertEqual(aa["section1_clientType"]["selected"], ["industry_worker"])
+        self.assertEqual(aa["section2_profile"]["parents"]["motherName"], "Maria Cagang")
+        self.assertEqual(aa["section2_profile"]["parents"]["fatherName"], "Jose Cagang")
+        self.assertEqual(len(aa["section3_workExperience"]), 1)
+        self.assertEqual(aa["section3_workExperience"][0]["company"], "Bus Liner Inc.")
+        self.assertEqual(len(aa["section4_trainingSeminars"]), 1)
+        self.assertEqual(aa["section4_trainingSeminars"][0]["title"], "Defensive Driving")
+        self.assertEqual(len(aa["section5_licensureExams"]), 1)
+        self.assertEqual(aa["section5_licensureExams"][0]["title"], "Professional Driver License")
+        self.assertEqual(len(aa["section6_competencyAssessments"]), 1)
+        self.assertEqual(aa["section6_competencyAssessments"][0]["title"], "Driving NC II")
+
+

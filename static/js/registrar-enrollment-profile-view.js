@@ -58,6 +58,7 @@ function docReviewActions(doc, released) {
 
 function renderDocumentRows(docs, released) {
   return docs
+    .filter((doc) => doc.required || doc.uploaded || !doc.isMissing)
     .map((doc) => {
       const isMissing = Boolean(doc.isMissing || !doc.uploaded || doc.reviewStatus === "missing");
       const isRequired = Boolean(doc.required);
@@ -127,23 +128,60 @@ export function renderDocumentSubmissionIndicatorsSection(detail) {
   const hardBadgeClass = hardCopy?.badgeClass || (isHardSubmitted ? "registrar-doc-badge--hard-submitted" : "registrar-doc-badge--hard-pending");
   const hardLabel = hardCopy?.label || (isHardSubmitted ? "Hard Copies: Submitted" : "Hard Copies: Pending");
 
-  const hardCopyItems = hardCopy?.items || [];
+  const hardCopyItems = (hardCopy?.items || []).filter((item) => item.required || item.isUploaded);
   const itemsHtml = hardCopyItems
     .map((item) => {
       const checked = item.received ? "checked" : "";
+      const isUploaded = Boolean(item.isUploaded);
+      const filename = item.filename || "";
+      const fileUrl = item.fileUrl || "";
+
+      let fileLine = "";
+      if (isUploaded && fileUrl) {
+        fileLine = `
+          <div class="d-flex align-items-center gap-1 mt-1 text-2xs text-muted">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5">
+              <i class="bi bi-cloud-check-fill me-1"></i>Uploaded
+            </span>
+            <span class="text-truncate" style="max-width: 13rem;" title="${escapeHtml(filename)}">
+              ${escapeHtml(filename)}
+            </span>
+            <button
+              type="button"
+              class="btn btn-sm btn-link p-0 text-primary file-preview-btn ms-1"
+              data-preview-url="${escapeHtml(fileUrl)}"
+              data-preview-name="${escapeHtml(filename || item.title)}"
+              title="View uploaded ${escapeHtml(item.title)}"
+              aria-label="View ${escapeHtml(item.title)}"
+              onclick="event.stopPropagation();"
+            >
+              ${FILE_PREVIEW_ICON}
+            </button>
+          </div>`;
+      } else if (item.required) {
+        fileLine = `<div class="text-danger text-2xs mt-1"><i class="bi bi-exclamation-triangle me-1"></i>Required document not uploaded by applicant</div>`;
+      } else {
+        fileLine = `<div class="text-muted text-2xs mt-1"><i class="bi bi-dash-circle me-1"></i>Not uploaded (optional)</div>`;
+      }
+
       return `
         <div class="col-md-6">
-          <label class="registrar-hard-copies-item form-check d-flex align-items-center justify-content-between p-2 px-3 rounded-2 border mb-0 cursor-pointer">
-            <div class="d-flex align-items-center gap-2 min-w-0">
-              <input class="form-check-input hard-copy-doc-check flex-shrink-0 mt-0" type="checkbox" data-key="${escapeHtml(item.key)}" ${checked}>
-              <div>
-                <div class="fw-medium small text-truncate">${escapeHtml(item.title)} ${item.required ? '<span class="text-danger">*</span>' : '<span class="text-muted text-2xs">(optional)</span>'}</div>
-                ${item.hint ? `<div class="text-muted text-2xs">${escapeHtml(item.hint)}</div>` : ""}
+          <label class="registrar-hard-copies-item form-check d-flex align-items-center justify-content-between p-2 px-3 rounded-2 border mb-0 cursor-pointer ${isUploaded ? 'border-primary-subtle bg-white' : ''}">
+            <div class="d-flex align-items-start gap-2 min-w-0">
+              <input class="form-check-input hard-copy-doc-check flex-shrink-0 mt-1" type="checkbox" data-key="${escapeHtml(item.key)}" ${checked}>
+              <div class="min-w-0">
+                <div class="fw-medium small text-truncate">
+                  ${escapeHtml(item.title)} ${item.required ? '<span class="text-danger">*</span>' : '<span class="text-muted text-2xs">(optional)</span>'}
+                </div>
+                ${item.hint ? `<div class="text-muted text-2xs text-truncate">${escapeHtml(item.hint)}</div>` : ""}
+                ${fileLine}
               </div>
             </div>
-            <span class="badge ${item.received ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary'} text-2xs ms-2 hard-copy-item-badge">
-              ${item.received ? 'Received' : 'Pending'}
-            </span>
+            <div class="ms-2 flex-shrink-0 text-end">
+              <span class="badge ${item.received ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary'} text-2xs hard-copy-item-badge">
+                ${item.received ? 'Received' : 'Pending'}
+              </span>
+            </div>
           </label>
         </div>`;
     })
@@ -430,9 +468,581 @@ export function renderTrainingLearnerProfile(detail) {
     </div>`;
 }
 
-export function renderAssessmentOnlyNotice(detail) {
-  return `<div class="alert alert-info mb-3">This enrollee selected <strong>Assessment Only</strong>. Open their TESDA application form from the student portal for full assessment fields.</div>
-    ${renderTrainingLearnerProfile(detail)}`;
+function renderCheck(label, isChecked) {
+  return `<span class="tesda-form-check ${isChecked ? 'tesda-form-check--on' : ''}">
+    <i class="bi ${isChecked ? 'bi-check-square-fill' : 'bi-square'}" aria-hidden="true"></i>
+    <span class="tesda-form-check__label">${escapeHtml(label)}</span>
+  </span>`;
+}
+
+function renderLetterBoxes(text, totalBoxes = 20) {
+  const clean = (text || "").toUpperCase().replace(/[^A-Z0-9 ]/g, "");
+  const chars = clean.split("");
+  let boxes = "";
+  for (let i = 0; i < totalBoxes; i++) {
+    const ch = chars[i] || "&nbsp;";
+    boxes += `<span class="tesda-char-box">${ch}</span>`;
+  }
+  return `<div class="tesda-char-boxes">${boxes}</div>`;
+}
+
+function renderRefBoxes() {
+  const groups = [
+    { cls: "tesda-ref-box--y", count: 3 },
+    { cls: "tesda-ref-box--b", count: 2 },
+    { cls: "tesda-ref-box--pink", count: 2 },
+    { cls: "tesda-ref-box--g", count: 2 },
+    { cls: "tesda-ref-box--o", count: 4 },
+    { cls: "tesda-ref-box--p", count: 4 },
+  ];
+  return groups
+    .map((grp) => {
+      let bHtml = "";
+      for (let i = 0; i < grp.count; i++) {
+        bHtml += `<span class="tesda-ref-box ${grp.cls}">&nbsp;</span>`;
+      }
+      return `<div class="d-inline-flex gap-1 me-1">${bHtml}</div>`;
+    })
+    .join("");
+}
+
+function renderUliBoxes() {
+  const groups = [3, 2, 3, 3, 3];
+  return groups
+    .map((count, idx) => {
+      let bHtml = "";
+      for (let i = 0; i < count; i++) {
+        bHtml += `<span class="tesda-ref-box tesda-ref-box--b">&nbsp;</span>`;
+      }
+      return `${idx > 0 ? '<span class="fw-bold text-muted px-1">-</span>' : ""}<div class="d-inline-flex gap-1">${bHtml}</div>`;
+    })
+    .join("");
+}
+
+function renderWorkExperienceRows(rows) {
+  const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
+  const displayRows = validRows.length ? validRows : [{}, {}];
+  if (displayRows.length === 1) displayRows.push({});
+  return displayRows
+    .map(
+      (r) => `<tr>
+        <td>${escapeHtml(r.company || "—")}</td>
+        <td>${escapeHtml(r.position || "—")}</td>
+        <td>${escapeHtml(r.inclusive_dates || "—")}</td>
+        <td>${escapeHtml(r.monthly_salary || "—")}</td>
+        <td>${escapeHtml(r.appointment_status || "—")}</td>
+        <td>${escapeHtml(r.years_experience || "—")}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+function renderTrainingRows(rows) {
+  const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
+  const displayRows = validRows.length ? validRows : [{}, {}];
+  if (displayRows.length === 1) displayRows.push({});
+  return displayRows
+    .map(
+      (r) => `<tr>
+        <td>${escapeHtml(r.title || "—")}</td>
+        <td>${escapeHtml(r.venue || "—")}</td>
+        <td>${escapeHtml(r.inclusive_dates || "—")}</td>
+        <td>${escapeHtml(r.hours || "—")}</td>
+        <td>${escapeHtml(r.conducted_by || "—")}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+function renderLicenseRows(rows) {
+  const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
+  const displayRows = validRows.length ? validRows : [{}, {}];
+  if (displayRows.length === 1) displayRows.push({});
+  return displayRows
+    .map(
+      (r) => `<tr>
+        <td>${escapeHtml(r.title || "—")}</td>
+        <td>${escapeHtml(r.year_taken || "—")}</td>
+        <td>${escapeHtml(r.venue || "—")}</td>
+        <td>${escapeHtml(r.rating || "—")}</td>
+        <td>${escapeHtml(r.remarks || "—")}</td>
+        <td>${escapeHtml(r.expiry_date || "—")}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+function renderCompetencyRows(rows) {
+  const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
+  const displayRows = validRows.length ? validRows : [{}, {}];
+  if (displayRows.length === 1) displayRows.push({});
+  return displayRows
+    .map(
+      (r) => `<tr>
+        <td>${escapeHtml(r.title || "—")}</td>
+        <td>${escapeHtml(r.qualification_level || "—")}</td>
+        <td>${escapeHtml(r.industry_sector || "—")}</td>
+        <td>${escapeHtml(r.certificate_number || "—")}</td>
+        <td>${escapeHtml(r.date_issued || "—")}</td>
+        <td>${escapeHtml(r.expiration_date || "—")}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+export function renderAssessmentApplicationProfile(detail) {
+  const aa = detail?.assessmentApplication || {};
+  const header = aa.header || {};
+  const school = aa.school || {};
+  const sec1 = aa.section1_clientType || {};
+  const sec2 = aa.section2_profile || {};
+  const nameObj = sec2.name || {
+    surname: detail.section2?.lastName || "",
+    firstName: detail.section2?.firstName || "",
+    middleName: detail.section2?.middleName || "",
+    middleInitial: "",
+    nameExtension: detail.section2?.nameExtension || "",
+  };
+  const addr = sec2.address || {
+    street: detail.section2?.street || "—",
+    barangay: detail.section2?.barangay || "—",
+    district: detail.section2?.district || "—",
+    city: detail.section2?.city || "—",
+    province: detail.section2?.province || "—",
+    region: detail.section2?.region || "—",
+    zipCode: "—",
+  };
+  const parents = sec2.parents || { motherName: "—", fatherName: "—" };
+  const contact = sec2.contact || {
+    tel: "—",
+    mobile: detail.section2?.contact || "—",
+    email: detail.section2?.email || "—",
+    fax: "—",
+    others: "—",
+  };
+  const edu = sec2.education || {
+    value: "",
+    label: detail.section3?.education || "—",
+  };
+  const emp = sec2.employment || {
+    value: "",
+    label: detail.section3?.employmentStatus || "—",
+  };
+  const birth = sec2.birth || {
+    date: detail.section3?.birthDate || "—",
+    mm: "",
+    dd: "",
+    yy: "",
+    birthplace: detail.section3?.birthplace || "—",
+    age: "—",
+  };
+
+  const workRows = aa.section3_workExperience || [];
+  const trainingRows = aa.section4_trainingSeminars || [];
+  const licenseRows = aa.section5_licensureExams || [];
+  const competencyRows = aa.section6_competencyAssessments || [];
+
+  const assessmentTypes = Array.isArray(school.assessmentTypes) ? school.assessmentTypes : [];
+  const clientTypes = Array.isArray(sec1.selected) ? sec1.selected : [];
+
+  const photoHtml = `<div class="border border-dark w-100 h-100 d-flex flex-column align-items-center justify-content-center p-2" style="min-height: 145px; background: #fff;">
+    <div class="fw-bold text-dark" style="font-size: 0.8125rem; letter-spacing: 0.05em;">PICTURE</div>
+    <div class="fst-italic text-muted mt-2 text-center" style="font-size: 0.7rem; line-height: 1.35;">
+      colored,<br>
+      passport size,
+    </div>
+  </div>`;
+
+  const incompleteBanner = detail.source === "registration"
+    ? `<div class="alert alert-warning mb-3"><strong>Candidate profile not yet completed.</strong> Showing initial registration data. The candidate must submit the full TESDA Application Form (Step 1).</div>`
+    : "";
+
+  // Education matching
+  const rawEdu = (edu.value || "").toLowerCase();
+  const isElementary = rawEdu.includes("elementary");
+  const isHighSchool = rawEdu.includes("high_school") || rawEdu.includes("secondary_undergrad");
+  const isTvet = rawEdu.includes("tvet") || rawEdu.includes("post_secondary");
+  const isCollegeLevel = rawEdu.includes("college_level") || rawEdu.includes("college_undergrad");
+  const isCollegeGrad = rawEdu.includes("college_grad") || rawEdu.includes("masteral") || rawEdu.includes("doctorate");
+  const isEduOther = Boolean(rawEdu && !isElementary && !isHighSchool && !isTvet && !isCollegeLevel && !isCollegeGrad);
+
+  // Employment matching
+  const rawEmp = (emp.value || "").toLowerCase();
+  const isCasual = rawEmp === "casual";
+  const isJobOrder = rawEmp === "job_order" || rawEmp.includes("job");
+  const isProbationary = rawEmp === "probationary";
+  const isPermanent = rawEmp === "permanent";
+  const isSelfEmployed = rawEmp === "self_employed" || rawEmp.includes("self");
+  const isOfw = rawEmp === "ofw";
+
+  const sex = (sec2.sex || detail.section3?.sex || "").toLowerCase();
+  const civilStatus = (sec2.civilStatus || "").toLowerCase();
+
+  return `
+    ${incompleteBanner}
+    <div class="tesda-official-form">
+      <!-- Top header line -->
+      <div class="tesda-official-form__top-bar mb-2">
+        <span>TESDA-OP-CO-05-F26</span> &nbsp;&nbsp; <span>Rev. 00 — 03/01/17</span>
+      </div>
+
+      <!-- Main agency header -->
+      <header class="tesda-official-form__header">
+        <img src="/static/img/TESDA%20Logo%20official.png" alt="TESDA Logo" class="tesda-official-form__logo" onerror="this.style.display='none'" />
+        <div class="text-center flex-grow-1">
+          <p class="tesda-official-form__agency-en mb-0">TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY</p>
+          <p class="tesda-official-form__agency-fil mb-0">Pangasiwaan sa Edukasyong Teknikal at Pagpapaunlad ng Kasanayan</p>
+          <h2 class="tesda-official-form__title mb-0">APPLICATION FORM</h2>
+        </div>
+      </header>
+
+      <!-- Reference number, ULI, Signature & Photo header box -->
+      <div class="border border-dark mb-0">
+        <div class="row g-0">
+          <div class="col border-end border-dark p-2 d-flex flex-column justify-content-between">
+            <div>
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <span class="fw-bold text-2xs text-uppercase" style="white-space: nowrap;">Reference Number :</span>
+                <div class="d-flex flex-wrap align-items-center">
+                  ${renderRefBoxes()}
+                </div>
+              </div>
+              <div class="d-flex justify-content-between text-muted mb-2 px-1" style="font-size: 0.6rem;">
+                <span>Web appl. code</span>
+                <span>TV</span>
+                <span>Region</span>
+                <span>Province</span>
+                <span>Number Series Assigned in AC</span>
+                <span>Number Series</span>
+              </div>
+
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <span class="fw-bold text-2xs text-uppercase" style="white-space: nowrap;">Unique Learners Identifier (ULI):</span>
+                <div class="d-flex flex-wrap align-items-center">
+                  ${renderUliBoxes()}
+                </div>
+              </div>
+              <div class="text-center fst-italic text-muted mb-2" style="font-size: 0.65rem;">to be filled - out by the Processing Officer</div>
+            </div>
+
+            <div class="row g-2 pt-2 border-top border-dark">
+              <div class="col-6 text-center">
+                <div class="border-bottom border-dark pb-1 fw-bold small text-dark">${escapeHtml(header.signature || detail.name || "—")}</div>
+                <div class="text-muted mt-1" style="font-size: 0.7rem;">Applicant's Signature</div>
+              </div>
+              <div class="col-6 text-center">
+                <div class="border-bottom border-dark pb-1 fw-bold small text-dark">${escapeHtml(header.dateOfApplication || detail.section1?.entryDate || "—")}</div>
+                <div class="text-muted mt-1" style="font-size: 0.7rem;">Date of Application</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-auto p-2 d-flex align-items-center justify-content-center" style="width: 140px; background: #fff;">
+            ${photoHtml}
+          </div>
+        </div>
+      </div>
+
+      <!-- Training Center & Assessment Applied for -->
+      <div class="border border-dark border-top-0 p-2">
+        <div class="mb-1"><span class="fw-bold text-primary">Name of School/Training Center/Company:</span> <span class="fw-semibold text-dark ms-1">${escapeHtml(school.name || "Valiant Technical Institute and Assessment Center, Inc.")}</span></div>
+        <div class="mb-1"><span class="fw-bold text-primary">Address:</span> <span class="fw-semibold text-dark ms-1">${escapeHtml(school.address || "Bangoy St., Salvacion, Panabo, Philippines, 8105")}</span></div>
+        <div class="mb-1"><span class="fw-bold text-primary">Title of Assessment applied for:</span> <span class="fw-bold text-primary ms-1">${escapeHtml(school.assessmentTitle || detail.program || "—")}</span></div>
+        <div class="d-flex flex-wrap align-items-center gap-4 mt-2 pt-1 border-top border-secondary-subtle">
+          ${renderCheck("Full Qualification", assessmentTypes.includes("full_qualification"))}
+          ${renderCheck("COC", assessmentTypes.includes("coc"))}
+          ${renderCheck("Renewal", assessmentTypes.includes("renewal"))}
+        </div>
+      </div>
+
+      <!-- 1. Client Type -->
+      <div class="border border-dark border-top-0">
+        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+          1. Client Type
+        </div>
+        <div class="p-2 d-flex flex-wrap gap-4 align-items-center">
+          ${renderCheck("TVET Graduating Student", clientTypes.includes("tvet_graduating"))}
+          ${renderCheck("TVET graduate", clientTypes.includes("tvet_graduate"))}
+          ${renderCheck("Industry worker", clientTypes.includes("industry_worker"))}
+          ${renderCheck("K-12", clientTypes.includes("k12"))}
+          ${renderCheck("OFW", clientTypes.includes("ofw"))}
+        </div>
+      </div>
+
+      <!-- 2. Profile -->
+      <div class="border border-dark border-top-0">
+        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+          2. Profile
+        </div>
+
+        <!-- 2.1 Name -->
+        <div class="p-2 border-bottom border-dark">
+          <div class="fw-bold text-2xs text-muted mb-1">2.1. Name:</div>
+          <div class="table-responsive">
+            <table class="tesda-name-table w-100 mb-0">
+              <tbody>
+                <tr>
+                  <td class="tesda-name-label" style="width: 110px;">SURNAME</td>
+                  <td class="p-1">${renderLetterBoxes(nameObj.surname, 24)}</td>
+                </tr>
+                <tr>
+                  <td class="tesda-name-label">FIRST NAME</td>
+                  <td class="p-1">${renderLetterBoxes(nameObj.firstName, 24)}</td>
+                </tr>
+                <tr>
+                  <td class="tesda-name-label">MIDDLE NAME</td>
+                  <td class="p-1">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                      ${renderLetterBoxes(nameObj.middleName, 17)}
+                      <div class="d-flex align-items-center gap-1">
+                        <span class="text-2xs text-muted">middle initial:</span>
+                        <span class="tesda-char-box bg-light fw-bold">${escapeHtml(nameObj.middleInitial || "—")}</span>
+                      </div>
+                      <div class="d-flex align-items-center gap-1">
+                        <span class="text-2xs text-muted">extension:</span>
+                        <span class="tesda-char-box bg-light fw-bold px-1" style="width: auto; min-width: 1.5rem;">${escapeHtml(nameObj.nameExtension || "—")}</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 2.2 Mailing Address -->
+        <div class="p-2 border-bottom border-dark">
+          <div class="fw-bold text-2xs text-muted mb-1">2.2. Mailing Address:</div>
+          <div class="row g-2">
+            <div class="col-md-5">
+              <span class="text-2xs text-muted d-block">Number, Street</span>
+              <span class="fw-semibold text-dark small">${escapeHtml(addr.street)}</span>
+            </div>
+            <div class="col-md-4">
+              <span class="text-2xs text-muted d-block">Barangay</span>
+              <span class="fw-semibold text-dark small">${escapeHtml(addr.barangay)}</span>
+            </div>
+            <div class="col-md-3">
+              <span class="text-2xs text-muted d-block">District</span>
+              <span class="fw-semibold text-dark small">${escapeHtml(addr.district)}</span>
+            </div>
+            <div class="col-md-4">
+              <span class="text-2xs text-muted d-block">City / Municipality</span>
+              <span class="fw-semibold text-dark small">${escapeHtml(addr.city)}</span>
+            </div>
+            <div class="col-md-3">
+              <span class="text-2xs text-muted d-block">Province</span>
+              <span class="fw-semibold text-dark small">${escapeHtml(addr.province)}</span>
+            </div>
+            <div class="col-md-3">
+              <span class="text-2xs text-muted d-block">Region</span>
+              <span class="fw-semibold text-dark small">${escapeHtml(addr.region)}</span>
+            </div>
+            <div class="col-md-2">
+              <span class="text-2xs text-muted d-block">Zip Code</span>
+              <span class="fw-semibold text-dark small">${escapeHtml(addr.zipCode)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.3 & 2.4 Parents -->
+        <div class="row g-0 border-bottom border-dark">
+          <div class="col-md-6 p-2 border-end border-dark">
+            <span class="text-2xs text-muted d-block">2.3. Mother's Name</span>
+            <span class="fw-semibold text-dark small">${escapeHtml(parents.motherName)}</span>
+          </div>
+          <div class="col-md-6 p-2">
+            <span class="text-2xs text-muted d-block">2.4. Father's Name</span>
+            <span class="fw-semibold text-dark small">${escapeHtml(parents.fatherName)}</span>
+          </div>
+        </div>
+
+        <!-- 2.5 - 2.9 (Left & Right columns) -->
+        <div class="row g-0 border-bottom border-dark">
+          <!-- Left Column: Sex, Civil Status, Contacts -->
+          <div class="col-md-6 p-2 border-end border-dark">
+            <div class="mb-2">
+              <span class="text-2xs text-muted d-block mb-1">2.5. Sex</span>
+              <div class="d-flex gap-3">
+                ${renderCheck("Male", sex === "male")}
+                ${renderCheck("Female", sex === "female")}
+              </div>
+            </div>
+            <div class="mb-2">
+              <span class="text-2xs text-muted d-block mb-1">2.6. Civil Status</span>
+              <div class="d-flex flex-wrap gap-2">
+                ${renderCheck("Single", civilStatus === "single")}
+                ${renderCheck("Married", civilStatus === "married")}
+                ${renderCheck("Widow/er", civilStatus === "widowed")}
+                ${renderCheck("Separated", civilStatus === "separated")}
+              </div>
+            </div>
+            <div>
+              <span class="text-2xs text-muted d-block mb-1">2.7. Contact Number(s)</span>
+              <div class="row g-1 small">
+                <div class="col-6"><span class="text-muted text-2xs">Tel:</span> <span class="fw-medium">${escapeHtml(contact.tel)}</span></div>
+                <div class="col-6"><span class="text-muted text-2xs">Mobile:</span> <span class="fw-bold">${escapeHtml(contact.mobile)}</span></div>
+                <div class="col-12"><span class="text-muted text-2xs">E-mail:</span> <span class="fw-medium">${escapeHtml(contact.email)}</span></div>
+                <div class="col-6"><span class="text-muted text-2xs">Fax:</span> <span class="fw-medium">${escapeHtml(contact.fax)}</span></div>
+                <div class="col-6"><span class="text-muted text-2xs">Others:</span> <span class="fw-medium">${escapeHtml(contact.others)}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Education & Employment Status -->
+          <div class="col-md-6 p-2">
+            <div class="mb-2">
+              <span class="text-2xs text-muted d-block mb-1">2.8. Highest Educational Attainment</span>
+              <div class="d-flex flex-column gap-1">
+                ${renderCheck("Elementary Graduate", isElementary)}
+                ${renderCheck("High School Graduate", isHighSchool)}
+                ${renderCheck("TVET Graduate", isTvet)}
+                ${renderCheck("College Level", isCollegeLevel)}
+                ${renderCheck("College Graduate", isCollegeGrad)}
+                ${renderCheck("Others: " + (isEduOther ? escapeHtml(edu.label) : "__________"), isEduOther)}
+              </div>
+            </div>
+            <div>
+              <span class="text-2xs text-muted d-block mb-1">2.9. Employment Status</span>
+              <div class="d-flex flex-wrap gap-2">
+                ${renderCheck("Casual", isCasual)}
+                ${renderCheck("Job Order", isJobOrder)}
+                ${renderCheck("Probationary", isProbationary)}
+                ${renderCheck("Permanent", isPermanent)}
+                ${renderCheck("Self-Employed", isSelfEmployed)}
+                ${renderCheck("OFW", isOfw)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2.10 - 2.12 Birth Date, Birth Place, Age -->
+        <div class="row g-0 p-2 align-items-center">
+          <div class="col-md-5 d-flex align-items-center gap-2">
+            <span class="text-2xs text-muted text-nowrap">2.10 Birth date (mm/dd/yy):</span>
+            <div class="d-flex align-items-center gap-1">
+              <span class="tesda-char-box bg-light fw-bold">${escapeHtml(birth.mm || "MM")}</span> /
+              <span class="tesda-char-box bg-light fw-bold">${escapeHtml(birth.dd || "DD")}</span> /
+              <span class="tesda-char-box bg-light fw-bold" style="width: auto; min-width: 1.6rem; padding: 0 3px;">${escapeHtml(birth.yy || "YY")}</span>
+            </div>
+          </div>
+          <div class="col-md-5 d-flex align-items-center gap-2">
+            <span class="text-2xs text-muted text-nowrap">2.11 Birth place:</span>
+            <span class="fw-semibold small text-dark">${escapeHtml(birth.birthplace)}</span>
+          </div>
+          <div class="col-md-2 d-flex align-items-center gap-2">
+            <span class="text-2xs text-muted text-nowrap">2.12 Age:</span>
+            <span class="fw-bold small text-dark">${escapeHtml(birth.age)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Work Experience -->
+      <div class="border border-dark border-top-0 mb-3">
+        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+          3. Work Experience <span class="fw-normal text-muted" style="font-size: 0.75rem;">(National Qualification-related)</span>
+        </div>
+        <div class="table-responsive mb-0">
+          <table class="tesda-official-table w-100 mb-0">
+            <thead>
+              <tr>
+                <th>3.1 Name of Company</th>
+                <th>3.2 Position</th>
+                <th>3.3 Inclusive Dates</th>
+                <th>3.4 Monthly Salary</th>
+                <th>3.5 Status of Appointment</th>
+                <th>3.6 No. of Yrs. Working Exp.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderWorkExperienceRows(workRows)}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
+      </div>
+
+      <!-- Page 2 separator -->
+      <div class="d-flex align-items-center justify-content-between my-3 text-muted text-2xs px-1">
+        <span class="border-top border-secondary-subtle flex-grow-1 me-2"></span>
+        <span class="fw-bold text-uppercase text-secondary"><i class="bi bi-file-earmark-text me-1"></i>Page 2 — Qualifications & History</span>
+        <span class="border-top border-secondary-subtle flex-grow-1 ms-2"></span>
+      </div>
+
+      <!-- 4. Other Training/Seminars Attended -->
+      <div class="border border-dark mb-0">
+        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+          4. Other Training/Seminars Attended <span class="fw-normal text-muted" style="font-size: 0.75rem;">(National Qualification-related)</span>
+        </div>
+        <div class="table-responsive mb-0">
+          <table class="tesda-official-table w-100 mb-0">
+            <thead>
+              <tr>
+                <th>4.1 Title</th>
+                <th>4.2 Venue</th>
+                <th>4.3 Inclusive Dates</th>
+                <th>4.4 No. of Hours</th>
+                <th>4.5 Conducted By</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderTrainingRows(trainingRows)}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
+      </div>
+
+      <!-- 5. Licensure Examination(s) Passed -->
+      <div class="border border-dark border-top-0 mb-0">
+        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+          5. Licensure Examination(s) Passed
+        </div>
+        <div class="table-responsive mb-0">
+          <table class="tesda-official-table w-100 mb-0">
+            <thead>
+              <tr>
+                <th>5.1 Title</th>
+                <th>5.2 Year Taken</th>
+                <th>5.3 Examination Venue</th>
+                <th>5.4 Rating</th>
+                <th>5.5 Remarks</th>
+                <th>5.6 Expiry Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderLicenseRows(licenseRows)}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
+      </div>
+
+      <!-- 6. Competency Assessment(s) Passed -->
+      <div class="border border-dark border-top-0">
+        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+          6. Competency Assessment(s) Passed
+        </div>
+        <div class="table-responsive mb-0">
+          <table class="tesda-official-table w-100 mb-0">
+            <thead>
+              <tr>
+                <th>6.1 Title</th>
+                <th>6.2 Qualification Level</th>
+                <th>6.3 Industry Sector</th>
+                <th>6.4 Certificate Number</th>
+                <th>6.5 Date of Issuance</th>
+                <th>6.6 Expiration Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderCompetencyRows(competencyRows)}
+            </tbody>
+          </table>
+        </div>
+        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
+      </div>
+    </div>`;
 }
 
 export function renderIncompleteProfileNotice(detail) {
@@ -448,7 +1058,7 @@ export function renderLearnerProfileModalBody(detail) {
   const documentsBlock = renderUploadedDocumentsSection(detail);
   let body;
   if (detail.formType === "assessment_only") {
-    body = renderAssessmentOnlyNotice(detail);
+    body = renderAssessmentApplicationProfile(detail);
   } else if (detail.source === "registration") {
     body = renderIncompleteProfileNotice(detail);
   } else {
