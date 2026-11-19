@@ -839,13 +839,14 @@ def _serialize_template(
 
         "examinerName": (
             t.examiner_name
-            or t.trainer_name
-            or ""
+            if t.batch_kind == BatchKind.NATIONAL_ASSESSMENT
+            else ""
         ),
 
         "assessmentVenue": (
             t.examination_course
-            or ""
+            if t.batch_kind == BatchKind.NATIONAL_ASSESSMENT
+            else ""
         ),
 
         "batchLabel": (
@@ -993,6 +994,10 @@ def _serialize_batch_card(
         "finalizedAt": data["finalizedAt"],
 
         "name": data["name"],
+
+        "examinerName": data.get("examinerName", ""),
+
+        "assessmentVenue": data.get("assessmentVenue", ""),
 
         "batchKind": data["batchKind"],
 

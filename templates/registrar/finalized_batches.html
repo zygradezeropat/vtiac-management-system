@@ -17,6 +17,45 @@
 </header>
 
 {% csrf_token %}
+
+<!-- Schedule category tabs (Training with Assessment vs Assessment Only) -->
+<div
+  id="finalized-category-tabs"
+  class="registrar-batch-tabs mb-4"
+  role="tablist"
+  aria-label="Schedule category">
+  <button
+    type="button"
+    class="registrar-batch-tab is-active"
+    role="tab"
+    aria-selected="true"
+    data-category-tab="training"
+  >
+    Training with Assessment
+    <span class="registrar-batch-tab__count" id="finalized-training-count">0</span>
+  </button>
+  <button
+    type="button"
+    class="registrar-batch-tab"
+    role="tab"
+    aria-selected="false"
+    data-category-tab="assessment"
+  >
+    Assessment Only
+    <span class="registrar-batch-tab__count" id="finalized-assessment-count">0</span>
+  </button>
+  <button
+    type="button"
+    class="registrar-batch-tab"
+    role="tab"
+    aria-selected="false"
+    data-category-tab="all"
+  >
+    All Schedules
+    <span class="registrar-batch-tab__count" id="finalized-all-count">0</span>
+  </button>
+</div>
+
 <div id="finalized-stats" class="row g-3 mb-4"></div>
 
 <div class="registrar-panel mb-0">
@@ -179,7 +218,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{% static 'js/registrar-finalized-batches.js' %}"></script>
+<script type="module" src="{% static 'js/registrar-finalized-batches.js' %}?v={% now 'U' %}"></script>
 <script type="module">
   import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
   initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");

@@ -237,6 +237,39 @@ document.addEventListener(
           )
         : null;
 
+    const categoryTabsEl =
+      document.getElementById(
+        "finalized-category-tabs"
+      );
+
+    const FINALIZED_CATEGORY_TABS = [
+      {
+        key: "training",
+        label: "Training with Assessment",
+      },
+      {
+        key: "assessment",
+        label: "Assessment Only",
+      },
+      {
+        key: "all",
+        label: "All Schedules",
+      },
+    ];
+
+    let activeCategoryTab = "training";
+
+    function isAssessmentBatch(b) {
+      if (!b) return false;
+      const kind = String(b.batchKind || "").toLowerCase().trim();
+      const cat = String(b.category || "").toLowerCase().trim();
+      return (
+        kind === "national_assessment" ||
+        kind === "assessment" ||
+        cat === "national"
+      );
+    }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -283,6 +316,19 @@ document.addEventListener(
 
       return allBatches.filter(
         (b) => {
+
+          /*
+           * Filter by category tab (Training vs Assessment).
+           */
+          if (activeCategoryTab === "training") {
+            if (isAssessmentBatch(b)) {
+              return false;
+            }
+          } else if (activeCategoryTab === "assessment") {
+            if (!isAssessmentBatch(b)) {
+              return false;
+            }
+          }
 
           /*
            * Filter by active tab.
@@ -453,6 +499,73 @@ document.addEventListener(
 
     /*
     |--------------------------------------------------------------------------
+    | CATEGORY TABS (Training vs Assessment)
+    |--------------------------------------------------------------------------
+    */
+
+    function renderCategoryTabs() {
+      if (!categoryTabsEl) {
+        return;
+      }
+
+      const trainingCount = allBatches.filter((b) => !isAssessmentBatch(b)).length;
+      const assessmentCount = allBatches.filter((b) => isAssessmentBatch(b)).length;
+      const allCount = allBatches.length;
+
+      const counts = {
+        training: trainingCount,
+        assessment: assessmentCount,
+        all: allCount,
+      };
+
+      const existingButtons = categoryTabsEl.querySelectorAll("[data-category-tab]");
+      if (existingButtons.length === 3) {
+        existingButtons.forEach((btn) => {
+          const cat = btn.getAttribute("data-category-tab");
+          const isActive = activeCategoryTab === cat;
+          btn.classList.toggle("is-active", isActive);
+          btn.setAttribute("aria-selected", String(isActive));
+          const countEl = btn.querySelector(".registrar-batch-tab__count");
+          if (countEl && counts[cat] !== undefined) {
+            countEl.textContent = counts[cat];
+          }
+        });
+      } else {
+        categoryTabsEl.innerHTML = FINALIZED_CATEGORY_TABS.map((tab) => {
+          const isActive = activeCategoryTab === tab.key;
+          const count = counts[tab.key] ?? 0;
+
+          return `
+            <button
+              type="button"
+              class="registrar-batch-tab${isActive ? " is-active" : ""}"
+              role="tab"
+              aria-selected="${isActive}"
+              data-category-tab="${tab.key}"
+            >
+              ${tab.label}
+              <span class="registrar-batch-tab__count">${count}</span>
+            </button>
+          `;
+        }).join("");
+      }
+
+      categoryTabsEl.querySelectorAll("[data-category-tab]").forEach((btn) => {
+        btn.onclick = () => {
+          const cat = btn.getAttribute("data-category-tab");
+          if (cat && cat !== activeCategoryTab) {
+            activeCategoryTab = cat;
+            renderCategoryTabs();
+            populateCourseFilter();
+            render();
+          }
+        };
+      });
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
     | POPULATE COURSE FILTER
     |--------------------------------------------------------------------------
     */
@@ -463,10 +576,16 @@ document.addEventListener(
         return;
       }
 
+      const categoryBatches = activeCategoryTab === "all"
+        ? allBatches
+        : allBatches.filter((b) =>
+            activeCategoryTab === "assessment" ? isAssessmentBatch(b) : !isAssessmentBatch(b)
+          );
+
       const courses =
         [
           ...new Set(
-            allBatches
+            categoryBatches
               .map(
                 (b) =>
                   b.courseName
@@ -486,6 +605,10 @@ document.addEventListener(
           .join("");
 
 
+      if (courseFilter && !courses.includes(courseFilter)) {
+        courseFilter = "";
+      }
+
       courseFilterEl.value =
         courseFilter;
     }
@@ -504,10 +627,14 @@ document.addEventListener(
       }
 
       /*
-       * Overview statistics are computed from allBatches so the top metrics
-       * reflect total system state regardless of tab selection.
+       * Overview statistics are computed from the active category batches.
        */
-      const source = allBatches.length > 0 ? allBatches : (batches || []);
+      const categoryBatches = activeCategoryTab === "all"
+        ? allBatches
+        : allBatches.filter((b) =>
+            activeCategoryTab === "assessment" ? isAssessmentBatch(b) : !isAssessmentBatch(b)
+          );
+      const source = categoryBatches.length > 0 ? categoryBatches : [];
 
       const activeBatches =
         source.filter(
@@ -607,6 +734,10 @@ document.addEventListener(
           }
         );
 
+      if (isAssessmentBatch(batch)) {
+        params.set("category", "national");
+      }
+
 
       return (
         `${BATCHING_URL}?` +
@@ -622,6 +753,8 @@ document.addEventListener(
     */
 
     function renderCard(batch) {
+
+      const isAssessment = isAssessmentBatch(batch);
 
       /*
        * IMPORTANT:
@@ -779,12 +912,16 @@ document.addEventListener(
           ${badge}
 
           <div class="d-flex flex-wrap gap-1 mb-2">
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-medium">
+            <span class="badge ${isAssessment ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'} fw-medium">
+              <i class="bi ${isAssessment ? 'bi-patch-check-fill' : 'bi-book-fill'} me-1"></i>${isAssessment ? 'Assessment Only' : 'Training with Assessment'}
+            </span>
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fw-medium">
               <i class="bi bi-calendar-event me-1"></i>${escapeHtml(batch.academicYear || "AY 2026–2027")}
             </span>
+            ${!isAssessment ? `
             <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-medium">
               ${escapeHtml(batch.term || "1st Semester")}
-            </span>
+            </span>` : ''}
           </div>
 
           <h3 class="registrar-finalized-card__course">
@@ -824,79 +961,46 @@ document.addEventListener(
 
           <ul class="registrar-finalized-card__meta list-unstyled mb-3">
 
+            ${isAssessment ? `
             <li>
-
-              <i
-                class="bi bi-calendar-range me-2"
-                aria-hidden="true"
-              ></i>
-
-              ${formatDate(
-                batch.startDate
-              )}
-
-              –
-
-              ${formatDate(
-                batch.endDate
-              )}
-
+              <i class="bi bi-calendar-check me-2 text-primary" aria-hidden="true"></i>
+              Assessment Date: <strong>${formatDate(batch.startDate || batch.endDate)}</strong>
             </li>
-
-
             <li>
-
-              <i
-                class="bi bi-clock me-2"
-                aria-hidden="true"
-              ></i>
-
-              ${escapeHtml(
-                scheduleLabel(
-                  batch.schedule
-                )
-              )}
-
+              <i class="bi bi-clock me-2" aria-hidden="true"></i>
+              ${escapeHtml(scheduleLabel(batch.schedule))}
             </li>
-
-
+            ${batch.assessmentVenue ? `
             <li>
-
-              <i
-                class="bi bi-person-badge me-2"
-                aria-hidden="true"
-              ></i>
-
-              ${escapeHtml(
-                batch.trainer ||
-                "—"
-              )}
-
-            </li>
-
-
+              <i class="bi bi-geo-alt me-2 text-danger" aria-hidden="true"></i>
+              Venue: ${escapeHtml(batch.assessmentVenue)}
+            </li>` : ''}
             <li>
-
-              <i
-                class="bi bi-people me-2"
-                aria-hidden="true"
-              ></i>
-
-              ${batch.studentCount}
-
-              student${
-                batch.studentCount === 1
-                  ? ""
-                  : "s"
-              }
-
-              ·
-
-              ${batch.durationDays}
-
-              training days
-
+              <i class="bi bi-person-badge me-2" aria-hidden="true"></i>
+              Assessor: <strong>${escapeHtml(batch.examinerName || batch.trainer || "—")}</strong>
             </li>
+            <li>
+              <i class="bi bi-people me-2" aria-hidden="true"></i>
+              ${batch.studentCount} candidate${batch.studentCount === 1 ? "" : "s"}
+            </li>
+            ` : `
+            <li>
+              <i class="bi bi-calendar-range me-2" aria-hidden="true"></i>
+              ${formatDate(batch.startDate)} – ${formatDate(batch.endDate)}
+            </li>
+            <li>
+              <i class="bi bi-clock me-2" aria-hidden="true"></i>
+              ${escapeHtml(scheduleLabel(batch.schedule))}
+            </li>
+            <li>
+              <i class="bi bi-person-badge me-2" aria-hidden="true"></i>
+              ${escapeHtml(batch.trainer || "—")}
+            </li>
+            <li>
+              <i class="bi bi-people me-2" aria-hidden="true"></i>
+              ${batch.studentCount} student${batch.studentCount === 1 ? "" : "s"} · ${batch.durationDays} training days
+            </li>
+            `}
 
           </ul>
 
@@ -941,6 +1045,9 @@ document.addEventListener(
        */
       const isActive =
         batch.status === "active";
+
+      const isAssessment =
+        isAssessmentBatch(batch);
 
 
       /*
@@ -1155,6 +1262,48 @@ document.addEventListener(
               </div>
 
 
+              ${isAssessment ? `
+              <div
+                class="registrar-student-detail__field"
+              >
+                <label>
+                  Assessment Venue
+                </label>
+                <p>
+                  ${escapeHtml(
+                    batch.assessmentVenue || "—"
+                  )}
+                </p>
+              </div>
+
+              <div
+                class="registrar-student-detail__field"
+              >
+                <label>
+                  Assessor
+                </label>
+                <p>
+                  ${escapeHtml(
+                    batch.examinerName ||
+                    batch.trainer ||
+                    "—"
+                  )}
+                </p>
+              </div>
+
+              <div
+                class="registrar-student-detail__field"
+              >
+                <label>
+                  Assessment Date
+                </label>
+                <p>
+                  ${formatDate(
+                    batch.startDate || batch.endDate
+                  )}
+                </p>
+              </div>
+              ` : `
               <div
                 class="registrar-student-detail__field"
               >
@@ -1226,6 +1375,7 @@ document.addEventListener(
                 </p>
 
               </div>
+              `}
 
 
               <div
@@ -1533,6 +1683,8 @@ document.addEventListener(
     */
 
     function render() {
+
+      renderCategoryTabs();
 
       const batches =
         filteredBatches();
@@ -2147,6 +2299,17 @@ document.addEventListener(
     |--------------------------------------------------------------------------
     */
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const catParam = (urlParams.get("category") || "").toLowerCase();
+    if (catParam === "assessment" || catParam === "national") {
+      activeCategoryTab = "assessment";
+    } else if (catParam === "all") {
+      activeCategoryTab = "all";
+    } else if (catParam === "training" || catParam === "institutional") {
+      activeCategoryTab = "training";
+    }
+
+    renderCategoryTabs();
     load();
 
   }
