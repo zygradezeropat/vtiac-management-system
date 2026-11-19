@@ -872,7 +872,7 @@ function formatInvoiceParticularLabel(label) {
   return `<div>${escapeHtml(trimmed)}</div>`;
 }
 
-const SERVICE_INVOICE_BLANK_ROWS = 6;
+const SERVICE_INVOICE_BLANK_ROWS = 2;
 
 function buildInvoiceBlankRows() {
   return Array.from({ length: SERVICE_INVOICE_BLANK_ROWS })
@@ -888,11 +888,15 @@ function buildInvoiceBlankRows() {
     .join("");
 }
 
-function buildServiceInvoiceHtml(txn) {
+function buildServiceInvoiceHtml(txn, copyLabel = "CASHIER'S COPY") {
   const logos = getReceiptLogoUrls();
   const voucherInfo = getTxnScholarVoucherInfo(txn);
   const grossAssessment = getTxnGrossAssessment(txn);
   const lineItems = buildParticularLineItems(txn);
+  const isCashierCopy = /cashier/i.test(copyLabel);
+  const copyBadgeClass = isCashierCopy
+    ? "service-invoice__copy-badge--cashier"
+    : "service-invoice__copy-badge--payer";
 
   const particularRows = lineItems.length
     ? lineItems
@@ -933,7 +937,7 @@ function buildServiceInvoiceHtml(txn) {
   const changeDue = Number(txn.changeDue) || 0;
 
   return `
-    <article class="service-invoice" aria-label="Service invoice">
+    <article class="service-invoice" aria-label="Service invoice - ${escapeHtml(copyLabel)}">
       <!-- Watermark behind receipt (diagonal government-style, per PH reference) -->
       <div class="service-invoice__watermark" aria-hidden="true" data-watermark="NOT OFFICIAL RECEIPT">
         <span>NOT OFFICIAL RECEIPT</span>
@@ -953,7 +957,10 @@ function buildServiceInvoiceHtml(txn) {
           <div class="service-invoice__logo service-invoice__logo--right">
             <img src="${escapeHtml(logos.tesda)}" alt="TESDA logo" />
           </div>
-          <div class="service-invoice__doc-badge">Service INVOICE</div>
+          <div class="service-invoice__badges-row">
+            <span class="service-invoice__doc-badge">Service INVOICE</span>
+            <span class="service-invoice__copy-badge ${copyBadgeClass}">${escapeHtml(copyLabel)}</span>
+          </div>
           <p class="service-invoice__invoice-no">
             <span>Control Number</span>
             <strong>${escapeHtml(txn.controlNumber || "—")}</strong>
@@ -1081,13 +1088,13 @@ function buildServiceInvoiceHtml(txn) {
         </table>
       </footer>
       <p class="service-invoice__disclaimer mb-0">
-        THIS DOCUMENT IS NOT AN OFFICIAL RECEIPT &bull; FOR REFERENCE PURPOSES ONLY
+        THIS DOCUMENT IS NOT AN OFFICIAL RECEIPT &bull; FOR REFERENCE PURPOSES ONLY &bull; <strong>${escapeHtml(copyLabel)}</strong>
       </p>
     </article>
   `;
 }
 
-function buildArReceiptHtml(txn) {
+function buildArReceiptHtml(txn, copyLabel = "CASHIER'S COPY") {
   const voucherInfo = getTxnScholarVoucherInfo(txn);
   const grossAssessment = getTxnGrossAssessment(txn);
 
@@ -1113,14 +1120,15 @@ function buildArReceiptHtml(txn) {
     : "";
 
   return `
-    <div class="cashier-receipt-simple">
+    <div class="cashier-receipt-simple" aria-label="Acknowledgement receipt - ${escapeHtml(copyLabel)}">
       <!-- Watermark behind receipt (diagonal government-style, per PH reference) -->
       <div class="service-invoice__watermark service-invoice__watermark--simple" aria-hidden="true" data-watermark="NOT OFFICIAL RECEIPT">
         <span>NOT OFFICIAL RECEIPT</span>
       </div>
-      <div class="text-center mb-3">
-        <strong>VTIAC</strong>
+      <div class="text-center mb-2">
+        <strong class="fs-6">VTIAC</strong>
         <p class="mb-0 small text-muted">Acknowledgement Receipt</p>
+        <span class="badge border py-0.5 px-2 mt-1" style="font-size:0.65rem; background:#f8fafc; color:#334155;">${escapeHtml(copyLabel)}</span>
       </div>
       <p><strong>Control No:</strong> ${escapeHtml(txn.controlNumber)}</p>
       ${txn.orNumber ? `<p><strong>OR No:</strong> ${escapeHtml(txn.orNumber)}</p>` : ""}
@@ -1143,14 +1151,50 @@ function buildArReceiptHtml(txn) {
           <tr><th>Remaining Balance</th><th class="text-end">${formatPeso(txn.remainingBalance)}</th></tr>
         </tfoot>
       </table>
-      <p class="small text-muted mb-0">Status: ${escapeHtml(txn.status)}</p>
+      <p class="small text-muted mb-0">Status: ${escapeHtml(txn.status)} &bull; <strong>${escapeHtml(copyLabel)}</strong></p>
+    </div>
+  `;
+}
+
+function buildCuttingLineHtml() {
+  return `
+    <div class="receipt-cutting-line" aria-hidden="true">
+      <span class="receipt-cutting-line__scissors">✂</span>
+      <span class="receipt-cutting-line__line"></span>
+      <span class="receipt-cutting-line__label">
+        <span class="receipt-cutting-line__text">CUT ALONG THIS LINE</span>
+      </span>
+      <span class="receipt-cutting-line__line"></span>
+      <span class="receipt-cutting-line__scissors">✂</span>
     </div>
   `;
 }
 
 function buildReceiptHtml(txn) {
-  if (txn.receiptType === "AR") return buildArReceiptHtml(txn);
-  return buildServiceInvoiceHtml(txn);
+  if (txn.receiptType === "AR") {
+    return `
+      <div class="receipt-dual-copy-wrapper">
+        <div class="receipt-copy receipt-copy--cashier">
+          ${buildArReceiptHtml(txn, "CASHIER'S COPY")}
+        </div>
+        ${buildCuttingLineHtml()}
+        <div class="receipt-copy receipt-copy--payer">
+          ${buildArReceiptHtml(txn, "PAYER'S COPY")}
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="receipt-dual-copy-wrapper">
+      <div class="receipt-copy receipt-copy--cashier">
+        ${buildServiceInvoiceHtml(txn, "CASHIER'S COPY")}
+      </div>
+      ${buildCuttingLineHtml()}
+      <div class="receipt-copy receipt-copy--payer">
+        ${buildServiceInvoiceHtml(txn, "PAYER'S COPY")}
+      </div>
+    </div>
+  `;
 }
 
 export function showReceiptModal(txn) {
