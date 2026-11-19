@@ -172,7 +172,7 @@ def registrar_students_module_data():
         elif key == "graduates":
             badge = f"{count} graduate{'s' if count != 1 else ''}"
         else:
-            badge = f"{count} client{'s' if count != 1 else ''}"
+            badge = f"{count} candidate{'s' if count != 1 else ''}"
         return {
             "key": key,
             "title": title,
@@ -184,7 +184,7 @@ def registrar_students_module_data():
         "programs": program_list,
         "modules": [
             tab("training", "Training with Assessment", training),
-            tab("assessment", "Assessment Only Clients", assessment),
+            tab("assessment", "Assessment Only (Candidates)", assessment),
             tab("graduates", "Graduated Students", graduates),
         ],
     }

@@ -15,7 +15,7 @@ const FALLBACK_PROGRAMS = [
 
 const TABS = [
   { key: "training", label: "Training with Assessment" },
-  { key: "assessment", label: "Assessment Only Clients" },
+  { key: "assessment", label: "Assessment Only (Candidates)" },
   { key: "graduates", label: "Graduated Students" },
 ];
 
@@ -33,7 +33,7 @@ function loadRegistrarStudentsData() {
       programs: FALLBACK_PROGRAMS,
       modules: [
         { key: "training", title: "Training with Assessment", badgeLabel: "0 students", students: [] },
-        { key: "assessment", title: "Assessment Only Clients", badgeLabel: "0 clients", students: [] },
+        { key: "assessment", title: "Assessment Only (Candidates)", badgeLabel: "0 candidates", students: [] },
         { key: "graduates", title: "Graduated Students", badgeLabel: "0 graduates", students: [] },
       ],
     };

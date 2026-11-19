@@ -47,6 +47,24 @@ class StudentProfile(models.Model):
         return f"{self.user.email} (Student)"
 
 
+class CandidateProfile(models.Model):
+    # Login profile for assessment-only candidates who register for competency assessment.
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="candidate_profile",
+    )
+
+    class Meta:
+        db_table = "core_candidateprofile"
+        verbose_name = "Candidate profile"
+        verbose_name_plural = "Candidate profiles"
+
+    def __str__(self):
+        return f"{self.user.email} (Candidate)"
+
+
 class StudentRegistration(models.Model):
     """Public registration application and student details."""
 

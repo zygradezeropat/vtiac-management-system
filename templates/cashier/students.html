@@ -227,15 +227,15 @@
       <div class="cashier-filter-field">
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search" class="form-control cashier-filter-input" id="studentSearch"
-          placeholder="Search by Student ID (e.g. REF-XXXX) or Full Name..." autocomplete="off" />
+          placeholder="Search by Student / Candidate ID or Full Name..." autocomplete="off" />
       </div>
 
       <!-- Academic Dimension: Course Type -->
       <div class="cashier-filter-field">
-        <select class="form-select cashier-filter-select" id="courseTypeFilter" aria-label="Filter by course type">
-          <option value="all">All Course Types</option>
-          <option value="training_with_assessment">Training with Assessment</option>
-          <option value="assessment_only">Assessment Only</option>
+        <select class="form-select cashier-filter-select" id="courseTypeFilter" aria-label="Filter by client and course type">
+          <option value="all">All Clients &amp; Course Types</option>
+          <option value="training_with_assessment">Students (Training with Assessment)</option>
+          <option value="assessment_only">Candidates (Assessment Only)</option>
         </select>
       </div>
 
@@ -291,8 +291,8 @@
       <table class="table cashier-balance-table mb-0" id="studentsTable">
         <thead>
           <tr>
-            <th scope="col" style="min-width: 7.5rem;">Student ID</th>
-            <th scope="col" style="min-width: 13rem;">Student Name</th>
+            <th scope="col" style="min-width: 7.5rem;">Student / Candidate ID</th>
+            <th scope="col" style="min-width: 13rem;">Name &amp; Type</th>
             <th scope="col" style="min-width: 14rem;">Academic Course &amp; Dimension</th>
             <th scope="col" style="min-width: 8.5rem;">Fee Category</th>
             <th scope="col" class="text-end" style="min-width: 8rem;">Total Assessed</th>

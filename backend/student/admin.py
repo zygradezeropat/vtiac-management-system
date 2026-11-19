@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    CandidateProfile,
     StudentEnrollmentDocument,
     StudentEnrollmentProfile,
     StudentPaymentProof,
@@ -36,6 +37,12 @@ class StudentScheduleOptionInline(admin.TabularInline):
 
 @admin.register(StudentProfile)
 class StudentProfileAdmin(admin.ModelAdmin):
+    list_display = ("user",)
+    search_fields = ("user__email", "user__username")
+
+
+@admin.register(CandidateProfile)
+class CandidateProfileAdmin(admin.ModelAdmin):
     list_display = ("user",)
     search_fields = ("user__email", "user__username")
 

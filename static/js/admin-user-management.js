@@ -130,6 +130,9 @@ function accountTypeBadge(user) {
   }
 
   const type = typeof user === "object" ? user.account_type : user;
+  if (type === "candidate") {
+    return `<span class="admin-user-badge admin-user-badge--candidate"><i class="bi bi-person-check me-1"></i>Candidate</span>`;
+  }
   const label = type === "staff" ? "Staff" : type === "student" ? "Student" : "Other";
   const cls = type === "staff" ? "admin-user-badge--staff" : "admin-user-badge--student";
   return `<span class="admin-user-badge ${cls}">${escapeHtml(label)}</span>`;

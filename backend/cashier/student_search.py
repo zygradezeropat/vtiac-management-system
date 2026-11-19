@@ -192,14 +192,20 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
         scholarship_label = "Regular"
 
     # Course type display label
-    if course_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
+    is_candidate = course_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY
+    client_type = "Candidate" if is_candidate else "Student"
+    if is_candidate:
         course_type_label = "Assessment Only"
+        client_type_label = "Candidate (Assessment Only)"
     elif course_type == StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT:
         course_type_label = "Training with Assessment"
+        client_type_label = "Student (Training with Assessment)"
     elif course_type:
         course_type_label = course_type.replace("_", " ").title()
+        client_type_label = f"{client_type} ({course_type_label})"
     else:
         course_type_label = "Training with Assessment"
+        client_type_label = "Student (Training with Assessment)"
 
     balance = fee_balance_for_profile(profile, program)
     total_assessed = balance["totalAssessed"]
@@ -289,6 +295,9 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
         "program": program or "—",
         "courseType": course_type or "training_with_assessment",
         "courseTypeLabel": course_type_label,
+        "isCandidate": is_candidate,
+        "clientType": client_type,
+        "clientTypeLabel": client_type_label,
         "email": email,
         "phone": phone,
         "referenceId": reg.reference_id,

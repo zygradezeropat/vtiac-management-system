@@ -30,6 +30,7 @@ from backend.student.assessment_enrollment import (
     validate_assessment_enrollment_data,
 )
 from backend.student.models import (
+    CandidateProfile,
     StudentEnrollmentProfile,
     StudentProfile,
     StudentRegistration,
@@ -169,6 +170,8 @@ def is_assessment_only_user(user):
     """Return True if user is an Assessment-Only candidate."""
     if not user or not getattr(user, "is_authenticated", False) or not user.is_authenticated:
         return False
+    if hasattr(user, "candidate_profile"):
+        return True
     reg = getattr(user, "registration_application", None)
     if reg and reg.program_type == "assessment_only":
         return True
@@ -1464,7 +1467,7 @@ def validate_registration_data(data):
 
 
 def create_student_registration(data):
-    """Create User, StudentProfile, and StudentRegistration. Returns registration instance."""
+    """Create User, StudentProfile or CandidateProfile, and StudentRegistration. Returns registration instance."""
     password = data.pop("password")
     data.pop("password_confirm", None)
     email = data["email"]
@@ -1477,7 +1480,11 @@ def create_student_registration(data):
             first_name=data["first_name"],
             last_name=data["last_name"],
         )
-        StudentProfile.objects.create(user=user)
+        program_type = data.get("program_type")
+        if program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
+            CandidateProfile.objects.create(user=user)
+        else:
+            StudentProfile.objects.create(user=user)
         return StudentRegistration.objects.create(user=user, **data)
 
 def send_registration_confirmation_email(registration):

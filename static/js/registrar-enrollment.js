@@ -12,7 +12,7 @@ import { initFilePreviewTriggers } from "./file-upload-preview.js";
 
 const ENROLLMENT_TABS = [
   { key: "training", label: "Training with Assessment" },
-  { key: "assessment", label: "Assessment Only Clients" },
+  { key: "assessment", label: "Assessment Only (Candidates)" },
 ];
 const PAGE_SIZE = 10;
 
@@ -36,7 +36,7 @@ function loadPendingEnrollmentsData() {
         totalCount: data.length,
         modules: [
           { key: "training", title: "Training with Assessment", badgeLabel: `${data.length} pending`, items: data },
-          { key: "assessment", title: "Assessment Only Clients", badgeLabel: "0 pending", items: [] },
+          { key: "assessment", title: "Assessment Only (Candidates)", badgeLabel: "0 pending", items: [] },
         ],
       };
     }

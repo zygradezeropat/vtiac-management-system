@@ -379,7 +379,7 @@ def pending_enrollments_payload(request=None):
 
     modules = [
         tab("training", "Training with Assessment", training),
-        tab("assessment", "Assessment Only Clients", assessment),
+        tab("assessment", "Assessment Only (Candidates)", assessment),
     ]
     curr_primary_role = ""
     if request and hasattr(request, "user") and request.user.is_authenticated and hasattr(request.user, "staff_profile"):

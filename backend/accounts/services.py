@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 
 from backend.core.models import StaffProfile
 from backend.core.services import STAFF_LOGIN_ROLES, landing_context
-from backend.student.models import StudentProfile
+from backend.student.models import CandidateProfile, StudentProfile
 
 User = get_user_model()
 
@@ -75,7 +75,9 @@ def dashboard_url_name(role):
 
 
 def redirect_to_dashboard(role, user=None):
-    if (role or "").lower() == STUDENT_ROLE and user and getattr(user, "is_authenticated", False):
+    if (role or "").lower() in (STUDENT_ROLE, "candidate") and user and getattr(user, "is_authenticated", False):
+        if hasattr(user, "candidate_profile"):
+            return redirect("candidate_dashboard")
         reg = getattr(user, "registration_application", None)
         if reg and reg.program_type == "assessment_only":
             return redirect("candidate_dashboard")
@@ -94,11 +96,19 @@ def require_portal_access(request, role):
         messages.error(request, "Please sign in to continue.")
         return redirect("login", role=role)
 
-    if role == STUDENT_ROLE:
-        if not StudentProfile.objects.filter(user=request.user).exists():
-            messages.error(request, "This account is not set up for student portal access.")
+    if role in (STUDENT_ROLE, "candidate"):
+        has_access = (
+            StudentProfile.objects.filter(user=request.user).exists()
+            or CandidateProfile.objects.filter(user=request.user).exists()
+        )
+        if not has_access:
+            messages.error(request, "This account is not set up for student or candidate portal access.")
             return redirect("login", role=STUDENT_ROLE)
-        request.session["portal_role"] = STUDENT_ROLE
+        is_cand = (
+            CandidateProfile.objects.filter(user=request.user).exists()
+            or getattr(getattr(request.user, "registration_application", None), "program_type", "") == "assessment_only"
+        )
+        request.session["portal_role"] = "candidate" if is_cand else STUDENT_ROLE
         return None
 
     if role not in STAFF_ROLES:
@@ -175,8 +185,12 @@ def handle_portal_login_post(request, role):
         messages.error(request, LOGIN_CREDENTIALS_ERROR)
         return redirect("login", role=role)
 
-    if role == STUDENT_ROLE:
-        if not StudentProfile.objects.filter(user=user).exists():
+    if role in (STUDENT_ROLE, "candidate"):
+        has_access = (
+            StudentProfile.objects.filter(user=user).exists()
+            or CandidateProfile.objects.filter(user=user).exists()
+        )
+        if not has_access:
             messages.error(request, LOGIN_CREDENTIALS_ERROR)
             return redirect("login", role=role)
     else:

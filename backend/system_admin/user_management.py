@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from backend.core.models import StaffProfile
-from backend.student.models import StudentProfile
+from backend.student.models import CandidateProfile, StudentProfile
 from backend.trainer.approval import approve_trainer_request
 from backend.trainer.services import (
     create_trainer_account_request,
@@ -18,7 +18,7 @@ from backend.trainer.services import (
 User = get_user_model()
 
 STAFF_ROLE_VALUES = {choice[0] for choice in StaffProfile.Role.choices}
-ACCOUNT_TYPES = ("staff", "student", "graduate")
+ACCOUNT_TYPES = ("staff", "student", "candidate", "graduate")
 PAGE_SIZE = 10
 
 
@@ -30,8 +30,12 @@ def _display_name(user):
 def _account_type_for(user):
     if hasattr(user, "staff_profile"):
         return "staff"
+    if hasattr(user, "candidate_profile"):
+        return "candidate"
+    from backend.student.services import is_assessment_only_user, student_is_user_graduated
+    if is_assessment_only_user(user):
+        return "candidate"
     if hasattr(user, "student_profile"):
-        from backend.student.services import student_is_user_graduated
         if student_is_user_graduated(user):
             return "graduate"
         return "student"
@@ -44,6 +48,8 @@ def _role_label(user):
         return user.staff_profile.get_role_display()
     if account_type == "graduate":
         return "Graduate"
+    if account_type == "candidate":
+        return "Candidate"
     if account_type == "student":
         return "Student"
     return "—"
@@ -116,6 +122,10 @@ def serialize_user(user):
             retention_expired = days_passed >= 365
         else:
             days_remaining = 365
+    elif account_type == "candidate":
+        role = "candidate"
+    elif account_type == "student":
+        role = "student"
 
     return {
         "id": user.id,
@@ -144,8 +154,13 @@ def serialize_user(user):
 
 def list_users(*, search="", account_type="", role="", page=1):
     qs = (
-        User.objects.select_related("staff_profile", "student_profile")
-        .filter(Q(staff_profile__isnull=False) | Q(student_profile__isnull=False))
+        User.objects.select_related("staff_profile", "student_profile", "candidate_profile")
+        .filter(
+            Q(staff_profile__isnull=False)
+            | Q(student_profile__isnull=False)
+            | Q(candidate_profile__isnull=False)
+            | Q(registration_application__program_type="assessment_only")
+        )
         .order_by("-date_joined")
     )
 
@@ -165,11 +180,25 @@ def list_users(*, search="", account_type="", role="", page=1):
         qs = qs.filter(
             student_profile__isnull=False,
             registration_application__is_graduated=True,
+        ).exclude(
+            Q(candidate_profile__isnull=False)
+            | Q(registration_application__program_type="assessment_only")
+        )
+    elif account_type == "candidate":
+        qs = qs.filter(
+            Q(candidate_profile__isnull=False)
+            | Q(registration_application__program_type="assessment_only")
+            | Q(enrollment_profile__program_type="assessment_only")
         )
     elif account_type == "student":
         qs = qs.filter(
             student_profile__isnull=False
-        ).exclude(registration_application__is_graduated=True)
+        ).exclude(
+            Q(registration_application__is_graduated=True)
+            | Q(candidate_profile__isnull=False)
+            | Q(registration_application__program_type="assessment_only")
+            | Q(enrollment_profile__program_type="assessment_only")
+        )
 
     role = (role or "").strip().lower()
     if role in STAFF_ROLE_VALUES:
@@ -253,8 +282,8 @@ def _calculate_expiration(duration_choice=None, expires_at=None):
 
 def create_user(*, account_type, email, first_name, last_name, password, role="", additional_roles=None, substitute_duration="1_day", expires_at=None, acting_user=None):
     account_type = (account_type or "").strip().lower()
-    if account_type not in ("staff", "student"):
-        raise ValueError("Account type must be staff or student.")
+    if account_type not in ("staff", "student", "candidate"):
+        raise ValueError("Account type must be staff, student, or candidate.")
 
     email = _validate_email_unique(email)
     first_name = (first_name or "").strip()
@@ -296,6 +325,8 @@ def create_user(*, account_type, email, first_name, last_name, password, role=""
                 additional_roles=valid_additionals,
                 additional_roles_expires_at=exp_val,
             )
+        elif account_type == "candidate":
+            CandidateProfile.objects.create(user=user)
         else:
             StudentProfile.objects.create(user=user)
 

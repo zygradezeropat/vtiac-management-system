@@ -922,6 +922,85 @@ class StaffSubstituteDynamicExpirationTests(TestCase):
         self.assertEqual(reg_api_resp.status_code, 403)
         self.assertIn("Permission denied", reg_api_resp.json()["error"])
 
+    def test_candidate_profile_and_user_management_filters(self):
+        import datetime
+        from django.contrib.auth import get_user_model
+        from backend.student.models import CandidateProfile, StudentProfile, StudentRegistration
+        from backend.system_admin.user_management import create_user, list_users, serialize_user
+
+        User = get_user_model()
+
+        # 1. Create candidate via create_user in user management
+        cand = create_user(
+            account_type="candidate",
+            email="candidate_test@vtiac.local",
+            first_name="Candidate",
+            last_name="Tester",
+            password="StrongPassword123!",
+        )
+        self.assertEqual(cand["account_type"], "candidate")
+        self.assertEqual(cand["role"], "candidate")
+        self.assertEqual(cand["role_label"], "Candidate")
+
+        cand_user = User.objects.get(email="candidate_test@vtiac.local")
+        self.assertTrue(hasattr(cand_user, "candidate_profile"))
+        self.assertFalse(hasattr(cand_user, "student_profile"))
+
+        # 2. Create student via create_user
+        stud = create_user(
+            account_type="student",
+            email="student_test@vtiac.local",
+            first_name="Student",
+            last_name="Tester",
+            password="StrongPassword123!",
+        )
+        self.assertEqual(stud["account_type"], "student")
+        self.assertEqual(stud["role"], "student")
+        self.assertEqual(stud["role_label"], "Student")
+
+        stud_user = User.objects.get(email="student_test@vtiac.local")
+        self.assertTrue(hasattr(stud_user, "student_profile"))
+        self.assertFalse(hasattr(stud_user, "candidate_profile"))
+
+        # 3. Assessment-only registration auto-marked as Candidate
+        cand_user2 = User.objects.create_user(
+            username="candidate_reg@vtiac.local",
+            email="candidate_reg@vtiac.local",
+            first_name="Reg",
+            last_name="Candidate",
+        )
+        CandidateProfile.objects.create(user=cand_user2)
+        StudentRegistration.objects.create(
+            user=cand_user2,
+            email=cand_user2.email,
+            first_name="Reg",
+            last_name="Candidate",
+            birth_date=datetime.date(2000, 1, 1),
+            gender="female",
+            civil_status="single",
+            phone_number="09123456789",
+            emergency_name="Emergency",
+            emergency_phone="09123456780",
+            program_type="assessment_only",
+            selected_program="Driving NC II",
+        )
+        s_cand2 = serialize_user(cand_user2)
+        self.assertEqual(s_cand2["account_type"], "candidate")
+        self.assertEqual(s_cand2["role_label"], "Candidate")
+
+        # 4. Filter testing
+        cands_list = list_users(account_type="candidate")
+        cand_emails = [u["email"] for u in cands_list["users"]]
+        self.assertIn("candidate_test@vtiac.local", cand_emails)
+        self.assertIn("candidate_reg@vtiac.local", cand_emails)
+        self.assertNotIn("student_test@vtiac.local", cand_emails)
+
+        students_list = list_users(account_type="student")
+        student_emails = [u["email"] for u in students_list["users"]]
+        self.assertIn("student_test@vtiac.local", student_emails)
+        self.assertNotIn("candidate_test@vtiac.local", student_emails)
+        self.assertNotIn("candidate_reg@vtiac.local", student_emails)
+
 
 
 

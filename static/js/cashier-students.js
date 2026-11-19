@@ -428,11 +428,16 @@ function renderTable(filteredStudents, page) {
         ? `<span class="cashier-badge-scholar"><i class="bi bi-award-fill"></i> ${scholarshipLabel}</span>`
         : `<span class="cashier-badge-regular">Regular</span>`;
 
+      const isCandidate = Boolean(s.isCandidate || s.courseType === "assessment_only");
+      const clientBadge = isCandidate
+        ? `<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0.5 px-1.5" style="font-size: 0.65rem;"><i class="bi bi-person-check me-0.5"></i>Candidate</span>`
+        : `<span class="badge border py-0.5 px-1.5" style="font-size: 0.65rem; background: #ede9fe; color: #6d28d9; border-color: #ddd6fe !important;">Student</span>`;
+
       return `
         <tr>
           <!-- Student ID -->
           <td>
-            <button type="button" class="cashier-student-id-badge btn-copy-id" data-id="${studentId}" title="Click to copy Student ID">
+            <button type="button" class="cashier-student-id-badge btn-copy-id" data-id="${studentId}" title="Click to copy ID">
               <span>${studentId}</span>
               <i class="bi bi-clipboard" style="font-size: 0.7rem;" aria-hidden="true"></i>
             </button>
@@ -441,7 +446,10 @@ function renderTable(filteredStudents, page) {
           <!-- Student Name & Contact -->
           <td>
             <div class="cashier-student-meta">
-              <span class="cashier-student-meta__name">${name}</span>
+              <div class="d-flex align-items-center gap-1 flex-wrap">
+                <span class="cashier-student-meta__name">${name}</span>
+                ${clientBadge}
+              </div>
               <span class="cashier-student-meta__sub">${email}</span>
             </div>
           </td>
