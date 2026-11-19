@@ -373,7 +373,7 @@
   // Inline "Receive Payment" action button handler
   document.getElementById("studentsTableBody")?.addEventListener("click", async (e) => {
     const payBtn = e.target.closest(".btn-student-pay");
-    if (!payBtn) return;
+    if (!payBtn || payBtn.disabled || payBtn.classList.contains("disabled")) return;
     openPaymentModal();
     const student = findCachedCashierStudent(payBtn.dataset.registrationId || "");
     if (student) {

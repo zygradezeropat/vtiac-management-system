@@ -5,6 +5,7 @@ ADMIN_ROLE = "admin"
 ADMIN_MODULE_ORDER = (
     "dashboard",
     "reports",
+    "touch-logs",
     "system-settings",
     "user-management",
     "settings",
@@ -26,6 +27,15 @@ ADMIN_MODULES = {
         "title": "Institutional Reports Center",
         "subtitle": "Enrollment, payments, performance, and E.G.A.C.E in one place",
         "template": "admin/reports.html",
+        "sidebar": True,
+    },
+    "touch-logs": {
+        "label": "Touch Logs",
+        "icon_bi": "bi-clock-history",
+        "title": "Touch & Audit Logs",
+        "subtitle": "Track 'Who is last touch' modifications across Cashier, Registrar, and Admin portals",
+        "template": "admin/touch_logs.html",
+        "route": "/admin/touch-logs/",
         "sidebar": True,
     },
     "system-settings": {
@@ -124,6 +134,10 @@ def module_page_context(module, request=None):
         from .institutional_reports import institutional_reports_payload
 
         ctx["institutional_reports"] = institutional_reports_payload()
+    if module == "touch-logs":
+        from .touch_logger import get_touch_logs_page_context
+
+        ctx.update(get_touch_logs_page_context(request))
     if module == "user-management":
         from backend.trainer.services import PROGRAM_QUALIFICATIONS
 

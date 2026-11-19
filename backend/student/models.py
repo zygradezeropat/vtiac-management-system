@@ -137,6 +137,13 @@ class StudentRegistration(models.Model):
         help_text="Whether the trainee has graduated from their course/qualification.",
     )
     graduated_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approved_registrations",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -248,6 +255,22 @@ class StudentEnrollmentProfile(models.Model):
         help_text="Registrar approved all documents; student may proceed to payment.",
     )
     documents_review_released_at = models.DateTimeField(null=True, blank=True)
+    documents_review_released_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="released_enrollment_profiles",
+    )
+    last_touched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="last_touched_enrollment_profiles",
+    )
+    last_touched_role = models.CharField(max_length=32, blank=True)
+    last_touched_at = models.DateTimeField(null=True, blank=True)
     hard_copies_submitted = models.BooleanField(
         default=False,
         db_index=True,

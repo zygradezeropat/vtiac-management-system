@@ -99,6 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const serverData = loadPendingEnrollmentsData();
   const MODULE_DATA = serverData.modules || [];
   let totalPending = serverData.totalCount ?? 0;
+  const currentUserPrimaryRole = serverData.currentUserPrimaryRole || "";
 
   const tabsEl = document.getElementById("enrollment-tabs");
   const tabTitleEl = document.getElementById("enrollment-tab-title");
@@ -295,8 +296,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderCard(item) {
     const key = itemKey(item);
-    const approveDisabled = !item.canApprove;
-    const approveTitle = approveDisabled
+    const isLockedByRegTouch = currentUserPrimaryRole === "cashier" && Boolean(item.registrarStaffTouched);
+    const approveDisabled = isLockedByRegTouch || !item.canApprove;
+    const approveTitle = isLockedByRegTouch
+      ? "Locked: This enrollment was processed by Registrar Staff and cannot be modified while acting as Registrar."
+      : approveDisabled
       ? "Available when learner profile, requirements, and payment proof are complete."
       : "";
     const badges = `${scholarshipBadge(item)}${neededBadge(item)}${digitalDocBadge(item)}${hardCopyBadge(item)}`;
@@ -318,12 +322,19 @@ document.addEventListener("DOMContentLoaded", () => {
               <button type="button" class="btn btn-outline-secondary btn-sm enrollment-view-btn" data-key="${escapeHtml(key)}">
                 <i class="bi bi-eye me-1" aria-hidden="true"></i>View
               </button>
+              ${isLockedByRegTouch ? `
+              <button type="button" class="btn btn-secondary btn-sm opacity-75" disabled style="cursor: not-allowed;" title="${escapeHtml(approveTitle)}">
+                <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>Locked (Registrar Touch)
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm opacity-50" disabled style="cursor: not-allowed;" title="Locked: Processed by Registrar Staff">
+                <i class="bi bi-x-lg me-1" aria-hidden="true"></i>Reject
+              </button>` : `
               <button type="button" class="btn btn-success btn-sm enrollment-approve-btn" data-key="${escapeHtml(key)}"${approveDisabled ? " disabled" : ""} title="${escapeHtml(approveTitle)}">
                 <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Approve Enrollment
               </button>
               <button type="button" class="btn btn-outline-danger btn-sm enrollment-reject-btn" data-key="${escapeHtml(key)}">
                 <i class="bi bi-x-lg me-1" aria-hidden="true"></i>Reject
-              </button>
+              </button>`}
             </div>
           </div>
         </div>

@@ -251,7 +251,7 @@ def _calculate_expiration(duration_choice=None, expires_at=None):
     return now + timedelta(days=1)
 
 
-def create_user(*, account_type, email, first_name, last_name, password, role="", additional_roles=None, substitute_duration="1_day", expires_at=None):
+def create_user(*, account_type, email, first_name, last_name, password, role="", additional_roles=None, substitute_duration="1_day", expires_at=None, acting_user=None):
     account_type = (account_type or "").strip().lower()
     if account_type not in ("staff", "student"):
         raise ValueError("Account type must be staff or student.")
@@ -282,9 +282,13 @@ def create_user(*, account_type, email, first_name, last_name, password, role=""
             role = (role or "").strip().lower()
             if role not in STAFF_ROLE_VALUES:
                 raise ValueError("Select a valid staff role.")
+            if role in (StaffProfile.Role.REGISTRAR, StaffProfile.Role.CASHIER) and isinstance(additional_roles, list) and StaffProfile.Role.TRAINER in additional_roles:
+                raise ValueError("Registrars and Cashiers cannot be assigned the Trainer substitute role.")
             valid_additionals = []
             if isinstance(additional_roles, list):
                 valid_additionals = [r for r in additional_roles if r in STAFF_ROLE_VALUES and r != role]
+                if role in (StaffProfile.Role.REGISTRAR, StaffProfile.Role.CASHIER):
+                    valid_additionals = [r for r in valid_additionals if r != StaffProfile.Role.TRAINER]
             exp_val = _calculate_expiration(substitute_duration, expires_at=expires_at) if valid_additionals else None
             StaffProfile.objects.create(
                 user=user,
@@ -294,6 +298,18 @@ def create_user(*, account_type, email, first_name, last_name, password, role=""
             )
         else:
             StudentProfile.objects.create(user=user)
+
+        from backend.system_admin.touch_logger import log_staff_touch
+        log_staff_touch(
+            user=acting_user,
+            portal_role="admin",
+            module="user_management",
+            action="Created User Account",
+            target_type="User",
+            target_id=user.pk,
+            target_name=user.get_full_name() or user.email,
+            details=f"Email: {user.email} | Type: {account_type} | Role: {role or 'student'}",
+        )
 
     return serialize_user(user)
 
@@ -315,7 +331,7 @@ def create_trainer_staff_user(trainer_payload):
     return serialize_user(user)
 
 
-def update_user(user_id, *, email=None, first_name=None, last_name=None, role=None, is_active=None, qualifications=None, additional_roles=None, substitute_duration=None, expires_at=None):
+def update_user(user_id, *, email=None, first_name=None, last_name=None, role=None, is_active=None, qualifications=None, additional_roles=None, substitute_duration=None, expires_at=None, acting_user=None):
     try:
         user = User.objects.select_related("staff_profile", "student_profile").get(pk=user_id)
     except User.DoesNotExist as exc:
@@ -324,8 +340,12 @@ def update_user(user_id, *, email=None, first_name=None, last_name=None, role=No
     if _account_type_for(user) == "other":
         raise ValueError("This account is not a portal user.")
 
+    changes = []
+
     if email is not None:
         email = _validate_email_unique(email, exclude_user_id=user.pk)
+        if user.email != email:
+            changes.append(f"Email: {user.email} -> {email}")
         user.email = email
         user.username = email
 
@@ -335,6 +355,8 @@ def update_user(user_id, *, email=None, first_name=None, last_name=None, role=No
         user.last_name = (last_name or "").strip()
 
     if is_active is not None:
+        if user.is_active != bool(is_active):
+            changes.append(f"Status: {'Active' if is_active else 'Inactive'}")
         user.is_active = bool(is_active)
 
     if hasattr(user, "staff_profile"):
@@ -343,14 +365,21 @@ def update_user(user_id, *, email=None, first_name=None, last_name=None, role=No
             role = (role or "").strip().lower()
             if role not in STAFF_ROLE_VALUES:
                 raise ValueError("Select a valid staff role.")
+            if user.staff_profile.role != role:
+                changes.append(f"Role: {user.staff_profile.role} -> {role}")
             user.staff_profile.role = role
             profile_changed = True
 
         if additional_roles is not None:
             curr_primary = user.staff_profile.role
+            if curr_primary in (StaffProfile.Role.REGISTRAR, StaffProfile.Role.CASHIER) and isinstance(additional_roles, list) and StaffProfile.Role.TRAINER in additional_roles:
+                raise ValueError("Registrars and Cashiers cannot be assigned the Trainer substitute role.")
             valid_additionals = []
             if isinstance(additional_roles, list):
                 valid_additionals = [r for r in additional_roles if r in STAFF_ROLE_VALUES and r != curr_primary]
+                if curr_primary in (StaffProfile.Role.REGISTRAR, StaffProfile.Role.CASHIER):
+                    valid_additionals = [r for r in valid_additionals if r != StaffProfile.Role.TRAINER]
+            changes.append(f"Additional roles: {', '.join(valid_additionals) if valid_additionals else 'None'}")
             user.staff_profile.additional_roles = valid_additionals
             if valid_additionals:
                 user.staff_profile.additional_roles_expires_at = _calculate_expiration(
@@ -371,8 +400,21 @@ def update_user(user_id, *, email=None, first_name=None, last_name=None, role=No
         if treq:
             treq.qualifications = qualifications if isinstance(qualifications, list) else []
             treq.save(update_fields=["qualifications"])
+            changes.append("Updated trainer qualifications")
 
     user.save()
+
+    from backend.system_admin.touch_logger import log_staff_touch
+    log_staff_touch(
+        user=acting_user,
+        portal_role="admin",
+        module="user_management",
+        action="Updated User Account",
+        target_type="User",
+        target_id=user.pk,
+        target_name=user.get_full_name() or user.email,
+        details=" | ".join(changes) if changes else f"Updated details for {user.email}",
+    )
     user.refresh_from_db()
     return serialize_user(user)
 

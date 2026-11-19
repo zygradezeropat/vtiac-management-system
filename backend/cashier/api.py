@@ -5,6 +5,7 @@ import re
 
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_http_methods
 
@@ -69,7 +70,8 @@ def students_search(request):
 
     query = request.GET.get("q", "")
     students = search_students(query)
-    return JsonResponse({"students": students})
+    primary_role = getattr(getattr(request.user, "staff_profile", None), "role", "")
+    return JsonResponse({"students": students, "currentUserPrimaryRole": primary_role})
 
 
 @login_required(login_url="/")
@@ -81,7 +83,13 @@ def students_list(request):
 
     students = list_students_for_cashier()
     aging = calculate_receivables_aging_summary(students)
-    return JsonResponse({"students": students, "aging": aging, "summary": aging})
+    primary_role = getattr(getattr(request.user, "staff_profile", None), "role", "")
+    return JsonResponse({
+        "students": students,
+        "aging": aging,
+        "summary": aging,
+        "currentUserPrimaryRole": primary_role,
+    })
 
 
 @login_required(login_url="/")
@@ -278,6 +286,8 @@ def record_payment(request):
     try:
         result = record_cashier_payment(user=request.user, payload=payload)
         return JsonResponse({"ok": True, "payment": result})
+    except PermissionDenied as exc:
+        return JsonResponse({"error": str(exc)}, status=403)
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 

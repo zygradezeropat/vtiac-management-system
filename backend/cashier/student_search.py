@@ -3,6 +3,7 @@
 from datetime import timedelta
 from django.utils import timezone
 
+from backend.core.models import StaffProfile
 from backend.registrar.pending_enrollment import (
     _profile_for_registration,
     _needed_status,
@@ -208,8 +209,19 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
 
     # Calculate due date: 30 days after enrollment / last payment
     last_payment = None
+    cashier_staff_touched = False
+    last_touch_by_name = ""
+    last_touch_by_role = ""
     if profile:
         last_payment = profile.cashier_payments.order_by("-created_at").first()
+        cashier_staff_touched = profile.cashier_payments.filter(
+            recorded_by__staff_profile__role=StaffProfile.Role.CASHIER
+        ).exists()
+        if last_payment:
+            rec = last_payment.last_touched_by or last_payment.recorded_by
+            if rec:
+                last_touch_by_name = rec.get_full_name().strip() or rec.username
+                last_touch_by_role = last_payment.last_touched_role or getattr(getattr(rec, "staff_profile", None), "role", "")
 
     if last_payment:
         last_payment_date = timezone.localtime(last_payment.created_at).date()
@@ -303,6 +315,9 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
         "agingBracketLabel": aging_label,
         "registrationDate": reg_date.isoformat() if reg_date else "",
         "registrationDateFormatted": reg_date.strftime("%b %d, %Y") if reg_date else "",
+        "cashierStaffTouched": cashier_staff_touched,
+        "lastTouchByName": last_touch_by_name,
+        "lastTouchByRole": last_touch_by_role,
     }
 
 

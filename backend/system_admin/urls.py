@@ -57,5 +57,6 @@ urlpatterns = [
         api.schedules_delete,
         name="admin_schedules_delete",
     ),
+    path("admin/api/touch-logs/", api.touch_logs_api, name="admin_touch_logs_api"),
     path("admin/<str:module>/", views.module_page, name="admin_module"),
 ]

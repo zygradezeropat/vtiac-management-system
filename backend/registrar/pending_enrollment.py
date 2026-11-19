@@ -21,9 +21,26 @@ from backend.student.payment_records import profile_has_payment
 from backend.cashier.balance import fee_balance_for_profile
 from backend.student.services import SCHOLARSHIP_TYPE_CHOICES
 
+from backend.core.models import StaffProfile
+from backend.system_admin.touch_logger import log_staff_touch
 from .services import REGISTRAR_ROLE
 
 _SCHOLARSHIP_LABELS = dict(SCHOLARSHIP_TYPE_CHOICES)
+
+
+def is_registrar_staff_touched(profile, reg) -> bool:
+    """Check if an enrollment/profile has already been touched by dedicated Registrar staff."""
+    if profile:
+        if profile.documents_review_released:
+            if not profile.documents_review_released_by or getattr(getattr(profile.documents_review_released_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR:
+                return True
+        if profile.hard_copies_received_by and getattr(getattr(profile.hard_copies_received_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR:
+            return True
+        if profile.last_touched_by and getattr(getattr(profile.last_touched_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR:
+            return True
+    if reg and reg.approved_by and getattr(getattr(reg.approved_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR:
+        return True
+    return False
 
 
 def _program_for_profile(
@@ -241,6 +258,18 @@ def _serialize_item(reg: StudentRegistration, profile: StudentEnrollmentProfile 
 
     doc_indicators = get_document_submission_indicators(profile, reg)
 
+    touched_by_reg = is_registrar_staff_touched(profile, reg)
+    last_touch_by_name = ""
+    last_touch_by_role = ""
+    if profile:
+        lt_user = profile.last_touched_by or profile.documents_review_released_by or profile.hard_copies_received_by
+        if lt_user:
+            last_touch_by_name = lt_user.get_full_name().strip() or lt_user.username
+            last_touch_by_role = profile.last_touched_role or getattr(getattr(lt_user, "staff_profile", None), "role", "")
+    elif reg and reg.approved_by:
+        last_touch_by_name = reg.approved_by.get_full_name().strip() or reg.approved_by.username
+        last_touch_by_role = getattr(getattr(reg.approved_by, "staff_profile", None), "role", "")
+
     return {
         "id": profile.pk if profile else None,
         "registrationId": str(reg.pk),
@@ -262,6 +291,9 @@ def _serialize_item(reg: StudentRegistration, profile: StudentEnrollmentProfile 
         "paymentReference": ref,
         "referenceId": reg.reference_id,
         "canApprove": can_approve,
+        "registrarStaffTouched": touched_by_reg,
+        "lastTouchByName": last_touch_by_name,
+        "lastTouchByRole": last_touch_by_role,
         "digitalStatus": doc_indicators["digital"]["status"],
         "digitalLabel": doc_indicators["digital"]["label"],
         "digitalBadgeClass": doc_indicators["digital"]["badgeClass"],
@@ -322,7 +354,7 @@ def pending_programs_by_type() -> tuple[set[str], set[str]]:
     return training, assessment
 
 
-def pending_enrollments_payload():
+def pending_enrollments_payload(request=None):
     """Tabbed payload for registrar enrollment page (training vs assessment-only)."""
     training = []
     assessment = []
@@ -349,9 +381,14 @@ def pending_enrollments_payload():
         tab("training", "Training with Assessment", training),
         tab("assessment", "Assessment Only Clients", assessment),
     ]
+    curr_primary_role = ""
+    if request and hasattr(request, "user") and request.user.is_authenticated and hasattr(request.user, "staff_profile"):
+        curr_primary_role = request.user.staff_profile.role
+
     return {
         "totalCount": len(training) + len(assessment),
         "modules": modules,
+        "currentUserPrimaryRole": curr_primary_role,
     }
 
 
@@ -388,10 +425,14 @@ def _action_ids_from_request(request):
     return pid, registration_id or None
 
 
-def _approve_enrollment_item(profile, reg) -> tuple[bool, str | None]:
+def _approve_enrollment_item(profile, reg, user=None) -> tuple[bool, str | None]:
     """Shared validation + approval for single and bulk registrar actions."""
     if not reg:
         return False, "Enrollment not found."
+
+    user_primary_role = getattr(getattr(user, "staff_profile", None), "role", "") if user else ""
+    if user_primary_role == StaffProfile.Role.CASHIER and is_registrar_staff_touched(profile, reg):
+        return False, "Permission denied: This enrollment was processed by Registrar staff and cannot be modified while acting as registrar."
 
     if reg.status == StudentRegistration.Status.APPROVED:
         # Already officially enrolled! Trigger email attempt again and return ok.
@@ -417,8 +458,31 @@ def _approve_enrollment_item(profile, reg) -> tuple[bool, str | None]:
     else:
         return False, "Student has not started the learner profile yet."
 
+    now = timezone.now()
     reg.status = StudentRegistration.Status.APPROVED
-    reg.save(update_fields=["status"])
+    update_fields = ["status"]
+    if user and getattr(user, "is_authenticated", False):
+        reg.approved_by = user
+        update_fields.append("approved_by")
+    reg.save(update_fields=update_fields)
+
+    if profile and user and getattr(user, "is_authenticated", False):
+        profile.last_touched_by = user
+        profile.last_touched_at = now
+        profile.last_touched_role = user_primary_role or "registrar"
+        profile.save(update_fields=["last_touched_by", "last_touched_at", "last_touched_role", "updated_at"])
+
+    log_staff_touch(
+        user=user,
+        portal_role="registrar",
+        module="registrar",
+        action="Approved Official Enrollment",
+        target_type="StudentRegistration",
+        target_id=reg.reference_id,
+        target_name=f"{reg.first_name} {reg.last_name}",
+        details=f"Program: {reg.selected_program} | Status: Approved",
+    )
+
     from backend.student.enrollment_notifications import send_approval_notifications_in_background
 
     send_approval_notifications_in_background(profile, reg, force=False)
@@ -460,8 +524,10 @@ def enrollment_approve(request):
     profile_id, registration_id = _action_ids_from_request(request)
     profile, reg = _resolve_item(profile_id, registration_id)
 
-    ok, error = _approve_enrollment_item(profile, reg)
+    ok, error = _approve_enrollment_item(profile, reg, user=request.user)
     if not ok:
+        if error and "Permission denied" in error:
+            return JsonResponse({"error": error}, status=403)
         status = 404 if error == "Enrollment not found." else 400
         return JsonResponse({"error": error}, status=status)
 
@@ -500,7 +566,7 @@ def enrollment_bulk_approve(request):
         registration_id = raw.get("registrationId") or raw.get("registration_id")
         pid = int(profile_id) if profile_id not in (None, "") else None
         profile, reg = _resolve_item(pid, registration_id or None)
-        ok, error = _approve_enrollment_item(profile, reg)
+        ok, error = _approve_enrollment_item(profile, reg, user=request.user)
         key = {
             "profileId": profile.pk if profile else None,
             "registrationId": str(reg.pk) if reg else registration_id,
@@ -511,13 +577,15 @@ def enrollment_bulk_approve(request):
             failed.append({**key, "error": error})
 
     if not approved and failed:
+        first_err = failed[0]["error"]
+        status_code = 403 if "Permission denied" in first_err else 400
         return JsonResponse(
             {
-                "error": failed[0]["error"],
+                "error": first_err,
                 "failed": failed,
                 "pending_count": pending_enrollment_count(),
             },
-            status=400,
+            status=status_code,
         )
 
     return JsonResponse(
@@ -544,8 +612,34 @@ def enrollment_reject(request):
     if not reg:
         return JsonResponse({"error": "Enrollment not found or already processed."}, status=404)
 
+    user_primary_role = getattr(getattr(request.user, "staff_profile", None), "role", "")
+    if user_primary_role == StaffProfile.Role.CASHIER and is_registrar_staff_touched(profile, reg):
+        return JsonResponse(
+            {"error": "Permission denied: This enrollment was processed by Registrar staff and cannot be modified while acting as registrar."},
+            status=403,
+        )
+
+    now = timezone.now()
     reg.status = StudentRegistration.Status.REJECTED
     reg.save(update_fields=["status"])
+
+    if profile:
+        profile.last_touched_by = request.user
+        profile.last_touched_at = now
+        profile.last_touched_role = user_primary_role or "registrar"
+        profile.save(update_fields=["last_touched_by", "last_touched_at", "last_touched_role", "updated_at"])
+
+    log_staff_touch(
+        user=request.user,
+        portal_role="registrar",
+        module="registrar",
+        action="Rejected Enrollment Application",
+        target_type="StudentRegistration",
+        target_id=reg.reference_id,
+        target_name=f"{reg.first_name} {reg.last_name}",
+        details=f"Program: {reg.selected_program} | Status: Rejected",
+    )
+
     from backend.student.enrollment_notifications import notify_enrollment_rejected
 
     notify_enrollment_rejected(profile, reg)

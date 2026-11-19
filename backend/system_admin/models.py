@@ -229,3 +229,35 @@ def seed_default_schedules():
         ]
     )
 
+
+class StaffTouchLog(models.Model):
+    """Audit trail tracking 'Who is last touch' for transactions and record edits."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="staff_touch_logs",
+    )
+    user_email = models.CharField(max_length=254, blank=True)
+    user_name = models.CharField(max_length=255, blank=True)
+    primary_role = models.CharField(max_length=32, blank=True)
+    portal_role = models.CharField(max_length=32, blank=True)
+    module = models.CharField(max_length=64, db_index=True)
+    action = models.CharField(max_length=120)
+    target_type = models.CharField(max_length=120, blank=True)
+    target_id = models.CharField(max_length=120, blank=True)
+    target_name = models.CharField(max_length=255, blank=True)
+    details = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Staff Touch Log"
+        verbose_name_plural = "Staff Touch Logs"
+
+    def __str__(self):
+        return f"[{self.created_at:%Y-%m-%d %H:%M}] {self.user_name} ({self.portal_role}) - {self.action} on {self.target_name or self.target_id}"
+
+

@@ -661,12 +661,12 @@ class StaffSubstituteDynamicExpirationTests(TestCase):
             last_name="Cashier",
             password="StrongPassword123!",
             role="cashier",
-            additional_roles=["trainer"],
+            additional_roles=["admin"],
             expires_at="",
         )
 
         self.assertEqual(user_dict["role"], "cashier")
-        self.assertEqual(user_dict["additional_roles"], ["trainer"])
+        self.assertEqual(user_dict["additional_roles"], ["admin"])
         self.assertTrue(user_dict["substitute_info"]["is_active"])
         # Should default to 24 hours (~23 or 24 hours remaining)
         self.assertIn(user_dict["substitute_info"]["hours_remaining"], (23, 24))
@@ -720,6 +720,208 @@ class StaffSubstituteDynamicExpirationTests(TestCase):
         allowed_roles = user.staff_profile.get_allowed_roles()
         self.assertEqual(allowed_roles, {"registrar"})
         self.assertFalse(user.staff_profile.is_substitute_active())
+
+    def test_registrar_cannot_be_assigned_trainer_role(self):
+        from backend.system_admin.user_management import create_user, update_user
+
+        # Attempt to create registrar with trainer additional role should fail
+        with self.assertRaises(ValueError):
+            create_user(
+                account_type="staff",
+                email="reg_with_trainer@vtiac.edu.ph",
+                first_name="Reg",
+                last_name="Staff",
+                password="StrongPassword123!",
+                role="registrar",
+                additional_roles=["trainer"],
+            )
+
+        # Creating registrar with cashier and admin additional roles should succeed
+        user_dict = create_user(
+            account_type="staff",
+            email="reg_multi@vtiac.edu.ph",
+            first_name="Reg",
+            last_name="Staff",
+            password="StrongPassword123!",
+            role="registrar",
+            additional_roles=["cashier", "admin"],
+        )
+        self.assertIn("cashier", user_dict["additional_roles"])
+        self.assertIn("admin", user_dict["additional_roles"])
+        self.assertNotIn("trainer", user_dict["additional_roles"])
+
+        # Attempt to update registrar with trainer should also fail
+        with self.assertRaises(ValueError):
+            update_user(
+                user_dict["id"],
+                additional_roles=["trainer"],
+            )
+
+    def test_touch_logger_and_api(self):
+        from django.contrib.auth.models import User
+        from backend.core.models import StaffProfile
+        from backend.system_admin.models import StaffTouchLog
+        from backend.system_admin.touch_logger import log_staff_touch
+
+        admin_user = User.objects.create_user(
+            username="admin_logger@vtiac.edu.ph",
+            email="admin_logger@vtiac.edu.ph",
+            password="StrongPassword123!",
+            first_name="Admin",
+            last_name="Logger",
+            is_staff=True,
+        )
+        StaffProfile.objects.create(user=admin_user, role=StaffProfile.Role.ADMIN)
+
+        log_record = log_staff_touch(
+            user=admin_user,
+            portal_role="admin",
+            module="cashier",
+            action="Received Payment (OR)",
+            target_type="CashierPayment",
+            target_id="OR-2026-9999",
+            target_name="Juan Dela Cruz",
+            details="Amount: ₱1,500.00 | Paid in Full",
+        )
+        self.assertIsNotNone(log_record.pk)
+        self.assertEqual(log_record.user_email, "admin_logger@vtiac.edu.ph")
+        self.assertEqual(log_record.primary_role, "admin")
+        self.assertEqual(log_record.module, "cashier")
+
+        # Test API endpoint
+        self.client.force_login(admin_user)
+        resp = self.client.get("/admin/api/touch-logs/")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertGreaterEqual(data["total_count"], 1)
+        self.assertTrue(any(item["target_id"] == "OR-2026-9999" for item in data["items"]))
+
+    def test_cross_role_editing_lock_and_xss_protection(self):
+        import json
+        from decimal import Decimal
+        from django.contrib.auth.models import User
+        from backend.core.models import StaffProfile
+        from backend.cashier.models import CashierPayment
+        from backend.cashier.payment_record import record_cashier_payment
+        from backend.student.models import StudentEnrollmentProfile, StudentRegistration
+        from django.core.exceptions import PermissionDenied
+
+        # Create Cashier staff
+        cashier_user = User.objects.create_user(
+            username="cashier_prime@vtiac.edu.ph",
+            email="cashier_prime@vtiac.edu.ph",
+            password="StrongPassword123!",
+            first_name="Cashier",
+            last_name="Staff",
+            is_staff=True,
+        )
+        StaffProfile.objects.create(user=cashier_user, role=StaffProfile.Role.CASHIER, additional_roles=["registrar"])
+
+        # Create Registrar staff
+        registrar_user = User.objects.create_user(
+            username="registrar_prime@vtiac.edu.ph",
+            email="registrar_prime@vtiac.edu.ph",
+            password="StrongPassword123!",
+            first_name="Registrar",
+            last_name="Staff",
+            is_staff=True,
+        )
+        StaffProfile.objects.create(user=registrar_user, role=StaffProfile.Role.REGISTRAR, additional_roles=["cashier", "admin"])
+
+        # Create Student
+        student_user = User.objects.create_user(
+            username="test_trainee@vtiac.edu.ph",
+            email="test_trainee@vtiac.edu.ph",
+            password="StrongPassword123!",
+            first_name="Maria",
+            last_name="Santos",
+        )
+        reg = StudentRegistration.objects.create(
+            user=student_user,
+            email=student_user.email,
+            first_name="Maria",
+            last_name="Santos",
+            phone_number="09123456789",
+            birth_date="2000-01-01",
+            gender="Female",
+            civil_status="Single",
+            emergency_name="Parent Contact",
+            emergency_phone="09123456780",
+            selected_program="Driving NC II",
+            program_type=StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT,
+        )
+        import datetime
+        profile = StudentEnrollmentProfile.objects.create(
+            user=student_user,
+            registration=reg,
+            first_name="Maria",
+            last_name="Santos",
+            birth_date=datetime.date(2000, 1, 1),
+            entry_date=datetime.date(2026, 1, 1),
+            selected_program="Driving NC II",
+            documents_review_released=True,
+        )
+
+        # 1. Cashier staff touches/records a payment
+        pay_payload = {
+            "studentId": profile.pk,
+            "registrationId": str(reg.pk),
+            "controlNumber": "CTRL-XSS-001",
+            "orNumber": "OR-1001",
+            "receiptType": "OR",
+            "particulars": [{"description": "<script>alert('xss')</script>Tuition", "amount": 1000}],
+            "paidAmount": 1000,
+            "totalPayable": 1000,
+            "status": "Full Payment",
+        }
+        res = record_cashier_payment(user=cashier_user, payload=pay_payload)
+        self.assertEqual(res["status"], "Full Payment")
+
+        # 2. Registrar acting as Cashier attempts to edit/record payment on this Cashier-touched student
+        # Must be rejected with PermissionDenied!
+        pay_payload2 = {
+            "studentId": profile.pk,
+            "registrationId": str(reg.pk),
+            "controlNumber": "CTRL-BYPASS-002",
+            "orNumber": "OR-1002",
+            "receiptType": "OR",
+            "particulars": [{"description": "Remaining", "amount": 500}],
+            "paidAmount": 500,
+            "totalPayable": 500,
+        }
+        with self.assertRaises(PermissionDenied):
+            record_cashier_payment(user=registrar_user, payload=pay_payload2)
+
+        # 3. Backend API endpoint bypass attempt by Registrar returns 403 Forbidden
+        self.client.force_login(registrar_user)
+        session = self.client.session
+        session["portal_role"] = "cashier"
+        session.save()
+        api_resp = self.client.post(
+            "/cashier/api/payments/record/",
+            data=json.dumps(pay_payload2),
+            content_type="application/json",
+        )
+        self.assertEqual(api_resp.status_code, 403)
+
+        # 4. Vice Versa: Cashier acting as Registrar attempts to modify Registrar-touched enrollment
+        # Registrar releases/touches the enrollment profile
+        profile.documents_review_released = True
+        profile.documents_review_released_by = registrar_user
+        profile.last_touched_by = registrar_user
+        profile.save()
+
+        self.client.force_login(cashier_user)
+        session = self.client.session
+        session["portal_role"] = "registrar"
+        session.save()
+        reg_api_resp = self.client.post(
+            "/registrar/api/enrollment/document/release/",
+            data={"profile_id": str(profile.pk)},
+        )
+        self.assertEqual(reg_api_resp.status_code, 403)
+        self.assertIn("Permission denied", reg_api_resp.json()["error"])
+
 
 
 

@@ -14,6 +14,7 @@ const PAGE_SIZE = 10;
 let cachedStudents = [];
 let cachedAging = null;
 let currentPage = 1;
+let currentUserPrimaryRole = "";
 
 const filterState = {
   searchQuery: "",
@@ -481,23 +482,34 @@ function renderTable(filteredStudents, page) {
             <div class="d-inline-flex align-items-center gap-1">
               ${
                 remainingBalance > 0
-                  ? `<button
-                      type="button"
-                      class="btn btn-sm cashier-btn-pay btn-student-pay"
-                      data-registration-id="${regId}"
-                      title="Receive payment for ${name}"
-                    >
-                      <i class="bi bi-credit-card-fill" aria-hidden="true"></i>
-                      <span>Receive Payment</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-sm cashier-btn-notice btn-student-notice"
-                      data-registration-id="${regId}"
-                      title="Generate follow-up payment notice"
-                    >
-                      <i class="bi bi-envelope-paper" aria-hidden="true"></i>
-                    </button>`
+                  ? (currentUserPrimaryRole === "registrar" && Boolean(s.cashierStaffTouched))
+                    ? `<button
+                        type="button"
+                        class="btn btn-sm btn-secondary opacity-75"
+                        disabled
+                        style="cursor: not-allowed;"
+                        title="Locked: This transaction was processed by Cashier Staff (${escapeHtml(s.lastTouchByName || 'Cashier')}) and cannot be edited while acting as Cashier."
+                      >
+                        <i class="bi bi-lock-fill me-1" aria-hidden="true"></i>
+                        <span>Locked (Cashier Touch)</span>
+                      </button>`
+                    : `<button
+                        type="button"
+                        class="btn btn-sm cashier-btn-pay btn-student-pay"
+                        data-registration-id="${regId}"
+                        title="Receive payment for ${name}"
+                      >
+                        <i class="bi bi-credit-card-fill" aria-hidden="true"></i>
+                        <span>Receive Payment</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm cashier-btn-notice btn-student-notice"
+                        data-registration-id="${regId}"
+                        title="Generate follow-up payment notice"
+                      >
+                        <i class="bi bi-envelope-paper" aria-hidden="true"></i>
+                      </button>`
                   : `<span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 fw-medium d-inline-flex align-items-center gap-1">
                       <i class="bi bi-check-circle-fill"></i>
                       <span>Paid in Full</span>
@@ -820,6 +832,7 @@ async function loadStudentsData() {
       const data = await res.json();
       cachedStudents = data.students || [];
       cachedAging = data.aging || data.summary || null;
+      currentUserPrimaryRole = data.currentUserPrimaryRole || "";
       populateProgramDropdown(cachedStudents);
       refreshView(false);
     }

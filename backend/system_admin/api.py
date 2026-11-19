@@ -83,6 +83,7 @@ def users_create(request):
                 additional_roles=data.get("additional_roles"),
                 substitute_duration=data.get("substitute_duration"),
                 expires_at=data.get("expires_at"),
+                acting_user=request.user,
             )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
@@ -116,6 +117,7 @@ def users_update(request, user_id):
             additional_roles=data.get("additional_roles"),
             substitute_duration=data.get("substitute_duration"),
             expires_at=data.get("expires_at"),
+            acting_user=request.user,
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
@@ -410,4 +412,29 @@ def extract_competencies_from_pdf(request):
         return JsonResponse({"error": str(exc)}, status=400)
     except Exception as exc:
         return JsonResponse({"error": f"Failed to parse PDF document: {str(exc)}"}, status=500)
+
+
+@login_required(login_url="/")
+@require_GET
+def touch_logs_api(request):
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    from .touch_logger import get_touch_logs_page_context, serialize_touch_log
+
+    ctx = get_touch_logs_page_context(request)
+    items = [serialize_touch_log(l) for l in ctx["touch_logs"]]
+    return JsonResponse({
+        "items": items,
+        "total_count": ctx["total_count"],
+        "cashier_count": ctx["cashier_count"],
+        "registrar_count": ctx["registrar_count"],
+        "admin_count": ctx["admin_count"],
+        "page": ctx["touch_logs"].number,
+        "num_pages": ctx["touch_logs"].paginator.num_pages,
+        "has_next": ctx["touch_logs"].has_next(),
+        "has_previous": ctx["touch_logs"].has_previous(),
+    })
+
 

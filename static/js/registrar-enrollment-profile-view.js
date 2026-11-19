@@ -248,7 +248,8 @@ export function renderDocumentSubmissionIndicatorsSection(detail) {
 export function renderUploadedDocumentsSection(detail) {
   const docs = detail?.uploadedDocuments || [];
   const paymentDocs = detail?.paymentDocuments || [];
-  const released = Boolean(detail?.documentsReviewReleased);
+  const isLocked = detail?.currentUserPrimaryRole === "cashier" && Boolean(detail?.registrarStaffTouched);
+  const released = Boolean(detail?.documentsReviewReleased) || isLocked;
 
   if (!docs.length && !paymentDocs.length) {
     return `<section class="tesda-view-section registrar-doc-review mt-3">
@@ -280,6 +281,17 @@ export function renderUploadedDocumentsSection(detail) {
 export function updateEnrollmentDocReviewFooter(detail) {
   const nextBtn = document.getElementById("view-enrollment-doc-next");
   if (!nextBtn) return;
+  const isLocked = detail?.currentUserPrimaryRole === "cashier" && Boolean(detail?.registrarStaffTouched);
+  if (isLocked) {
+    nextBtn.classList.remove("d-none");
+    nextBtn.disabled = true;
+    nextBtn.classList.add("disabled");
+    nextBtn.style.cursor = "not-allowed";
+    nextBtn.style.opacity = "0.75";
+    nextBtn.title = "Locked: This application was processed by Registrar Staff and cannot be modified while acting as Registrar.";
+    nextBtn.innerHTML = '<i class="bi bi-lock-fill me-1"></i>Locked (Registrar Touch)';
+    return;
+  }
   const docs = detail?.uploadedDocuments || [];
   const hasReviewable = docs.some((d) => d.reviewable !== false);
   const hasMissingRequired = docs.some((d) => d.required && (d.isMissing || !d.uploaded));

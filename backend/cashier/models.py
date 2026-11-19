@@ -42,6 +42,15 @@ class CashierPayment(models.Model):
         blank=True,
         related_name="cashier_payments_recorded",
     )
+    last_touched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cashier_payments_touched",
+    )
+    last_touched_at = models.DateTimeField(null=True, blank=True)
+    last_touched_role = models.CharField(max_length=32, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

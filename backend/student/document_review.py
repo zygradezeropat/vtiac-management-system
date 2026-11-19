@@ -64,15 +64,30 @@ def documents_cleared_for_payment(profile: StudentEnrollmentProfile | None) -> b
     return bool(profile and profile.documents_review_released)
 
 
-def approve_document(profile: StudentEnrollmentProfile, document_key: str):
+def approve_document(profile: StudentEnrollmentProfile, document_key: str, user=None):
     from .enrollment_notifications import notify_student_document_approved
 
     now = timezone.now()
+    user_primary_role = getattr(getattr(user, "staff_profile", None), "role", "registrar") if user else ""
+    if user and getattr(user, "is_authenticated", False):
+        profile.last_touched_by = user
+        profile.last_touched_at = now
+        profile.last_touched_role = user_primary_role
+
     if document_key == "profile_photo":
         profile.photo_registrar_status = REVIEW_APPROVED
         profile.photo_rejection_reason = ""
         profile.save(
             update_fields=[
+                "photo_registrar_status",
+                "photo_rejection_reason",
+                "last_touched_by",
+                "last_touched_at",
+                "last_touched_role",
+                "updated_at",
+            ]
+            if user and getattr(user, "is_authenticated", False)
+            else [
                 "photo_registrar_status",
                 "photo_rejection_reason",
                 "updated_at",
@@ -87,28 +102,32 @@ def approve_document(profile: StudentEnrollmentProfile, document_key: str):
     doc.rejection_reason = ""
     doc.reviewed_at = now
     doc.save(update_fields=["registrar_status", "rejection_reason", "reviewed_at"])
+    if user and getattr(user, "is_authenticated", False):
+        profile.save(update_fields=["last_touched_by", "last_touched_at", "last_touched_role", "updated_at"])
     notify_student_document_approved(profile, document_key)
 
 
-def reject_document(profile: StudentEnrollmentProfile, document_key: str, reason: str):
+def reject_document(profile: StudentEnrollmentProfile, document_key: str, reason: str, user=None):
     from .enrollment_notifications import notify_student_document_rejected
 
     reason = (reason or "").strip()
     if not reason:
         raise ValueError("A rejection reason is required.")
     now = timezone.now()
+    user_primary_role = getattr(getattr(user, "staff_profile", None), "role", "registrar") if user else ""
+    if user and getattr(user, "is_authenticated", False):
+        profile.last_touched_by = user
+        profile.last_touched_at = now
+        profile.last_touched_role = user_primary_role
+
     if document_key == "profile_photo":
         profile.photo_registrar_status = REVIEW_REJECTED
         profile.photo_rejection_reason = reason[:500]
         profile.documents_review_released = False
-        profile.save(
-            update_fields=[
-                "photo_registrar_status",
-                "photo_rejection_reason",
-                "documents_review_released",
-                "updated_at",
-            ]
-        )
+        update_fields = ["photo_registrar_status", "photo_rejection_reason", "documents_review_released", "updated_at"]
+        if user and getattr(user, "is_authenticated", False):
+            update_fields.extend(["last_touched_by", "last_touched_at", "last_touched_role"])
+        profile.save(update_fields=update_fields)
         notify_student_document_rejected(profile, document_key, reason)
         return
     doc = profile.documents.filter(document_type=document_key).first()
@@ -119,11 +138,14 @@ def reject_document(profile: StudentEnrollmentProfile, document_key: str, reason
     doc.reviewed_at = now
     doc.save(update_fields=["registrar_status", "rejection_reason", "reviewed_at"])
     profile.documents_review_released = False
-    profile.save(update_fields=["documents_review_released", "updated_at"])
+    update_fields = ["documents_review_released", "updated_at"]
+    if user and getattr(user, "is_authenticated", False):
+        update_fields.extend(["last_touched_by", "last_touched_at", "last_touched_role"])
+    profile.save(update_fields=update_fields)
     notify_student_document_rejected(profile, document_key, reason)
 
 
-def release_document_review(profile: StudentEnrollmentProfile):
+def release_document_review(profile: StudentEnrollmentProfile, user=None):
     from .enrollment_notifications import notify_student_documents_released
 
     if not all_reviewable_documents_approved(profile):
@@ -131,18 +153,25 @@ def release_document_review(profile: StudentEnrollmentProfile):
     now = timezone.now()
     profile.documents_review_released = True
     profile.documents_review_released_at = now
+    update_fields = [
+        "documents_review_released",
+        "documents_review_released_at",
+        "requirements_submitted",
+        "requirements_submitted_at",
+        "updated_at",
+    ]
+    if user and getattr(user, "is_authenticated", False):
+        user_primary_role = getattr(getattr(user, "staff_profile", None), "role", "registrar")
+        profile.documents_review_released_by = user
+        profile.last_touched_by = user
+        profile.last_touched_at = now
+        profile.last_touched_role = user_primary_role
+        update_fields.extend(["documents_review_released_by", "last_touched_by", "last_touched_at", "last_touched_role"])
+
     if not profile.requirements_submitted:
         profile.requirements_submitted = True
         profile.requirements_submitted_at = now
-    profile.save(
-        update_fields=[
-            "documents_review_released",
-            "documents_review_released_at",
-            "requirements_submitted",
-            "requirements_submitted_at",
-            "updated_at",
-        ]
-    )
+    profile.save(update_fields=update_fields)
     notify_student_documents_released(profile)
 
 

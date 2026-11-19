@@ -21,6 +21,7 @@ class Command(BaseCommand):
                 "first_name": "Registrar",
                 "last_name": "Staff",
                 "role": StaffProfile.Role.REGISTRAR,
+                "additional_roles": ["cashier", "admin"],
             },
             {
                 "username": "cashier",
@@ -59,7 +60,13 @@ class Command(BaseCommand):
             user.set_password(password)
             user.save()
 
-            StaffProfile.objects.update_or_create(user=user, defaults={"role": sample["role"]})
+            StaffProfile.objects.update_or_create(
+                user=user,
+                defaults={
+                    "role": sample["role"],
+                    "additional_roles": sample.get("additional_roles", []),
+                },
+            )
 
             state = "created" if created else "updated"
             self.stdout.write(self.style.SUCCESS(f"{state}: {sample['email']} ({sample['role']})"))

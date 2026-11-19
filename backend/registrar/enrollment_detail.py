@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from backend.core.models import StaffProfile
 from backend.accounts.services import require_portal_access
 from backend.student.assessment_enrollment import (
     ASSESSMENT_CLIENT_TYPES,
@@ -463,6 +464,15 @@ def build_learner_profile_detail(profile: StudentEnrollmentProfile | None, reg: 
         "documentsReviewReleased": bool(profile and profile.documents_review_released),
         "docIndicators": get_document_submission_indicators(profile, reg),
         "assessmentApplication": assessment_payload,
+        "registrarStaffTouched": bool(
+            profile
+            and (
+                (profile.documents_review_released and (not profile.documents_review_released_by or getattr(getattr(profile.documents_review_released_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR))
+                or (profile.hard_copies_received_by and getattr(getattr(profile.hard_copies_received_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR)
+                or (profile.last_touched_by and getattr(getattr(profile.last_touched_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR)
+            )
+            or (reg and reg.approved_by and getattr(getattr(reg.approved_by, "staff_profile", None), "role", "") == StaffProfile.Role.REGISTRAR)
+        ),
     }
 
 
@@ -509,4 +519,5 @@ def enrollment_detail(request):
     payload = build_learner_profile_detail(profile, reg)
     if payload.get("error"):
         return JsonResponse(payload, status=404)
+    payload["currentUserPrimaryRole"] = getattr(getattr(request.user, "staff_profile", None), "role", "")
     return JsonResponse(payload)

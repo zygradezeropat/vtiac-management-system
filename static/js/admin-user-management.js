@@ -349,11 +349,19 @@ function syncUserFormPanels() {
     addRolesWrap.classList.toggle("d-none", accountType !== "staff");
     const currentPrimary = document.getElementById("userFormRole")?.value;
     document.querySelectorAll("[data-staff-additional-role]").forEach((cb) => {
+      const parentCheck = cb.closest(".form-check");
       if (cb.value === currentPrimary) {
         cb.checked = false;
         cb.disabled = true;
+        if (parentCheck) parentCheck.style.display = "none";
+      } else if ((currentPrimary === "registrar" || currentPrimary === "cashier") && cb.value === "trainer") {
+        // Registrar and Cashier cannot substitute as Trainer
+        cb.checked = false;
+        cb.disabled = true;
+        if (parentCheck) parentCheck.style.display = "none";
       } else {
         cb.disabled = false;
+        if (parentCheck) parentCheck.style.display = "block";
       }
     });
   }

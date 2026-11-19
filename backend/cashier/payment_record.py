@@ -2,9 +2,13 @@
 
 from decimal import Decimal, InvalidOperation
 
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.utils import timezone
 
+from backend.core.models import StaffProfile
 from backend.student.models import StudentEnrollmentProfile, StudentRegistration
+from backend.system_admin.touch_logger import log_staff_touch
 
 from .balance import fee_balance_for_profile
 from .models import CashierPayment
@@ -96,6 +100,18 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
         registration_id=payload.get("registrationId") or payload.get("registration_id"),
     )
 
+    # Cross-role editing guard:
+    # If the user is a Registrar acting as Cashier, they can ONLY process transactions
+    # that dedicated Cashier staff has NOT touched.
+    user_primary_role = getattr(getattr(user, "staff_profile", None), "role", "")
+    if user_primary_role == StaffProfile.Role.REGISTRAR:
+        if profile and profile.cashier_payments.filter(
+            recorded_by__staff_profile__role=StaffProfile.Role.CASHIER
+        ).exists():
+            raise PermissionDenied(
+                "Permission denied: This transaction was processed by Cashier staff and cannot be modified while acting as cashier."
+            )
+
     if (reg and reg.status != StudentRegistration.Status.APPROVED) and (
         not profile.documents_review_released
     ):
@@ -175,6 +191,7 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
     if not student_name:
         student_name = f"{profile.first_name} {profile.last_name}".strip()
 
+    now = timezone.now()
     payment = CashierPayment.objects.create(
         profile=profile,
         registration=reg,
@@ -188,6 +205,26 @@ def record_cashier_payment(*, user, payload: dict) -> dict:
         remaining_balance=remaining_balance,
         status=status,
         recorded_by=user if user.is_authenticated else None,
+        last_touched_by=user if user.is_authenticated else None,
+        last_touched_at=now,
+        last_touched_role=user_primary_role or "cashier",
+    )
+
+    if profile:
+        profile.last_touched_by = user if user.is_authenticated else None
+        profile.last_touched_at = now
+        profile.last_touched_role = user_primary_role or "cashier"
+        profile.save(update_fields=["last_touched_by", "last_touched_at", "last_touched_role", "updated_at"])
+
+    log_staff_touch(
+        user=user,
+        portal_role="cashier",
+        module="cashier",
+        action=f"Received Payment ({receipt_type})",
+        target_type="CashierPayment",
+        target_id=payment.control_number,
+        target_name=student_name,
+        details=f"Paid: ₱{paid_amount:,.2f} | Balance: ₱{remaining_balance:,.2f} | Status: {status} | OR: {payment.or_number or 'N/A'}",
     )
 
     notify_payment_recorded(profile, payment)

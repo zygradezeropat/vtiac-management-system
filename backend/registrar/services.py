@@ -461,12 +461,12 @@ def module_page_context(module, request=None):
         ctx["batching_trainers"] = batching_trainers_payload()
         ctx["batching_courses"] = batching_courses_payload()
         ctx["batching_templates"] = batching_templates_payload()
-        ctx["pending_enrollments"] = pending_enrollments_payload()
+        ctx["pending_enrollments"] = pending_enrollments_payload(request)
     if module == "enrollment":
         from .pending_enrollment import pending_enrollment_count, pending_enrollments_payload
 
         # Pass a Python list — json_script in the template encodes it once.
-        ctx["pending_enrollments"] = pending_enrollments_payload()
+        ctx["pending_enrollments"] = pending_enrollments_payload(request)
         ctx["pending_enrollment_count"] = pending_enrollment_count()
     if module == "student":
         from .student_list import registrar_students_module_data
