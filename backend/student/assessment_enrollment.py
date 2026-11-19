@@ -314,8 +314,8 @@ def validate_assessment_enrollment_data(data, *, require_photo=True) -> list[str
     if require_photo and not photo:
         errors.append("Passport-size photo is required.")
     elif photo:
-        if photo.size > 5 * 1024 * 1024:
-            errors.append("Photo must be 5MB or smaller.")
+        if photo.size > 50 * 1024 * 1024:
+            errors.append("Photo must be 50MB or smaller.")
         content_type = getattr(photo, "content_type", "") or ""
         if content_type and content_type not in ("image/jpeg", "image/png"):
             errors.append("Photo must be JPEG or PNG format.")

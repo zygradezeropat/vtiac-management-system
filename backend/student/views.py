@@ -5,6 +5,8 @@ from django.contrib import messages
 from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
+from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 
@@ -319,12 +321,26 @@ def enrollment_requirements(request):
             try:
                 doc = save_enrollment_document(profile, doc_type, uploaded, id_type=id_type)
                 if is_ajax:
+                    ctx = student_enrollment_requirements_context(request)
+                    html_snippet = render_to_string(
+                        "components/student/enrollment_requirements_list.html",
+                        ctx,
+                        request=request,
+                    )
                     return JsonResponse({
                         "ok": True,
                         "message": "Document uploaded successfully.",
                         "document_type": doc_type,
                         "filename": getattr(doc, "original_filename", ""),
                         "file_url": doc.file.url if doc and doc.file else "",
+                        "progress_percent": ctx.get("progress_percent", 50),
+                        "digital_status": ctx["doc_indicators"]["digital"]["status"],
+                        "digital_label": ctx["doc_indicators"]["digital"]["label"],
+                        "digital_badge_class": ctx["doc_indicators"]["digital"]["badgeClass"],
+                        "digital_is_uploaded": ctx["doc_indicators"]["digital"]["isUploaded"],
+                        "digital_uploaded_count": ctx["doc_indicators"]["digital"]["uploadedCount"],
+                        "digital_required_count": ctx["doc_indicators"]["digital"]["requiredCount"],
+                        "requirements_list_html": html_snippet,
                     })
                 messages.success(request, "Document uploaded successfully.")
             except ValueError as exc:
@@ -339,7 +355,25 @@ def enrollment_requirements(request):
                 from .enrollment_requirements import remove_enrollment_document
                 remove_enrollment_document(profile, doc_type)
                 if is_ajax:
-                    return JsonResponse({"ok": True, "message": "File removed."})
+                    ctx = student_enrollment_requirements_context(request)
+                    html_snippet = render_to_string(
+                        "components/student/enrollment_requirements_list.html",
+                        ctx,
+                        request=request,
+                    )
+                    return JsonResponse({
+                        "ok": True,
+                        "message": "File removed successfully.",
+                        "document_type": doc_type,
+                        "progress_percent": ctx.get("progress_percent", 50),
+                        "digital_status": ctx["doc_indicators"]["digital"]["status"],
+                        "digital_label": ctx["doc_indicators"]["digital"]["label"],
+                        "digital_badge_class": ctx["doc_indicators"]["digital"]["badgeClass"],
+                        "digital_is_uploaded": ctx["doc_indicators"]["digital"]["isUploaded"],
+                        "digital_uploaded_count": ctx["doc_indicators"]["digital"]["uploadedCount"],
+                        "digital_required_count": ctx["doc_indicators"]["digital"]["requiredCount"],
+                        "requirements_list_html": html_snippet,
+                    })
                 messages.success(request, "File removed.")
             except ValueError as exc:
                 if is_ajax:
@@ -350,17 +384,31 @@ def enrollment_requirements(request):
         if action == "submit":
             errors = submit_enrollment_requirements(profile)
             if errors:
+                if is_ajax:
+                    return JsonResponse({"ok": False, "errors": errors}, status=400)
                 for msg in errors:
                     messages.error(request, msg)
                 return redirect("student_enrollment_requirements")
-            messages.success(
-                request,
-                "Your requirements have been submitted for approval.",
+
+            is_assessment_only = is_assessment_only_user(request.user)
+            success_msg = (
+                "Your assessment application requirements have been submitted for verification."
+                if is_assessment_only
+                else "Your requirements have been submitted for approval."
             )
-            if registration_is_enrolled(request.user):
-                messages.success(request, "Your enrollment has been approved.")
-                return redirect("student_dashboard")
-            return redirect("student_enrollment_pending")
+            messages.success(request, success_msg)
+            redirect_url = (
+                reverse("student_dashboard")
+                if registration_is_enrolled(request.user)
+                else reverse("student_enrollment_pending")
+            )
+            if is_ajax:
+                return JsonResponse({
+                    "ok": True,
+                    "message": success_msg,
+                    "redirect_url": redirect_url,
+                })
+            return redirect(redirect_url)
 
     if registration_is_enrolled(request.user):
         return redirect("student_my_profile")

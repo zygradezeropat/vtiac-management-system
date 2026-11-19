@@ -1,8 +1,18 @@
 /**
- * Step 2 — enrollment document uploads with automatic background upload.
+ * Step 2 — enrollment document uploads with full AJAX technique and Bootstrap modals.
  */
 
 import { initFilePreviewTriggers, openFilePreview } from "./file-upload-preview.js";
+
+const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png"];
+
+function getCsrfToken() {
+  return (
+    document.querySelector('.student-req-upload-form input[name="csrfmiddlewaretoken"]')?.value ||
+    document.querySelector('input[name="csrfmiddlewaretoken"]')?.value ||
+    ""
+  );
+}
 
 function syncValidIdUploadButton(form) {
   const idSelect = form.querySelector('select[name="id_type"]');
@@ -84,24 +94,77 @@ function showPendingUpload(form, file) {
   pending.classList.remove("d-none");
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  initFilePreviewTriggers(document);
-  const csrfToken = document.querySelector(
-    '.student-req-upload-form input[name="csrfmiddlewaretoken"]'
-  )?.value;
-  const removeRejectedModalEl = document.getElementById("removeRejectedModal");
-  const removeRejectedModalMessageEl = document.getElementById(
-    "removeRejectedModalMessage"
-  );
-  const removeRejectedModalConfirmBtn = document.getElementById(
-    "removeRejectedModalConfirmBtn"
-  );
-  const removeRejectedModal =
-    removeRejectedModalEl && window.bootstrap?.Modal
-      ? new window.bootstrap.Modal(removeRejectedModalEl)
-      : null;
-  let pendingRejectedDocType = "";
+function showToast(message, type = "success") {
+  const container = document.getElementById("ajax-toast-container");
+  const alertEl = document.getElementById("ajax-toast-alert");
+  const msgEl = document.getElementById("ajax-toast-message");
+  if (!container || !alertEl || !msgEl) return;
 
+  msgEl.textContent = message;
+  alertEl.className = `alert alert-${type} alert-dismissible fade show d-flex align-items-center gap-2 mb-2`;
+  container.classList.remove("d-none");
+
+  if (window._ajaxToastTimeout) {
+    clearTimeout(window._ajaxToastTimeout);
+  }
+  window._ajaxToastTimeout = setTimeout(() => {
+    container.classList.add("d-none");
+  }, 5000);
+}
+
+function updatePageIndicators(data) {
+  if (!data) return;
+
+  // 1. Progress Bar
+  if (data.progress_percent !== undefined) {
+    const fillEl = document.getElementById("enrollment-progress-fill");
+    const textEl = document.getElementById("enrollment-progress-text");
+    const trackEl = document.getElementById("enrollment-progress-track");
+    if (fillEl) fillEl.style.width = `${data.progress_percent}%`;
+    if (textEl) textEl.textContent = `${data.progress_percent}%`;
+    if (trackEl) trackEl.setAttribute("aria-valuenow", data.progress_percent);
+  }
+
+  // 2. Digital Upload Status Badge
+  const badgeEl = document.getElementById("digital-status-badge");
+  const labelEl = document.getElementById("digital-status-label");
+  const iconEl = document.getElementById("digital-status-icon");
+  const descEl = document.getElementById("digital-status-desc");
+
+  if (badgeEl && data.digital_badge_class) {
+    badgeEl.className = `badge ${data.digital_badge_class} px-2 py-1`;
+  }
+  if (labelEl && data.digital_label) {
+    labelEl.textContent = data.digital_label;
+  }
+  if (iconEl && data.digital_is_uploaded !== undefined) {
+    iconEl.className = `bi ${data.digital_is_uploaded ? "bi-check-circle-fill" : "bi-exclamation-circle-fill"} me-1`;
+  }
+  if (descEl && data.digital_is_uploaded !== undefined) {
+    descEl.textContent = data.digital_is_uploaded
+      ? "All required documents are uploaded to the system."
+      : "Please upload your remaining required documents below.";
+  }
+
+  // 3. Clear submission validation alert if all required docs uploaded
+  const alertEl = document.getElementById("requirements-form-alert");
+  if (alertEl) {
+    const requiredMissing = document.querySelectorAll(
+      ".student-req-card[data-required='1']:not([data-uploaded='1'])"
+    );
+    if (!requiredMissing.length) {
+      alertEl.classList.add("d-none");
+    }
+  }
+}
+
+let pendingCancelDocType = "";
+let pendingRejectedDocType = "";
+
+function bindRequirementEvents() {
+  initFilePreviewTriggers(document);
+
+  // Bind upload form inputs
   document.querySelectorAll(".student-req-upload-form").forEach((form) => {
     if (form.dataset.approved === "1") return;
 
@@ -138,23 +201,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const alertEl = document.getElementById("requirements-form-alert");
         if (alertEl) {
           alertEl.classList.remove("d-none");
-          alertEl.querySelector("span").textContent =
-            "Please select an ID type before uploading your Valid ID.";
+          const msgSpan = alertEl.querySelector("span");
+          if (msgSpan) msgSpan.textContent = "Please select an ID type before uploading your Valid ID.";
+          alertEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
         return;
       }
 
-      // Check file size (5MB max)
-      if (file.size > 5 * 1024 * 1024) {
-        alert("The selected file exceeds 5MB. Please upload a PDF under 5MB.");
-        fileInput.value = "";
-        hidePendingUpload(form);
-        return;
-      }
-
-      // Check file type
-      if (file.type && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-        alert("Only PDF files are supported.");
+      // Check file extension (PDF, JPG, JPEG, PNG)
+      const fileNameLower = file.name.toLowerCase();
+      const hasValidExt = ALLOWED_EXTENSIONS.some((ext) => fileNameLower.endsWith(ext));
+      if (!hasValidExt) {
+        showToast("Only PDF, JPEG, and PNG files are supported.", "danger");
         fileInput.value = "";
         hidePendingUpload(form);
         return;
@@ -179,35 +237,32 @@ document.addEventListener("DOMContentLoaded", () => {
           signal: abortCtrl.signal,
         });
 
-        if (res.ok) {
-          const statusBadge = pending?.querySelector("[data-req-pending-status]");
-          const spinner = pending?.querySelector(".spinner-border");
-          if (statusBadge) {
-            statusBadge.textContent = "Uploaded!";
-            statusBadge.className = "badge bg-success text-white small ms-1";
-          }
-          if (spinner) {
-            spinner.className = "bi bi-check-circle-fill text-success fs-6";
-          }
-          setTimeout(() => {
+        const data = await res.json().catch(() => null);
+
+        if (res.ok && data?.ok) {
+          if (data.requirements_list_html) {
+            const listEl = document.getElementById("requirements-list");
+            if (listEl) {
+              listEl.innerHTML = data.requirements_list_html;
+            }
+            bindRequirementEvents();
+            updatePageIndicators(data);
+            showToast(data.message || "Document uploaded successfully.", "success");
+          } else {
             window.location.reload();
-          }, 400);
+          }
         } else {
-          let errText = "Upload failed.";
-          try {
-            const errData = await res.json();
-            if (errData.error) errText = errData.error;
-          } catch {}
-          alert(errText);
+          const errText = data?.error || "Upload failed. Please try again.";
+          showToast(errText, "danger");
           hidePendingUpload(form);
         }
       } catch (err) {
         if (err.name === "AbortError") {
-          return; // Cancelled by user
+          return;
         }
-        console.error("Upload failed, falling back to form submit:", err);
-        // Fallback: standard form submit
-        form.submit();
+        console.error("AJAX upload failed:", err);
+        showToast("Network or server error during upload. Please try again.", "danger");
+        hidePendingUpload(form);
       }
     });
 
@@ -217,49 +272,173 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Cancel / remove uploaded document
+  // Cancel / remove uploaded document triggers (Open Bootstrap Modal)
   document.querySelectorAll("[data-remove-document]").forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", () => {
       const docType = button.dataset.removeDocument || "";
       const docTitle = button.dataset.removeTitle || "document";
       if (!docType) return;
+      pendingCancelDocType = docType;
 
-      if (window.confirm(`Are you sure you want to cancel and remove your uploaded ${docTitle}?`)) {
-        const formData = new FormData();
-        if (csrfToken) formData.append("csrfmiddlewaretoken", csrfToken);
-        formData.append("action", "cancel");
-        formData.append("document_type", docType);
+      const modalEl = document.getElementById("removeDocumentModal");
+      const msgEl = document.getElementById("removeDocumentModalMessage");
+      const labelEl = document.getElementById("removeDocumentModalLabel");
 
-        try {
-          const res = await fetch(window.location.pathname, {
-            method: "POST",
-            body: formData,
-            headers: {
-              "X-Requested-With": "XMLHttpRequest",
-              "Accept": "application/json",
-            },
-          });
-          if (res.ok) {
-            window.location.reload();
-            return;
-          }
-        } catch {}
+      if (labelEl) {
+        labelEl.textContent = `Remove ${docTitle}?`;
+      }
+      if (msgEl) {
+        msgEl.textContent = `Are you sure you want to cancel and remove your uploaded ${docTitle}? You will need to upload a replacement file.`;
+      }
 
-        // Fallback form submit
-        const form = document.createElement("form");
-        form.method = "post";
-        form.action = window.location.pathname;
-        form.innerHTML = `
-          <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken || ""}">
-          <input type="hidden" name="action" value="cancel">
-          <input type="hidden" name="document_type" value="${docType}">
-        `;
-        document.body.appendChild(form);
-        form.submit();
+      if (modalEl && window.bootstrap?.Modal) {
+        const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+      } else if (window.confirm(`Are you sure you want to cancel and remove your uploaded ${docTitle}?`)) {
+        executeCancelDocument(docType);
       }
     });
   });
 
+  // Remove rejected modal triggers (Open Bootstrap Modal)
+  document.querySelectorAll("[data-remove-rejected-document]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const docType = button.dataset.removeRejectedDocument || "";
+      const docTitle = button.dataset.removeRejectedTitle || "document";
+      if (!docType) return;
+      pendingRejectedDocType = docType;
+
+      const removeRejectedModalEl = document.getElementById("removeRejectedModal");
+      const removeRejectedModalMessageEl = document.getElementById("removeRejectedModalMessage");
+
+      if (removeRejectedModalMessageEl) {
+        removeRejectedModalMessageEl.textContent = `Remove the rejected file for ${docTitle}? You can upload a new file right away.`;
+      }
+
+      if (removeRejectedModalEl && window.bootstrap?.Modal) {
+        const modal = window.bootstrap.Modal.getOrCreateInstance(removeRejectedModalEl);
+        modal.show();
+      } else if (window.confirm(`Remove the rejected file for ${docTitle}? You can upload a new file right away.`)) {
+        handleRemoveRejected(docType);
+      }
+    });
+  });
+}
+
+async function executeCancelDocument(docType) {
+  const modalEl = document.getElementById("removeDocumentModal");
+  const modal = modalEl && window.bootstrap?.Modal ? window.bootstrap.Modal.getInstance(modalEl) : null;
+  const confirmBtn = document.getElementById("removeDocumentModalConfirmBtn");
+  const spinner = document.getElementById("removeDocumentModalSpinner");
+  const textEl = document.getElementById("removeDocumentModalConfirmText");
+
+  if (confirmBtn) confirmBtn.disabled = true;
+  if (spinner) spinner.classList.remove("d-none");
+  if (textEl) textEl.textContent = "Removing...";
+
+  const csrfToken = getCsrfToken();
+  const formData = new FormData();
+  formData.append("csrfmiddlewaretoken", csrfToken);
+  formData.append("action", "cancel");
+  formData.append("document_type", docType);
+
+  try {
+    const res = await fetch(window.location.pathname, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json",
+      },
+    });
+    const data = await res.json().catch(() => null);
+
+    modal?.hide();
+
+    if (res.ok && data?.ok) {
+      if (data.requirements_list_html) {
+        const listEl = document.getElementById("requirements-list");
+        if (listEl) {
+          listEl.innerHTML = data.requirements_list_html;
+        }
+        bindRequirementEvents();
+        updatePageIndicators(data);
+        showToast(data.message || "File removed successfully.", "info");
+      } else {
+        window.location.reload();
+      }
+    } else {
+      showToast(data?.error || "Failed to remove file.", "danger");
+    }
+  } catch (err) {
+    console.error("Remove failed:", err);
+    window.location.reload();
+  } finally {
+    if (confirmBtn) confirmBtn.disabled = false;
+    if (spinner) spinner.classList.add("d-none");
+    if (textEl) textEl.textContent = "Yes, Remove";
+    pendingCancelDocType = "";
+  }
+}
+
+async function handleRemoveRejected(docType) {
+  const csrfToken = getCsrfToken();
+  const formData = new FormData();
+  formData.append("csrfmiddlewaretoken", csrfToken);
+  formData.append("action", "remove_rejected");
+  formData.append("document_type", docType);
+
+  try {
+    const res = await fetch(window.location.pathname, {
+      method: "POST",
+      body: formData,
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json",
+      },
+    });
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data?.ok && data.requirements_list_html) {
+      const listEl = document.getElementById("requirements-list");
+      if (listEl) {
+        listEl.innerHTML = data.requirements_list_html;
+      }
+      bindRequirementEvents();
+      updatePageIndicators(data);
+      showToast(data.message || "Rejected file removed.", "info");
+    } else {
+      window.location.reload();
+    }
+  } catch {
+    window.location.reload();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindRequirementEvents();
+
+  // Remove Document Modal confirm button
+  const removeDocumentModalConfirmBtn = document.getElementById("removeDocumentModalConfirmBtn");
+  removeDocumentModalConfirmBtn?.addEventListener("click", async () => {
+    if (!pendingCancelDocType) return;
+    await executeCancelDocument(pendingCancelDocType);
+  });
+
+  // Remove Rejected modal confirm button
+  const removeRejectedModalConfirmBtn = document.getElementById("removeRejectedModalConfirmBtn");
+  const removeRejectedModalEl = document.getElementById("removeRejectedModal");
+  removeRejectedModalConfirmBtn?.addEventListener("click", async () => {
+    if (!pendingRejectedDocType) return;
+    const modal = removeRejectedModalEl && window.bootstrap?.Modal
+      ? window.bootstrap.Modal.getInstance(removeRejectedModalEl)
+      : null;
+    modal?.hide();
+    await handleRemoveRejected(pendingRejectedDocType);
+    pendingRejectedDocType = "";
+  });
+
+  // Client validation before opening Submit modal
   const submitBtn = document.getElementById("requirements-submit-btn");
   const alertEl = document.getElementById("requirements-form-alert");
   if (submitBtn && alertEl) {
@@ -270,56 +449,80 @@ document.addEventListener("DOMContentLoaded", () => {
       if (requiredMissing.length) {
         e.preventDefault();
         e.stopPropagation();
+
+        const missingTitles = [];
+        requiredMissing.forEach((card) => {
+          const title = card.querySelector(".student-req-card__title")?.textContent?.trim();
+          if (title) missingTitles.push(title.replace(/\*$/, "").trim());
+        });
+
         alertEl.classList.remove("d-none");
+        const msgSpan = alertEl.querySelector("span");
+        if (msgSpan) {
+          msgSpan.textContent = `Please upload all required documents (${missingTitles.join(", ")}) before submitting.`;
+        }
         alertEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     });
   }
 
-  document.querySelectorAll("[data-remove-rejected-document]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const docType = button.dataset.removeRejectedDocument || "";
-      const docTitle = button.dataset.removeRejectedTitle || "document";
-      if (!docType || !csrfToken) return;
-      pendingRejectedDocType = docType;
+  // AJAX Submission from Confirm Modal
+  const submitConfirmForm = document.getElementById("submit-confirm-form");
+  const submitConfirmBtn = document.getElementById("submit-confirm-btn");
+  const submitConfirmSpinner = document.getElementById("submit-confirm-spinner");
+  const submitConfirmBtnText = document.getElementById("submit-confirm-btn-text");
+  const submitConfirmModalEl = document.getElementById("submitConfirmModal");
 
-      if (removeRejectedModal && removeRejectedModalMessageEl) {
-        removeRejectedModalMessageEl.textContent = `Remove the rejected file for ${docTitle}? You can upload a new file right away.`;
-        removeRejectedModal.show();
-        return;
+  submitConfirmForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(submitConfirmForm);
+    if (submitConfirmBtn) submitConfirmBtn.disabled = true;
+    if (submitConfirmSpinner) submitConfirmSpinner.classList.remove("d-none");
+    if (submitConfirmBtnText) submitConfirmBtnText.textContent = "Submitting...";
+
+    try {
+      const postUrl = submitConfirmForm.getAttribute("action") || window.location.pathname;
+      const res = await fetch(postUrl, {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json",
+        },
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.ok) {
+        if (submitConfirmModalEl && window.bootstrap?.Modal) {
+          const modal = window.bootstrap.Modal.getInstance(submitConfirmModalEl);
+          modal?.hide();
+        }
+        showToast(data.message || "Submitted successfully!", "success");
+        setTimeout(() => {
+          window.location.href = data.redirect_url || "/dashboard/student/enrollment/pending/";
+        }, 300);
+      } else {
+        if (submitConfirmModalEl && window.bootstrap?.Modal) {
+          const modal = window.bootstrap.Modal.getInstance(submitConfirmModalEl);
+          modal?.hide();
+        }
+        if (submitConfirmBtn) submitConfirmBtn.disabled = false;
+        if (submitConfirmSpinner) submitConfirmSpinner.classList.add("d-none");
+        if (submitConfirmBtnText) submitConfirmBtnText.textContent = "Yes, Submit";
+
+        const errors = data?.errors || [data?.error || "Submission failed. Please check your documents."];
+        if (alertEl) {
+          alertEl.classList.remove("d-none");
+          const msgSpan = alertEl.querySelector("span");
+          if (msgSpan) msgSpan.textContent = errors.join(" ");
+          alertEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
       }
-
-      // Fallback if Bootstrap modal is unavailable.
-      if (
-        window.confirm(
-          `Remove the rejected file for ${docTitle}? You can upload a new file right away.`
-        )
-      ) {
-        const form = document.createElement("form");
-        form.method = "post";
-        form.action = window.location.pathname;
-        form.innerHTML = `
-          <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
-          <input type="hidden" name="action" value="remove_rejected">
-          <input type="hidden" name="document_type" value="${docType}">
-        `;
-        document.body.appendChild(form);
-        form.submit();
-      }
-    });
-  });
-
-  removeRejectedModalConfirmBtn?.addEventListener("click", () => {
-    if (!pendingRejectedDocType || !csrfToken) return;
-    const form = document.createElement("form");
-    form.method = "post";
-    form.action = window.location.pathname;
-    form.innerHTML = `
-      <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
-      <input type="hidden" name="action" value="remove_rejected">
-      <input type="hidden" name="document_type" value="${pendingRejectedDocType}">
-    `;
-    document.body.appendChild(form);
-    form.submit();
+    } catch (err) {
+      console.error("AJAX submission error:", err);
+      HTMLFormElement.prototype.submit.call(submitConfirmForm);
+    }
   });
 });

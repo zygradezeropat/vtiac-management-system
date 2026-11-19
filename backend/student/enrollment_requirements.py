@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from .models import StudentEnrollmentDocument, StudentEnrollmentProfile
 
-MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
+MAX_DOCUMENT_BYTES = 100 * 1024 * 1024  # Generous 100MB limit
 ALLOWED_CONTENT_TYPES = frozenset(
     {"application/pdf", "image/jpeg", "image/png", "image/jpg"}
 )
@@ -21,7 +21,28 @@ ID_TYPE_CHOICES = (
     ("school_id", "School ID"),
 )
 
-REQUIREMENT_SPECS = (
+
+def is_assessment_only_profile(profile):
+    """Return True if profile belongs to an Assessment-Only applicant."""
+    if not profile:
+        return False
+    if getattr(profile, "program_type", "") == "assessment_only":
+        return True
+    if (
+        hasattr(profile, "registration")
+        and profile.registration
+        and getattr(profile.registration, "program_type", "") == "assessment_only"
+    ):
+        return True
+    user = getattr(profile, "user", None)
+    if user and getattr(user, "is_authenticated", False):
+        reg = getattr(user, "registration_application", None)
+        if reg and getattr(reg, "program_type", "") == "assessment_only":
+            return True
+    return False
+
+
+TRAINING_REQUIREMENT_SPECS = (
     {
         "key": StudentEnrollmentDocument.DocumentType.BIRTH_CERTIFICATE,
         "title": "Birth Certificate",
@@ -60,29 +81,103 @@ REQUIREMENT_SPECS = (
     },
 )
 
-VALID_DOC_KEYS = {spec["key"] for spec in REQUIREMENT_SPECS} | {
-    StudentEnrollmentDocument.DocumentType.PHOTO_2X2
-}
-REQUIRED_DOC_KEYS = {spec["key"] for spec in REQUIREMENT_SPECS if spec["required"]}
+ASSESSMENT_REQUIREMENT_SPECS = (
+    {
+        "key": StudentEnrollmentDocument.DocumentType.BIRTH_CERTIFICATE,
+        "title": "PSA/NSO Birth Certificate",
+        "hint": "1pc. PSA/NSO Birth Certificate Photocopy",
+        "required": True,
+        "requires_hard_copy": True,
+        "icon_bi": "bi-file-earmark-person",
+        "has_id_type": False,
+    },
+    {
+        "key": StudentEnrollmentDocument.DocumentType.VALID_ID,
+        "title": "Valid ID",
+        "hint": "Government-issued ID",
+        "required": True,
+        "requires_hard_copy": True,
+        "icon_bi": "bi-person-vcard",
+        "has_id_type": True,
+    },
+    {
+        "key": StudentEnrollmentDocument.DocumentType.COVID_COMPLETION_CERTIFICATE,
+        "title": "Certificate of Completion (CoC)",
+        "hint": "Practicing COVID-19 Preventive Measures in the Workplace",
+        "required": True,
+        "requires_hard_copy": True,
+        "icon_bi": "bi-award",
+        "has_id_type": False,
+    },
+    {
+        "key": StudentEnrollmentDocument.DocumentType.EMPLOYMENT_CERTIFICATE,
+        "title": "Certificate of Employment",
+        "hint": "1pc. Certificate of Employment (at least 1 year industry experience - optional)",
+        "required": False,
+        "requires_hard_copy": False,
+        "icon_bi": "bi-briefcase",
+        "has_id_type": False,
+    },
+    {
+        "key": StudentEnrollmentDocument.DocumentType.PASSPORT_PHOTO,
+        "title": "Passport-size ID Picture",
+        "hint": "2pcs. Passport-size ID Picture with colored collar and white background (optional)",
+        "required": False,
+        "requires_hard_copy": False,
+        "icon_bi": "bi-person-badge",
+        "has_id_type": False,
+    },
+    {
+        "key": StudentEnrollmentDocument.DocumentType.ASSESSMENT_FEE_RECEIPT,
+        "title": "Assessment Fee Official Receipt",
+        "hint": "Assessment Fee (varies for each qualification) — upload receipt or payment proof (optional)",
+        "required": False,
+        "requires_hard_copy": False,
+        "icon_bi": "bi-receipt",
+        "has_id_type": False,
+    },
+)
+
+REQUIREMENT_SPECS = TRAINING_REQUIREMENT_SPECS
+
+
+def get_requirement_specs(profile=None, *, is_assessment_only=False):
+    if is_assessment_only or is_assessment_only_profile(profile):
+        return ASSESSMENT_REQUIREMENT_SPECS
+    return TRAINING_REQUIREMENT_SPECS
+
+
+def get_required_doc_keys(profile=None, *, is_assessment_only=False):
+    specs = get_requirement_specs(profile=profile, is_assessment_only=is_assessment_only)
+    return {spec["key"] for spec in specs if spec["required"]}
+
+
+VALID_DOC_KEYS = (
+    {spec["key"] for spec in TRAINING_REQUIREMENT_SPECS}
+    | {spec["key"] for spec in ASSESSMENT_REQUIREMENT_SPECS}
+    | {StudentEnrollmentDocument.DocumentType.PHOTO_2X2}
+)
+REQUIRED_DOC_KEYS = {spec["key"] for spec in TRAINING_REQUIREMENT_SPECS if spec["required"]}
 
 
 def _validate_upload_file(uploaded_file):
     if not uploaded_file:
         return "No file selected."
-    if uploaded_file.size > MAX_DOCUMENT_BYTES:
-        return "File must be 5MB or smaller."
     content_type = (getattr(uploaded_file, "content_type", "") or "").lower()
     if content_type and content_type not in ALLOWED_CONTENT_TYPES:
         return "File must be PDF, JPEG, or PNG format."
     return None
 
 
-def build_requirements_rows(profile):
+def build_requirements_rows(profile, *, is_assessment_only=None):
     docs = {d.document_type: d for d in profile.documents.all()} if profile else {}
     hard_copy_docs = profile.hard_copy_documents if profile and profile.hard_copy_documents else {}
     is_hard_submitted = bool(profile and profile.hard_copies_submitted)
+    if is_assessment_only is None:
+        is_assessment_only = is_assessment_only_profile(profile)
+    specs = get_requirement_specs(profile, is_assessment_only=is_assessment_only)
     rows = []
-    for spec in REQUIREMENT_SPECS:
+    for spec in specs:
         doc = docs.get(spec["key"])
         if doc and doc.file:
             filename = doc.original_filename or doc.file.name.split("/")[-1]
@@ -229,17 +324,23 @@ def remove_rejected_enrollment_document(profile, document_type):
 def validate_requirements_complete(profile):
     """Return list of error messages if required documents are missing."""
     errors = []
-    uploaded = set(profile.documents.values_list("document_type", flat=True))
-    for key in REQUIRED_DOC_KEYS:
-        if key not in uploaded:
-            spec = next(s for s in REQUIREMENT_SPECS if s["key"] == key)
+    specs = get_requirement_specs(profile)
+    required_keys = {s["key"] for s in specs if s["required"]}
+    uploaded = set(
+        profile.documents.filter(file__isnull=False)
+        .exclude(file="")
+        .values_list("document_type", flat=True)
+    )
+    for spec in specs:
+        if spec["required"] and spec["key"] not in uploaded:
             errors.append(f"{spec['title']} is required.")
 
-    valid_id = profile.documents.filter(
-        document_type=StudentEnrollmentDocument.DocumentType.VALID_ID
-    ).first()
-    if valid_id and not valid_id.id_type:
-        errors.append("ID Type is required for Valid ID.")
+    if StudentEnrollmentDocument.DocumentType.VALID_ID in required_keys:
+        valid_id = profile.documents.filter(
+            document_type=StudentEnrollmentDocument.DocumentType.VALID_ID
+        ).first()
+        if valid_id and not valid_id.id_type:
+            errors.append("ID Type is required for Valid ID.")
 
     return errors
 
@@ -323,7 +424,11 @@ def student_enrollment_requirements_context(request):
         progress_percent=progress,
         enrollment_step_label="Step 2: Upload Requirements",
         enrollment_step_icon="bi-cloud-upload",
-        requirements_rows=build_requirements_rows(profile) if profile else [],
+        requirements_rows=(
+            build_requirements_rows(profile, is_assessment_only=is_assessment_only)
+            if profile
+            else []
+        ),
         id_type_choices=ID_TYPE_CHOICES,
         requirements_submitted=bool(profile and profile.requirements_submitted),
         can_edit_requirements=can_edit_enrollment_application(request.user),
@@ -343,18 +448,25 @@ def student_enrollment_requirements_context(request):
 
 def dashboard_requirements_from_profile(profile):
     """Requirements checklist for the student dashboard."""
+    is_assessment = is_assessment_only_profile(profile)
+    specs = get_requirement_specs(profile, is_assessment_only=is_assessment)
     if not profile:
         return [
-            {"label": "Birth Certificate", "done": False, "optional": False},
-            {"label": "Valid ID", "done": False, "optional": False},
-            {"label": "2x2 Photo", "done": False, "optional": False},
-            {"label": "Good Moral Certificate (optional)", "done": False, "optional": True},
-            {"label": "Transcript of Records (optional)", "done": False, "optional": True},
+            {
+                "label": spec["title"] if spec["required"] else f"{spec['title']} (optional)",
+                "done": False,
+                "optional": not spec["required"],
+            }
+            for spec in specs
         ]
 
-    uploaded = set(profile.documents.values_list("document_type", flat=True))
+    uploaded = set(
+        profile.documents.filter(file__isnull=False)
+        .exclude(file="")
+        .values_list("document_type", flat=True)
+    )
     rows = []
-    for spec in REQUIREMENT_SPECS:
+    for spec in specs:
         label = spec["title"]
         if not spec["required"]:
             label = f"{label} (optional)"

@@ -28,6 +28,8 @@ function loadPdfJs() {
     }
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    script.crossOrigin = "anonymous";
+    script.referrerPolicy = "no-referrer";
     script.onload = () => {
       if (window.pdfjsLib) {
         resolve(window.pdfjsLib);

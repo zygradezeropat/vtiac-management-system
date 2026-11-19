@@ -212,3 +212,167 @@ class AssessmentOnlyLabelAndContextTests(TestCase):
         self.assertFalse(any("Semester Enrollment Period" in t for t in event_titles))
         self.assertFalse(any("TESDA National Certificate (NC) Releasing" in t for t in event_titles))
 
+    def test_candidate_step2_requirements_specs(self):
+        from backend.student.enrollment_requirements import (
+            get_requirement_specs,
+            get_required_doc_keys,
+            build_requirements_rows,
+        )
+        from backend.student.models import StudentEnrollmentProfile
+
+        candidate_profile = StudentEnrollmentProfile.objects.create(
+            user=self.candidate_user,
+            entry_date=datetime.date(2026, 1, 1),
+            birth_date=datetime.date(2000, 1, 1),
+            program_type="assessment_only",
+            selected_program="Driving NC III",
+            profile_step_completed=True,
+        )
+
+        specs = get_requirement_specs(candidate_profile)
+        spec_keys = [s["key"] for s in specs]
+        self.assertEqual(
+            spec_keys,
+            [
+                "birth_certificate",
+                "valid_id",
+                "covid_completion_certificate",
+                "employment_certificate",
+                "passport_photo",
+                "assessment_fee_receipt",
+            ],
+        )
+
+        required_keys = get_required_doc_keys(candidate_profile)
+        # Only PSA, Valid ID, and CoC are required
+        self.assertEqual(
+            required_keys,
+            {
+                "birth_certificate",
+                "valid_id",
+                "covid_completion_certificate",
+            },
+        )
+
+        rows = build_requirements_rows(candidate_profile)
+        row_keys = [r["key"] for r in rows]
+        self.assertEqual(row_keys, spec_keys)
+
+        # Check hints match official requirements
+        row_dict = {r["key"]: r for r in rows}
+        self.assertIn("1pc. PSA/NSO Birth Certificate", row_dict["birth_certificate"]["hint"])
+        self.assertIn("Government-issued ID", row_dict["valid_id"]["hint"])
+        self.assertIn("Practicing COVID-19 Preventive Measures", row_dict["covid_completion_certificate"]["hint"])
+        self.assertFalse(row_dict["employment_certificate"]["required"])
+        self.assertFalse(row_dict["passport_photo"]["required"])
+        self.assertFalse(row_dict["assessment_fee_receipt"]["required"])
+
+    def test_trainee_step2_requirements_specs(self):
+        from backend.student.enrollment_requirements import (
+            get_requirement_specs,
+            get_required_doc_keys,
+            build_requirements_rows,
+        )
+        from backend.student.models import StudentEnrollmentProfile
+
+        trainee_profile = StudentEnrollmentProfile.objects.create(
+            user=self.trainee_user,
+            entry_date=datetime.date(2026, 1, 1),
+            birth_date=datetime.date(2000, 1, 1),
+            program_type="training_with_assessment",
+            selected_program="Automotive Servicing NC I",
+            profile_step_completed=True,
+        )
+
+        specs = get_requirement_specs(trainee_profile)
+        spec_keys = [s["key"] for s in specs]
+        self.assertEqual(
+            spec_keys,
+            ["birth_certificate", "valid_id", "good_moral", "transcript"],
+        )
+        required_keys = get_required_doc_keys(trainee_profile)
+        self.assertEqual(required_keys, {"birth_certificate", "valid_id"})
+
+    def test_candidate_requirements_view_rendering(self):
+        from backend.student.models import StudentEnrollmentProfile
+
+        StudentEnrollmentProfile.objects.create(
+            user=self.candidate_user,
+            entry_date=datetime.date(2026, 1, 1),
+            birth_date=datetime.date(2000, 1, 1),
+            program_type="assessment_only",
+            selected_program="Driving NC III",
+            profile_step_completed=True,
+        )
+
+        self.client.force_login(self.candidate_user)
+        session = self.client.session
+        session["portal_role"] = "student"
+        session.save()
+
+        resp = self.client.get("/dashboard/student/enrollment/requirements/")
+        self.assertEqual(resp.status_code, 200)
+        content = resp.content.decode("utf-8")
+
+        # Must show assessment copy and requirements
+        self.assertIn("Assessment Application Process", content)
+        self.assertIn("PSA/NSO Birth Certificate", content)
+        self.assertIn("Valid ID", content)
+        self.assertIn("Certificate of Completion", content)
+        self.assertIn("Certificate of Employment", content)
+        self.assertIn("Passport-size ID Picture", content)
+        self.assertIn("Assessment Fee", content)
+        # Trainee requirements like Good Moral and Transcript should not be shown
+        self.assertNotIn("Certificate of Good Moral", content)
+        self.assertNotIn("Transcript of Records", content)
+
+    def test_ajax_upload_and_removal(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from backend.student.models import StudentEnrollmentProfile
+
+        StudentEnrollmentProfile.objects.create(
+            user=self.candidate_user,
+            entry_date=datetime.date(2026, 1, 1),
+            birth_date=datetime.date(2000, 1, 1),
+            program_type="assessment_only",
+            selected_program="Driving NC III",
+            profile_step_completed=True,
+        )
+
+        self.client.force_login(self.candidate_user)
+        session = self.client.session
+        session["portal_role"] = "student"
+        session.save()
+
+        # AJAX Upload
+        dummy_pdf = SimpleUploadedFile("psa_birth.pdf", b"%PDF-1.4 test", content_type="application/pdf")
+        resp = self.client.post(
+            "/dashboard/student/enrollment/requirements/",
+            {
+                "action": "upload",
+                "document_type": "birth_certificate",
+                "file": dummy_pdf,
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["document_type"], "birth_certificate")
+        self.assertIn("requirements_list_html", data)
+        self.assertIn("psa_birth.pdf", data["requirements_list_html"])
+
+        # AJAX Cancel / Removal
+        resp_cancel = self.client.post(
+            "/dashboard/student/enrollment/requirements/",
+            {
+                "action": "cancel",
+                "document_type": "birth_certificate",
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp_cancel.status_code, 200)
+        data_cancel = resp_cancel.json()
+        self.assertTrue(data_cancel["ok"])
+        self.assertIn("requirements_list_html", data_cancel)
+

@@ -296,6 +296,14 @@ class StudentEnrollmentDocument(models.Model):
         PHOTO_2X2 = "photo_2x2", "2x2 Photo"
         GOOD_MORAL = "good_moral", "Certificate of Good Moral"
         TRANSCRIPT = "transcript", "Transcript of Records"
+        # Assessment Application Requirements
+        EMPLOYMENT_CERTIFICATE = "employment_certificate", "Certificate of Employment"
+        PASSPORT_PHOTO = "passport_photo", "Passport-size ID Picture"
+        COVID_COMPLETION_CERTIFICATE = (
+            "covid_completion_certificate",
+            "Certificate of Completion (COVID-19 Measures)",
+        )
+        ASSESSMENT_FEE_RECEIPT = "assessment_fee_receipt", "Assessment Fee Official Receipt"
 
     profile = models.ForeignKey(
         StudentEnrollmentProfile,
@@ -329,6 +337,15 @@ class StudentEnrollmentDocument(models.Model):
 
     def __str__(self):
         return f"{self.get_document_type_display()} — {self.profile}"
+
+
+class AssessmentEnrollmentDocument(StudentEnrollmentDocument):
+    """Uploaded requirement for TESDA Competency Assessment candidates (Step 2)."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Assessment Document"
+        verbose_name_plural = "Assessment Documents"
 
 
 class StudentPaymentProof(models.Model):

@@ -2,10 +2,15 @@
 
 from django.utils import timezone
 
-from .enrollment_requirements import REQUIREMENT_SPECS, REQUIRED_DOC_KEYS
+from .enrollment_requirements import (
+    REQUIREMENT_SPECS,
+    REQUIRED_DOC_KEYS,
+    get_requirement_specs,
+    is_assessment_only_profile,
+)
 from .models import StudentEnrollmentDocument, StudentEnrollmentProfile, StudentRegistration
 
-HARD_COPY_SPECS = (
+TRAINING_HARD_COPY_SPECS = (
     {
         "key": "birth_certificate",
         "title": "PSA Birth Certificate",
@@ -29,15 +34,77 @@ HARD_COPY_SPECS = (
     },
 )
 
+ASSESSMENT_HARD_COPY_SPECS = (
+    {
+        "key": "birth_certificate",
+        "title": "PSA/NSO Birth Certificate",
+        "hint": "1pc. PSA/NSO Birth Certificate Photocopy",
+        "required": True,
+        "icon_bi": "bi-file-earmark-person",
+    },
+    {
+        "key": "valid_id",
+        "title": "Valid Government ID",
+        "hint": "Clear photocopy of valid government ID",
+        "required": True,
+        "icon_bi": "bi-person-vcard",
+    },
+    {
+        "key": "covid_completion_certificate",
+        "title": "Certificate of Completion (CoC)",
+        "hint": "Practicing COVID-19 Preventive Measures in the Workplace",
+        "required": True,
+        "icon_bi": "bi-award",
+    },
+    {
+        "key": "employment_certificate",
+        "title": "Certificate of Employment",
+        "hint": "1pc. At least 1 year industry experience (optional)",
+        "required": False,
+        "icon_bi": "bi-briefcase",
+    },
+    {
+        "key": "passport_photo",
+        "title": "Passport-size ID Picture",
+        "hint": "2pcs. With colored collar and white background (optional)",
+        "required": False,
+        "icon_bi": "bi-person-badge",
+    },
+    {
+        "key": "assessment_fee_receipt",
+        "title": "Assessment Fee Receipt / Slip",
+        "hint": "Official receipt / payment stub (optional)",
+        "required": False,
+        "icon_bi": "bi-receipt",
+    },
+)
+
+HARD_COPY_SPECS = TRAINING_HARD_COPY_SPECS
+
+
+def get_hard_copy_specs(profile: StudentEnrollmentProfile | None = None, reg: StudentRegistration | None = None):
+    is_assessment = False
+    if profile:
+        is_assessment = is_assessment_only_profile(profile)
+    elif reg:
+        is_assessment = getattr(reg, "program_type", "") == "assessment_only"
+    return ASSESSMENT_HARD_COPY_SPECS if is_assessment else TRAINING_HARD_COPY_SPECS
+
 
 def get_document_submission_indicators(
     profile: StudentEnrollmentProfile | None,
     reg: StudentRegistration | None = None,
 ) -> dict:
     """Return indicators for both online digital uploads and physical hard copies."""
+    is_assessment = (profile and is_assessment_only_profile(profile)) or (
+        reg and getattr(reg, "program_type", "") == "assessment_only"
+    )
+    req_specs = get_requirement_specs(profile, is_assessment_only=is_assessment)
+    required_keys = {spec["key"] for spec in req_specs if spec["required"]}
+    total_required = len(required_keys)
+
     # 1. Digital uploads status
     uploaded_keys = set()
-    total_required = len(REQUIRED_DOC_KEYS)
 
     if profile:
         doc_types = set(
@@ -47,7 +114,7 @@ def get_document_submission_indicators(
         )
         uploaded_keys.update(doc_types)
 
-    req_uploaded_count = len(uploaded_keys.intersection(REQUIRED_DOC_KEYS))
+    req_uploaded_count = len(uploaded_keys.intersection(required_keys))
     if profile and profile.requirements_submitted:
         # If requirements were formally submitted, ensure count reaches required
         req_uploaded_count = max(req_uploaded_count, total_required)
@@ -70,7 +137,7 @@ def get_document_submission_indicators(
 
     # Breakdown of digital documents
     digital_docs = []
-    for spec in REQUIREMENT_SPECS:
+    for spec in req_specs:
         key = spec["key"]
         has_file = key in uploaded_keys
         digital_docs.append(
@@ -119,8 +186,9 @@ def get_document_submission_indicators(
     )
 
     # Hard copy item breakdown
+    hard_copy_specs = get_hard_copy_specs(profile, reg)
     hard_copy_items = []
-    for spec in HARD_COPY_SPECS:
+    for spec in hard_copy_specs:
         key = spec["key"]
         # Default received state: if whole hard copy submitted and not explicitly false, or true in dict
         if is_hard_submitted:
@@ -171,8 +239,9 @@ def update_hard_copies_submission(
     received_by=None,
 ):
     """Mark physical hard copies as received or pending."""
+    hard_copy_specs = get_hard_copy_specs(profile, reg)
     if documents_map is not None:
-        required_keys = {spec["key"] for spec in HARD_COPY_SPECS if spec["required"]}
+        required_keys = {spec["key"] for spec in hard_copy_specs if spec["required"]}
         submitted = required_keys.issubset({k for k, v in documents_map.items() if v})
 
     now = timezone.now() if submitted else None
@@ -193,7 +262,7 @@ def update_hard_copies_submission(
         elif submitted:
             # Mark all required specs as received by default
             profile.hard_copy_documents = {
-                spec["key"]: True for spec in HARD_COPY_SPECS if spec["required"]
+                spec["key"]: True for spec in hard_copy_specs if spec["required"]
             }
         else:
             profile.hard_copy_documents = {}

@@ -48,7 +48,7 @@
         </span>
         {% else %}
         <input type="file" name="file" id="file-{{ row.key }}" class="student-req-file-input"
-          accept=".pdf,application/pdf" aria-label="Upload {{ row.title }}"
+          accept="{% if row.key == 'passport_photo' or row.key == 'photo_2x2' %}.pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf{% else %}.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png{% endif %}" aria-label="Upload {{ row.title }}"
           {% if row.has_id_type and not row.id_type %}disabled{% endif %} />
         <label for="file-{{ row.key }}" id="upload-label-{{ row.key }}"
           class="student-req-upload-btn{% if row.has_id_type and not row.id_type %} student-req-upload-btn--disabled{% endif %}"

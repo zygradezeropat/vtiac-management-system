@@ -15,15 +15,23 @@
 
 <div class="student-enroll-progress mb-4" aria-label="Enrollment progress {{ progress_percent }} percent">
   <div class="student-enroll-progress__label">
-    <span>Progress: <strong>{{ progress_percent }}%</strong></span>
+    <span>Progress: <strong id="enrollment-progress-text">{{ progress_percent }}%</strong></span>
   </div>
-  <div class="student-enroll-progress__track" role="progressbar" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
-    <div class="student-enroll-progress__fill" style="width: {{ progress_percent }}%"></div>
+  <div class="student-enroll-progress__track" id="enrollment-progress-track" role="progressbar" aria-valuenow="{{ progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+    <div class="student-enroll-progress__fill" id="enrollment-progress-fill" style="width: {{ progress_percent }}%"></div>
+  </div>
+</div>
+
+<div id="ajax-toast-container" class="mb-3 d-none">
+  <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2 mb-2" id="ajax-toast-alert" role="alert">
+    <i class="bi bi-check-circle-fill flex-shrink-0" aria-hidden="true"></i>
+    <span id="ajax-toast-message"></span>
+    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 </div>
 
 {% if messages %}
-<div class="mb-3">
+<div class="mb-3" id="django-messages-container">
   {% for message in messages %}
   <div class="alert alert-{{ message.tags|default:'info' }} mb-2" role="alert">{{ message }}</div>
   {% endfor %}
@@ -35,7 +43,11 @@
   {{ enrollment_step_label }}
 </h2>
 <p class="student-req-intro mb-3">
-  Upload all required documents (PDF format only, Max 5MB each).
+  {% if is_assessment_only %}
+  Upload all required documents for your competency assessment application (PDF, JPEG, or PNG format).
+  {% else %}
+  Upload all required documents (PDF format only).
+  {% endif %}
 </p>
 
 <!-- Document Submission Indicators -->
@@ -47,17 +59,11 @@
           <span class="fw-bold small text-secondary">
             <i class="bi bi-cloud-arrow-up me-1 text-primary"></i>Online Upload Status
           </span>
-          {% if digital_records_uploaded %}
-          <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-            <i class="bi bi-check-circle-fill me-1"></i>{{ digital_records_label|default:"Uploaded" }}
+          <span id="digital-status-badge" class="badge {% if digital_records_uploaded %}bg-success-subtle text-success border border-success-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} px-2 py-1">
+            <i class="bi {% if digital_records_uploaded %}bi-check-circle-fill{% else %}bi-exclamation-circle-fill{% endif %} me-1" id="digital-status-icon"></i><span id="digital-status-label">{{ digital_records_label|default:"Incomplete" }}</span>
           </span>
-          {% else %}
-          <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1">
-            <i class="bi bi-exclamation-circle-fill me-1"></i>{{ digital_records_label|default:"Incomplete" }}
-          </span>
-          {% endif %}
         </div>
-        <p class="small text-muted mb-0">
+        <p id="digital-status-desc" class="small text-muted mb-0">
           {% if digital_records_uploaded %}
           All required documents are uploaded to the system.
           {% else %}
@@ -130,7 +136,7 @@
 {% elif not requirements_submitted %}
 <section class="student-panel student-enroll-card student-enroll-actions-card mt-3">
   <button type="button" class="student-enroll-submit" id="requirements-submit-btn" data-bs-toggle="modal" data-bs-target="#submitConfirmModal">
-    Submit for Approval
+    {% if is_assessment_only %}Submit Application Requirements{% else %}Submit for Approval{% endif %}
     <i class="bi bi-chevron-right" aria-hidden="true"></i>
   </button>
   <div id="requirements-form-alert" class="student-enroll-alert{% if not show_requirements_warning %} d-none{% endif %}" role="alert">
@@ -144,17 +150,52 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content student-confirm-modal">
       <div class="modal-body p-4">
-        <h3 class="h5 fw-bold mb-2" id="submitConfirmModalLabel">Are you sure you want to submit?</h3>
+        <h3 class="h5 fw-bold mb-2" id="submitConfirmModalLabel">{% if is_assessment_only %}Submit Assessment Requirements?{% else %}Are you sure you want to submit?{% endif %}</h3>
         <p class="text-secondary mb-4">
+          {% if is_assessment_only %}
+          Please ensure all required documents for your competency assessment application are complete and clear before submitting.
+          {% else %}
           Please make sure all information and uploaded requirements are complete before proceeding.
+          {% endif %}
         </p>
         <div class="d-flex gap-2">
           <button type="button" class="btn btn-outline-secondary flex-grow-1 fw-bold" data-bs-dismiss="modal">Cancel</button>
-          <form method="post" action="{% url 'student_enrollment_requirements' %}" class="flex-grow-1 mb-0">
+          <form id="submit-confirm-form" method="post" action="{% url 'student_enrollment_requirements' %}" class="flex-grow-1 mb-0">
             {% csrf_token %}
             <input type="hidden" name="action" value="submit" />
-            <button type="submit" class="btn btn-success w-100 fw-bold" style="background:#00a859;border-color:#00a859">Yes, Submit</button>
+            <button type="submit" id="submit-confirm-btn" class="btn btn-success w-100 fw-bold" style="background:#00a859;border-color:#00a859">
+              <span class="spinner-border spinner-border-sm me-1 d-none" id="submit-confirm-spinner" role="status" aria-hidden="true"></span>
+              <span id="submit-confirm-btn-text">Yes, Submit</span>
+            </button>
           </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="removeDocumentModal" tabindex="-1" aria-labelledby="removeDocumentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content student-confirm-modal">
+      <div class="modal-body p-4">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+            <i class="bi bi-trash3 fs-5"></i>
+          </div>
+          <div>
+            <h3 class="h5 fw-bold mb-0 text-dark" id="removeDocumentModalLabel">Remove Document?</h3>
+            <span class="text-muted small">Cancel & Remove Uploaded Requirement</span>
+          </div>
+        </div>
+        <p class="text-secondary mb-4" id="removeDocumentModalMessage">
+          Are you sure you want to cancel and remove your uploaded document? You will need to upload a replacement file.
+        </p>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary flex-grow-1 fw-bold" data-bs-dismiss="modal">Keep File</button>
+          <button type="button" class="btn btn-danger flex-grow-1 fw-bold" id="removeDocumentModalConfirmBtn">
+            <span class="spinner-border spinner-border-sm me-1 d-none" id="removeDocumentModalSpinner" role="status" aria-hidden="true"></span>
+            <span id="removeDocumentModalConfirmText">Yes, Remove</span>
+          </button>
         </div>
       </div>
     </div>

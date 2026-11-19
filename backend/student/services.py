@@ -720,8 +720,8 @@ def validate_training_enrollment_data(data, *, require_photo=True):
     if require_photo and not photo:
         errors.append("1x1 photo is required.")
     elif photo:
-        if photo.size > 5 * 1024 * 1024:
-            errors.append("Photo must be 5MB or smaller.")
+        if photo.size > 50 * 1024 * 1024:
+            errors.append("Photo must be 50MB or smaller.")
         content_type = getattr(photo, "content_type", "") or ""
         if content_type and content_type not in ("image/jpeg", "image/png"):
             errors.append("Photo must be JPEG or PNG format.")
@@ -1134,11 +1134,44 @@ def candidate_dashboard_context(request):
         else "Schedule will be posted by Registrar upon document clearance"
     )
 
+    uploaded_doc_types = (
+        set(profile.documents.filter(file__isnull=False).exclude(file="").values_list("document_type", flat=True))
+        if profile
+        else set()
+    )
+
     requirements = [
-        {"label": "1x1 Photo with Name Tag", "done": bool(profile and profile.photo)},
-        {"label": "Valid Government ID", "done": bool(profile and profile.requirements_submitted)},
-        {"label": "Official Assessment Admission Slip", "done": bool(reg and reg.status == "approved")},
-        {"label": "Assessment Attire / Safety PPE", "done": False, "optional": True},
+        {
+            "label": "1pc. PSA/NSO Birth Certificate Photocopy",
+            "done": bool("birth_certificate" in uploaded_doc_types),
+        },
+        {
+            "label": "Valid Government ID",
+            "done": bool("valid_id" in uploaded_doc_types),
+        },
+        {
+            "label": "Certificate of Completion (CoC - COVID-19 Measures)",
+            "done": bool("covid_completion_certificate" in uploaded_doc_types),
+        },
+        {
+            "label": "Passport-size ID Picture (2 pcs with collar & white background)",
+            "done": bool(profile and (profile.photo or "passport_photo" in uploaded_doc_types)),
+            "optional": True,
+        },
+        {
+            "label": "1pc. Certificate of Employment",
+            "done": bool("employment_certificate" in uploaded_doc_types),
+            "optional": True,
+        },
+        {
+            "label": "Official Assessment Admission Slip",
+            "done": bool(reg and reg.status == "approved"),
+        },
+        {
+            "label": "Assessment Attire / Safety PPE",
+            "done": False,
+            "optional": True,
+        },
     ]
 
     candidate_steps = [

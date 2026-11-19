@@ -15,7 +15,11 @@ from backend.student.document_review import (
     get_document_review_status,
 )
 from backend.student.document_submission import get_document_submission_indicators
-from backend.student.enrollment_requirements import ID_TYPE_CHOICES, REQUIREMENT_SPECS
+from backend.student.enrollment_requirements import (
+    ID_TYPE_CHOICES,
+    REQUIREMENT_SPECS,
+    get_requirement_specs,
+)
 from backend.student.models import (
     StudentEnrollmentDocument,
     StudentEnrollmentProfile,
@@ -113,7 +117,8 @@ def _build_review_documents(profile: StudentEnrollmentProfile | None) -> list:
     if profile:
         doc_by_type = {d.document_type: d for d in profile.documents.all()}
 
-    for spec in REQUIREMENT_SPECS:
+    specs = get_requirement_specs(profile)
+    for spec in specs:
         key = spec["key"]
         doc = doc_by_type.get(key)
         has_file = bool(doc and doc.file)

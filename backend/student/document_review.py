@@ -2,7 +2,12 @@
 
 from django.utils import timezone
 
-from .enrollment_requirements import REQUIREMENT_SPECS, REQUIRED_DOC_KEYS
+from .enrollment_requirements import (
+    REQUIREMENT_SPECS,
+    REQUIRED_DOC_KEYS,
+    get_required_doc_keys,
+    get_requirement_specs,
+)
 from .models import StudentEnrollmentDocument, StudentEnrollmentProfile
 
 REVIEW_PENDING = "pending"
@@ -20,7 +25,8 @@ def reviewable_document_keys(profile: StudentEnrollmentProfile) -> list[str]:
         .values_list("document_type", flat=True)
     )
     keys = []
-    for spec in REQUIREMENT_SPECS:
+    specs = get_requirement_specs(profile)
+    for spec in specs:
         if spec["key"] in uploaded:
             keys.append(spec["key"])
     return keys
@@ -44,7 +50,8 @@ def all_reviewable_documents_approved(profile: StudentEnrollmentProfile) -> bool
         .values_list("document_type", flat=True)
     )
     # Every mandatory requirement document must be uploaded
-    if not REQUIRED_DOC_KEYS.issubset(uploaded):
+    required_keys = get_required_doc_keys(profile)
+    if not required_keys.issubset(uploaded):
         return False
 
     keys = reviewable_document_keys(profile)
