@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 
 from .defaults import DEFAULT_ASSESSMENTS
-from .models import AssessmentProgram, seed_default_assessments
+from .models import AssessmentProgram, ProgramCompetency, seed_default_assessments
 
 
 def _decimal(value, field_label: str) -> Decimal:
@@ -18,7 +18,21 @@ def _decimal(value, field_label: str) -> Decimal:
     return amount
 
 
-def _serialize_assessment(row: AssessmentProgram) -> dict:
+def _serialize_competency(comp: ProgramCompetency) -> dict:
+    return {
+        "id": comp.id,
+        "category": comp.category,
+        "categoryLabel": comp.get_category_display(),
+        "code": comp.code,
+        "title": comp.title,
+        "nominalHours": comp.nominal_hours,
+        "sortOrder": comp.sort_order,
+        "learningOutcomes": comp.learning_outcomes or [],
+        "isActive": comp.is_active,
+    }
+
+
+def _serialize_assessment(row: AssessmentProgram, include_competencies: bool = False) -> dict:
     name = row.name
     nc_level = "other"
     if " NC III" in name:
@@ -28,21 +42,33 @@ def _serialize_assessment(row: AssessmentProgram) -> dict:
     elif " NC I" in name:
         nc_level = "nc1"
 
-    return {
+    comps = list(row.competencies.all().order_by("category", "sort_order", "id"))
+    basic_count = sum(1 for c in comps if c.category == ProgramCompetency.Category.BASIC and c.is_active)
+    common_count = sum(1 for c in comps if c.category == ProgramCompetency.Category.COMMON and c.is_active)
+    core_count = sum(1 for c in comps if c.category == ProgramCompetency.Category.CORE and c.is_active)
+
+    data = {
         "id": row.pk,
         "name": row.name,
         "assessmentFee": float(row.assessment_fee),
         "sortOrder": row.sort_order,
         "isActive": row.is_active,
         "ncLevel": nc_level,
+        "basicCount": basic_count,
+        "commonCount": common_count,
+        "coreCount": core_count,
+        "totalCompetencies": basic_count + common_count + core_count,
     }
+    if include_competencies:
+        data["competencies"] = [_serialize_competency(c) for c in comps]
+    return data
 
 
-def list_assessments() -> list[dict]:
+def list_assessments(include_competencies: bool = True) -> list[dict]:
     seed_default_assessments()
     return [
-        _serialize_assessment(row)
-        for row in AssessmentProgram.objects.order_by("sort_order", "name")
+        _serialize_assessment(row, include_competencies=include_competencies)
+        for row in AssessmentProgram.objects.prefetch_related("competencies").order_by("sort_order", "name")
     ]
 
 
@@ -53,6 +79,7 @@ def create_assessment(
     assessment_fee: Decimal | float | str | None = None,
     sort_order: int | None = None,
     is_active: bool = True,
+    competencies: list[dict] | None = None,
 ) -> dict:
     label = (name or "").strip()
     if not label:
@@ -81,7 +108,11 @@ def create_assessment(
         sort_order=max(order, 0),
         is_active=bool(is_active),
     )
-    return _serialize_assessment(row)
+
+    if competencies and isinstance(competencies, list):
+        save_assessment_competencies(row.pk, competencies)
+
+    return _serialize_assessment(row, include_competencies=True)
 
 
 @transaction.atomic
@@ -92,6 +123,7 @@ def update_assessment(
     assessment_fee: Decimal | float | str | None = None,
     sort_order: int | None = None,
     is_active: bool | None = None,
+    competencies: list[dict] | None = None,
 ) -> dict:
     try:
         row = AssessmentProgram.objects.get(pk=assessment_id)
@@ -126,7 +158,11 @@ def update_assessment(
         update_fields.append("is_active")
 
     row.save(update_fields=update_fields)
-    return _serialize_assessment(row)
+
+    if competencies is not None and isinstance(competencies, list):
+        save_assessment_competencies(row.pk, competencies)
+
+    return _serialize_assessment(row, include_competencies=True)
 
 
 @transaction.atomic
@@ -136,6 +172,64 @@ def delete_assessment(assessment_id: int) -> None:
     except AssessmentProgram.DoesNotExist as exc:
         raise ValueError("Assessment program not found.") from exc
     row.delete()
+
+
+def list_assessment_competencies(assessment_id: int) -> list[dict]:
+    try:
+        assessment = AssessmentProgram.objects.get(pk=assessment_id)
+    except AssessmentProgram.DoesNotExist as exc:
+        raise ValueError("Assessment program not found.") from exc
+
+    comps = assessment.competencies.all().order_by("category", "sort_order", "id")
+    return [_serialize_competency(c) for c in comps]
+
+
+@transaction.atomic
+def save_assessment_competencies(assessment_id: int, competencies_data: list[dict]) -> list[dict]:
+    try:
+        assessment = AssessmentProgram.objects.get(pk=assessment_id)
+    except AssessmentProgram.DoesNotExist as exc:
+        raise ValueError("Assessment program not found.") from exc
+
+    assessment.competencies.all().delete()
+    to_create = []
+    for idx, item in enumerate(competencies_data, start=1):
+        title = (item.get("title") or "").strip()
+        if not title:
+            continue
+        category = (item.get("category") or "core").strip().lower()
+        if category not in (
+            ProgramCompetency.Category.BASIC,
+            ProgramCompetency.Category.COMMON,
+            ProgramCompetency.Category.CORE,
+        ):
+            category = ProgramCompetency.Category.CORE
+
+        code = (item.get("code") or "").strip()
+        nominal_hours = int(item.get("nominal_hours") or item.get("nominalHours") or 0)
+        sort_order = int(item.get("sort_order") or item.get("sortOrder") or idx)
+        learning_outcomes = item.get("learning_outcomes") or item.get("learningOutcomes") or []
+        if isinstance(learning_outcomes, str):
+            learning_outcomes = [line.strip() for line in learning_outcomes.split("\n") if line.strip()]
+
+        to_create.append(
+            ProgramCompetency(
+                assessment=assessment,
+                category=category,
+                code=code,
+                title=title,
+                nominal_hours=max(0, nominal_hours),
+                sort_order=sort_order,
+                learning_outcomes=learning_outcomes,
+                is_active=bool(item.get("is_active", item.get("isActive", True))),
+            )
+        )
+
+    if to_create:
+        ProgramCompetency.objects.bulk_create(to_create)
+
+    comps = assessment.competencies.all().order_by("category", "sort_order", "id")
+    return [_serialize_competency(c) for c in comps]
 
 
 def enrollment_assessment_options(*, include_inactive: bool = False) -> list[str]:

@@ -1,6 +1,10 @@
 from django.urls import path
 
 from . import views
+from .assessment_exam_api import (
+    assessment_grading_data_api,
+    assessment_grading_save_api,
+)
 from .batching_api import (
     batching_batches_list,
     batching_override_candidates,
@@ -106,6 +110,16 @@ urlpatterns = [
         "registrar/api/egace/graduate/",
         egace_set_graduate,
         name="registrar_egace_set_graduate",
+    ),
+    path(
+        "registrar/api/assessment-grading/data/",
+        assessment_grading_data_api,
+        name="registrar_assessment_grading_data",
+    ),
+    path(
+        "registrar/api/assessment-grading/save/",
+        assessment_grading_save_api,
+        name="registrar_assessment_grading_save",
     ),
     path(
         "registrar/api/batching/batches/",

@@ -493,6 +493,28 @@ def unit_competencies_for_program(program: str) -> list[dict]:
         if not program_row and program:
             program_row = NcProgram.objects.filter(name__icontains=program).first()
 
+        if not program_row:
+            from backend.system_admin.models import AssessmentProgram
+
+            assess_row = AssessmentProgram.objects.filter(name__iexact=canonical).first()
+            if not assess_row and program:
+                assess_row = AssessmentProgram.objects.filter(name__icontains=program).first()
+            if assess_row:
+                db_comps = list(
+                    assess_row.competencies.filter(is_active=True).order_by("category", "sort_order", "id")
+                )
+                if db_comps:
+                    return [
+                        {
+                            "id": f"comp-{c.id}",
+                            "code": c.code or f"UC-{idx}",
+                            "title": c.title,
+                            "category": c.category,
+                            "nominal_hours": c.nominal_hours,
+                        }
+                        for idx, c in enumerate(db_comps, start=1)
+                    ]
+
         if program_row:
             db_comps = list(
                 program_row.competencies.filter(is_active=True).order_by("category", "sort_order", "id")
@@ -527,6 +549,28 @@ def record_sheet_structure_for_program(program: str) -> list[dict]:
         program_row = NcProgram.objects.filter(name__iexact=canonical).first()
         if not program_row and program:
             program_row = NcProgram.objects.filter(name__icontains=program).first()
+
+        if not program_row:
+            from backend.system_admin.models import AssessmentProgram
+
+            assess_row = AssessmentProgram.objects.filter(name__iexact=canonical).first()
+            if not assess_row and program:
+                assess_row = AssessmentProgram.objects.filter(name__icontains=program).first()
+            if assess_row:
+                db_comps = list(
+                    assess_row.competencies.filter(is_active=True).order_by("category", "sort_order", "id")
+                )
+                if db_comps:
+                    return [
+                        {
+                            "id": f"comp-{c.id}",
+                            "code": c.code or f"UC-{idx}",
+                            "title": c.title,
+                            "category": c.category,
+                            "nominal_hours": c.nominal_hours,
+                        }
+                        for idx, c in enumerate(db_comps, start=1)
+                    ]
 
         if program_row:
             db_comps = list(

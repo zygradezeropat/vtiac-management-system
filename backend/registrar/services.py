@@ -14,6 +14,7 @@ REGISTRAR_MODULE_ORDER = (
     "finalized-batches",
     "scholarship",
     "egace-table",
+    "assessment-grading",
     "trainer-evaluations",
     "reports",
     "settings",
@@ -78,6 +79,13 @@ REGISTRAR_MODULES = {
         "title": "E.G.A.C.E Table",
         "subtitle": "Enrolled · Graduate · Assessment · Certificate · Employment tracking",
         "template": "registrar/egace_table.html",
+    },
+    "assessment-grading": {
+        "label": "Assessment Exam",
+        "icon_bi": "bi-clipboard-check-fill",
+        "title": "National Assessment Examination Grading",
+        "subtitle": "Grade national competency assessment exams for scheduled batches and candidates",
+        "template": "registrar/assessment_grading.html",
     },
     "trainer-evaluations": {
         "label": "Trainer Evaluations",
@@ -331,6 +339,20 @@ def module_page_context(module, request=None):
                 "graduate_url": reverse("registrar_egace_set_graduate"),
             }
         )
+    if module == "assessment-grading":
+        from django.urls import reverse
+        from .assessment_exam_api import build_assessment_grading_context
+
+        grading_data = build_assessment_grading_context()
+        ctx["assessment_grading_data_json"] = json.dumps(grading_data)
+        ctx["grading_config_json"] = json.dumps(
+            {
+                "save_url": reverse("registrar_assessment_grading_save"),
+                "data_url": reverse("registrar_assessment_grading_data"),
+            }
+        )
+        ctx["programs"] = grading_data["programs"]
+        ctx["today_formatted"] = grading_data["today_formatted"]
     if module == "scholarship":
         from .scholarship_registry import (
             scholarship_enrolled_scholars,

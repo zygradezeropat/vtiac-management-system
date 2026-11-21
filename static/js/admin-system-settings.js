@@ -38,8 +38,12 @@ let editingScheduleId = null;
 // Dynamic Program Competencies State (for Program Form Modal)
 let progFormCompetencies = [];
 
+// Dynamic Assessment Competencies State (for Assessment Form Modal)
+let assessmentFormCompetencies = [];
+
 // Dynamic Program Competencies State (for Standalone Competencies Modal)
 let currentCompProgram = null;
+let currentCompAssessment = null;
 let currentCompetencies = [];
 let competencyLibrary = { basic: [], common: [], core: [] };
 let activeCompCategoryFilter = "all";
@@ -61,6 +65,81 @@ function showAlert(message, type = "success") {
   alertEl.className = `alert alert-${type} mb-3`;
   alertEl.classList.remove("d-none");
   window.setTimeout(() => alertEl.classList.add("d-none"), 4000);
+}
+
+function showConfirmModal({
+  title = "Confirm Deletion",
+  message = "Are you sure you want to proceed?",
+  subtext = "This action cannot be undone.",
+  confirmText = "Delete",
+  confirmClass = "btn-danger",
+  icon = "bi-exclamation-triangle-fill",
+  iconWrapBg = "#fef2f2",
+  iconColor = "#dc2626",
+} = {}) {
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById("adminConfirmModal");
+    if (!modalEl || typeof bootstrap === "undefined") {
+      resolve(window.confirm(`${message}\n\n${subtext}`));
+      return;
+    }
+
+    const titleEl = document.getElementById("adminConfirmModalLabel");
+    const messageEl = document.getElementById("adminConfirmModalMessage");
+    const subtextEl = document.getElementById("adminConfirmModalSubtext");
+    const confirmBtn = document.getElementById("adminConfirmModalConfirmBtn");
+    const iconWrap = document.getElementById("adminConfirmModalIconWrap");
+    const iconEl = document.getElementById("adminConfirmModalIcon");
+
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message;
+    if (subtextEl) {
+      subtextEl.textContent = subtext || "";
+      subtextEl.classList.toggle("d-none", !subtext);
+    }
+    if (iconWrap) {
+      iconWrap.style.background = iconWrapBg;
+      iconWrap.style.color = iconColor;
+    }
+    if (iconEl) {
+      iconEl.className = `bi ${icon} fs-2`;
+    }
+
+    if (confirmBtn) {
+      confirmBtn.className = `btn ${confirmClass} w-100 fw-semibold rounded-3 shadow-xs`;
+      confirmBtn.innerHTML = confirmClass.includes("danger")
+        ? `<i class="bi bi-trash3-fill me-1"></i> ${confirmText}`
+        : `<i class="bi bi-check-lg me-1"></i> ${confirmText}`;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    let resolved = false;
+
+    const onConfirm = () => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      modal.hide();
+      resolve(true);
+    };
+
+    const onCancel = () => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(false);
+    };
+
+    function cleanup() {
+      confirmBtn?.removeEventListener("click", onConfirm);
+      modalEl.removeEventListener("hidden.bs.modal", onCancel);
+    }
+
+    confirmBtn?.addEventListener("click", onConfirm);
+    modalEl.addEventListener("hidden.bs.modal", onCancel, { once: true });
+
+    modal.show();
+  });
 }
 
 function showProgramError(message) {
@@ -198,7 +277,14 @@ function renderProgramsTable() {
 async function deleteProgram(programId) {
   const prog = programs.find((p) => p.id === programId);
   const name = prog ? prog.name : "this program";
-  if (!confirm(`Are you sure you want to delete "${name}" and all its configured competencies?\n\nThis action cannot be undone.`)) {
+  const confirmed = await showConfirmModal({
+    title: "Delete Program",
+    message: `Are you sure you want to delete "${name}" and all its configured competencies?`,
+    subtext: "This action cannot be undone.",
+    confirmText: "Delete",
+    confirmClass: "btn-danger",
+  });
+  if (!confirmed) {
     return;
   }
   try {
@@ -234,22 +320,36 @@ function renderAssessmentsTable() {
         ? '<span class="admin-user-badge admin-user-badge--active">Active</span>'
         : '<span class="admin-user-badge admin-user-badge--inactive">Inactive</span>';
 
+      const compCount = item.totalCompetencies ?? (Array.isArray(item.competencies) ? item.competencies.length : 0);
+
       return `
         <tr>
           <td>
             <strong>${escapeHtml(item.name)}</strong>
+            <div class="mt-1">
+              <span class="badge bg-light text-secondary border fs-8">
+                <i class="bi bi-card-checklist text-success me-1"></i>${compCount} units
+              </span>
+            </div>
           </td>
           <td>${escapeHtml(NC_LEVEL_LABELS[item.ncLevel] || "Other")}</td>
           <td class="text-end">${formatPeso(item.assessmentFee)}</td>
           <td class="text-center">${Number(item.sortOrder) || 0}</td>
           <td class="text-center">${status}</td>
           <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-secondary me-1" data-manage-assessment-competencies="${item.id}" title="Manage Assessment Competencies">
+              <i class="bi bi-journal-check text-success me-1"></i>Competencies
+            </button>
             <button type="button" class="btn btn-sm btn-light me-1" data-edit-assessment="${item.id}">Edit</button>
             <button type="button" class="btn btn-sm btn-outline-danger" data-delete-assessment="${item.id}" title="Delete Assessment">Delete</button>
           </td>
         </tr>`;
     })
     .join("");
+
+  tbody.querySelectorAll("[data-manage-assessment-competencies]").forEach((button) => {
+    button.addEventListener("click", () => openAssessmentCompetenciesModal(Number(button.dataset.manageAssessmentCompetencies)));
+  });
 
   tbody.querySelectorAll("[data-edit-assessment]").forEach((button) => {
     button.addEventListener("click", () => openAssessmentModal(Number(button.dataset.editAssessment)));
@@ -272,7 +372,7 @@ function showAssessmentError(message) {
   }
 }
 
-function openAssessmentModal(assessmentId = null) {
+async function openAssessmentModal(assessmentId = null) {
   editingAssessmentId = assessmentId;
   showAssessmentError("");
 
@@ -281,14 +381,53 @@ function openAssessmentModal(assessmentId = null) {
 
   if (title) {
     title.innerHTML = item
-      ? `<i class="bi bi-pencil-square text-primary me-2"></i>Edit Assessment (Assessment Only)`
-      : `<i class="bi bi-plus-circle-fill text-success me-2"></i>Add Assessment (Assessment Only)`;
+      ? `<i class="bi bi-pencil-square text-primary me-2"></i>Edit Assessment &amp; Configure Competencies`
+      : `<i class="bi bi-plus-circle-fill text-success me-2"></i>Add Assessment &amp; Configure Competencies`;
   }
 
   document.getElementById("assessmentName").value = item?.name || "";
   document.getElementById("assessmentFee").value = item?.assessmentFee ?? "";
   document.getElementById("assessmentSortOrder").value = item?.sortOrder ?? assessments.length + 1;
   document.getElementById("assessmentIsActive").checked = item ? item.isActive : true;
+
+  resetAssessmentFormManualInputs();
+
+  if (item) {
+    if (Array.isArray(item.competencies) && item.competencies.length > 0) {
+      assessmentFormCompetencies = item.competencies.map((c) => ({
+        id: c.id,
+        category: c.category || "core",
+        code: c.code || "",
+        title: c.title || "",
+        nominalHours: c.nominalHours ?? c.nominal_hours ?? 40,
+        learningOutcomes: Array.isArray(c.learningOutcomes) ? c.learningOutcomes : (c.learning_outcomes || []),
+        sortOrder: c.sortOrder || c.sort_order || 0,
+      }));
+      updateAssessmentFormCompCounts();
+      renderAssessmentFormCompsTable();
+    } else {
+      try {
+        const compData = await apiRequest(`/admin/api/assessments/${assessmentId}/competencies/`);
+        assessmentFormCompetencies = (compData.competencies || []).map((c) => ({
+          id: c.id,
+          category: c.category || "core",
+          code: c.code || "",
+          title: c.title || "",
+          nominalHours: c.nominalHours ?? c.nominal_hours ?? 40,
+          learningOutcomes: Array.isArray(c.learningOutcomes) ? c.learningOutcomes : (c.learning_outcomes || []),
+          sortOrder: c.sortOrder || c.sort_order || 0,
+        }));
+      } catch {
+        assessmentFormCompetencies = [];
+      }
+      updateAssessmentFormCompCounts();
+      renderAssessmentFormCompsTable();
+    }
+  } else {
+    assessmentFormCompetencies = [];
+    updateAssessmentFormCompCounts();
+    renderAssessmentFormCompsTable();
+  }
 
   assessmentModal?.show();
 }
@@ -313,7 +452,21 @@ async function saveAssessment() {
     assessment_fee: fee,
     sort_order: sortOrder,
     is_active: isActive,
+    competencies: assessmentFormCompetencies.map((c, idx) => ({
+      category: c.category,
+      code: c.code,
+      title: c.title,
+      nominal_hours: c.nominalHours,
+      learning_outcomes: c.learningOutcomes,
+      sort_order: idx + 1,
+    })),
   };
+
+  const saveBtn = document.getElementById("saveAssessmentButton");
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+  }
 
   try {
     if (editingAssessmentId) {
@@ -322,7 +475,7 @@ async function saveAssessment() {
         body: JSON.stringify(payload),
       });
       assessments = assessments.map((row) => (row.id === editingAssessmentId ? data.assessment : row));
-      showAlert("Assessment updated successfully.");
+      showAlert("Assessment and competencies updated successfully.");
     } else {
       const data = await apiRequest("/admin/api/assessments/create/", {
         method: "POST",
@@ -330,20 +483,32 @@ async function saveAssessment() {
       });
       assessments.push(data.assessment);
       assessments.sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
-      showAlert("Assessment added successfully.");
+      showAlert("Assessment and competencies added successfully.");
     }
 
     assessmentModal?.hide();
     renderAssessmentsTable();
   } catch (error) {
     showAssessmentError(error.message);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Save Assessment &amp; Competencies';
+    }
   }
 }
 
 async function deleteAssessment(assessmentId) {
   const item = assessments.find((a) => a.id === assessmentId);
   const name = item ? item.name : "this assessment";
-  if (!confirm(`Are you sure you want to delete "${name}" from the assessment list?\n\nThis action cannot be undone.`)) {
+  const confirmed = await showConfirmModal({
+    title: "Delete Assessment",
+    message: `Are you sure you want to delete "${name}" from the assessment list?`,
+    subtext: "This action cannot be undone.",
+    confirmText: "Delete",
+    confirmClass: "btn-danger",
+  });
+  if (!confirmed) {
     return;
   }
   try {
@@ -666,6 +831,269 @@ function renderProgFormCompsTable() {
       renderProgFormCompsTable();
     });
   });
+}
+
+// -----------------------------------------------------------------------------
+// Assessment Form Modal Competency Helpers (Integrated Setup)
+// -----------------------------------------------------------------------------
+
+function updateAssessmentFormCompCounts() {
+  const allCount = assessmentFormCompetencies.length;
+  const basicCount = assessmentFormCompetencies.filter((c) => c.category === "basic").length;
+  const commonCount = assessmentFormCompetencies.filter((c) => c.category === "common").length;
+  const coreCount = assessmentFormCompetencies.filter((c) => c.category === "core").length;
+
+  const elAll = document.getElementById("assessmentFormCountAll");
+  const elBasic = document.getElementById("assessmentFormCountBasic");
+  const elCommon = document.getElementById("assessmentFormCountCommon");
+  const elCore = document.getElementById("assessmentFormCountCore");
+
+  if (elAll) elAll.textContent = allCount;
+  if (elBasic) elBasic.textContent = basicCount;
+  if (elCommon) elCommon.textContent = commonCount;
+  if (elCore) elCore.textContent = coreCount;
+}
+
+function updateAssessmentFormLoCountBadge() {
+  const textarea = document.getElementById("assessmentFormManualOutcomes");
+  const badge = document.getElementById("assessmentFormLoCountBadge");
+  if (!textarea || !badge) return;
+  const lines = (textarea.value || "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  badge.textContent = `${lines.length} LOs`;
+}
+
+function resetAssessmentFormManualInputs() {
+  const editIndex = document.getElementById("assessmentFormManualEditIndex");
+  if (editIndex) editIndex.value = -1;
+
+  const titleEl = document.getElementById("assessmentFormManualTitle");
+  if (titleEl) titleEl.textContent = "Add / Configure Competency Unit";
+
+  const btnText = document.getElementById("assessmentFormApplyBtnText");
+  if (btnText) btnText.textContent = "Add Unit";
+
+  const codeInput = document.getElementById("assessmentFormManualCode");
+  const titleInput = document.getElementById("assessmentFormManualTitleInput");
+  const hoursInput = document.getElementById("assessmentFormManualHours");
+  const outcomesInput = document.getElementById("assessmentFormManualOutcomes");
+
+  if (codeInput) codeInput.value = "";
+  if (titleInput) titleInput.value = "";
+  if (hoursInput) hoursInput.value = 40;
+  if (outcomesInput) outcomesInput.value = "";
+
+  updateAssessmentFormLoCountBadge();
+}
+
+function showAssessmentFormManualCard(comp = null, index = -1) {
+  const editIndex = document.getElementById("assessmentFormManualEditIndex");
+  if (editIndex) editIndex.value = index;
+
+  const titleEl = document.getElementById("assessmentFormManualTitle");
+  if (titleEl) titleEl.textContent = comp ? `Edit Unit: ${comp.title}` : "Add / Configure Competency Unit";
+
+  const btnText = document.getElementById("assessmentFormApplyBtnText");
+  if (btnText) btnText.textContent = comp ? "Update Unit" : "Add Unit";
+
+  const catSelect = document.getElementById("assessmentFormTargetCategory");
+  if (catSelect && comp?.category) {
+    catSelect.value = comp.category;
+  }
+
+  const codeInput = document.getElementById("assessmentFormManualCode");
+  const titleInput = document.getElementById("assessmentFormManualTitleInput");
+  const hoursInput = document.getElementById("assessmentFormManualHours");
+  const outcomesInput = document.getElementById("assessmentFormManualOutcomes");
+
+  if (codeInput) codeInput.value = comp?.code || "";
+  if (titleInput) {
+    titleInput.value = comp?.title || "";
+    titleInput.focus();
+  }
+  if (hoursInput) hoursInput.value = comp?.nominalHours ?? 40;
+
+  if (outcomesInput) {
+    const los = comp?.learningOutcomes || [];
+    outcomesInput.value = Array.isArray(los) ? los.join("\n") : "";
+  }
+
+  updateAssessmentFormLoCountBadge();
+
+  const card = document.getElementById("assessmentFormManualCard");
+  card?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function applyAssessmentFormManualUnit() {
+  const titleInput = document.getElementById("assessmentFormManualTitleInput");
+  const title = (titleInput?.value || "").trim();
+  if (!title) {
+    alert("Please enter a competency title / descriptor.");
+    titleInput?.focus();
+    return;
+  }
+  const category = document.getElementById("assessmentFormTargetCategory")?.value || "core";
+  const code = (document.getElementById("assessmentFormManualCode")?.value || "").trim();
+  const nominalHours = parseInt(document.getElementById("assessmentFormManualHours")?.value, 10) || 0;
+  const rawOutcomes = document.getElementById("assessmentFormManualOutcomes")?.value || "";
+  const learningOutcomes = rawOutcomes
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const index = parseInt(document.getElementById("assessmentFormManualEditIndex")?.value, 10);
+  if (index >= 0 && index < assessmentFormCompetencies.length) {
+    assessmentFormCompetencies[index] = {
+      ...assessmentFormCompetencies[index],
+      category,
+      code,
+      title,
+      nominalHours,
+      learningOutcomes,
+    };
+  } else {
+    assessmentFormCompetencies.push({
+      id: null,
+      category,
+      code,
+      title,
+      nominalHours,
+      learningOutcomes,
+      sortOrder: assessmentFormCompetencies.length + 1,
+    });
+  }
+
+  resetAssessmentFormManualInputs();
+  updateAssessmentFormCompCounts();
+  renderAssessmentFormCompsTable();
+}
+
+function renderAssessmentFormCompsTable() {
+  const tbody = document.getElementById("assessmentFormCompsTableBody");
+  if (!tbody) return;
+
+  if (!assessmentFormCompetencies.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">No competencies added yet. Enter manually above or import from PDF.</td>
+      </tr>`;
+    return;
+  }
+
+  const categoryBadges = {
+    basic: '<span class="badge bg-success-subtle text-success border border-success-subtle">Basic</span>',
+    common: '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Common</span>',
+    core: '<span class="badge bg-warning-subtle text-dark border border-warning-subtle">Core</span>',
+  };
+
+  tbody.innerHTML = assessmentFormCompetencies
+    .map((comp, idx) => {
+      const catBadge = categoryBadges[comp.category] || categoryBadges.core;
+      const loCount = (comp.learningOutcomes || []).length;
+      const loTooltip = escapeHtml((comp.learningOutcomes || []).join("\n") || "No LOs defined");
+
+      return `
+        <tr>
+          <td class="text-center text-muted small fw-bold">${idx + 1}</td>
+          <td>${catBadge}</td>
+          <td><code class="small text-dark">${escapeHtml(comp.code || "—")}</code></td>
+          <td><strong>${escapeHtml(comp.title)}</strong></td>
+          <td class="text-center"><span class="badge bg-light text-dark border">${comp.nominalHours || 0} hrs</span></td>
+          <td class="text-center">
+            <button type="button" class="btn btn-sm p-0 border-0 bg-transparent" data-edit-assessment-comp="${idx}" title="Click to view/edit LOs:&#10;${loTooltip}">
+              <span class="badge ${loCount > 0 ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary'}">${loCount} LOs</span>
+            </button>
+          </td>
+          <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-link text-secondary p-1" data-move-assessment-up="${idx}" title="Move Up" ${idx === 0 ? "disabled" : ""}>
+              <i class="bi bi-arrow-up"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-link text-secondary p-1" data-move-assessment-down="${idx}" title="Move Down" ${idx === assessmentFormCompetencies.length - 1 ? "disabled" : ""}>
+              <i class="bi bi-arrow-down"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-link text-primary p-1" data-edit-assessment-comp="${idx}" title="Edit Unit">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-link text-danger p-1" data-delete-assessment-comp="${idx}" title="Remove Unit">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>`;
+    })
+    .join("");
+
+  tbody.querySelectorAll("[data-move-assessment-up]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.moveAssessmentUp);
+      if (idx > 0) {
+        const temp = assessmentFormCompetencies[idx];
+        assessmentFormCompetencies[idx] = assessmentFormCompetencies[idx - 1];
+        assessmentFormCompetencies[idx - 1] = temp;
+        renderAssessmentFormCompsTable();
+      }
+    });
+  });
+
+  tbody.querySelectorAll("[data-move-assessment-down]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.moveAssessmentDown);
+      if (idx < assessmentFormCompetencies.length - 1) {
+        const temp = assessmentFormCompetencies[idx];
+        assessmentFormCompetencies[idx] = assessmentFormCompetencies[idx + 1];
+        assessmentFormCompetencies[idx + 1] = temp;
+        renderAssessmentFormCompsTable();
+      }
+    });
+  });
+
+  tbody.querySelectorAll("[data-edit-assessment-comp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.editAssessmentComp);
+      showAssessmentFormManualCard(assessmentFormCompetencies[idx], idx);
+    });
+  });
+
+  tbody.querySelectorAll("[data-delete-assessment-comp]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.deleteAssessmentComp);
+      assessmentFormCompetencies.splice(idx, 1);
+      updateAssessmentFormCompCounts();
+      renderAssessmentFormCompsTable();
+    });
+  });
+}
+
+async function openAssessmentCompetenciesModal(assessmentId) {
+  currentCompAssessment = assessments.find((a) => a.id === assessmentId);
+  currentCompProgram = null;
+  const badgeEl = document.getElementById("compModalProgramBadge");
+  if (badgeEl) badgeEl.textContent = currentCompAssessment ? `${currentCompAssessment.name} (Assessment Only)` : `Assessment #${assessmentId}`;
+
+  resetCustomCompInputs();
+  showCompAlert("");
+
+  try {
+    const compData = await apiRequest(`/admin/api/assessments/${assessmentId}/competencies/`);
+    currentCompetencies = (compData.competencies || []).map((c) => ({
+      id: c.id,
+      category: c.category || "core",
+      code: c.code || "",
+      title: c.title || "",
+      nominalHours: c.nominalHours || c.nominal_hours || 0,
+      learningOutcomes: Array.isArray(c.learningOutcomes) ? c.learningOutcomes : (c.learning_outcomes || []),
+      sortOrder: c.sortOrder || c.sort_order || 0,
+    }));
+
+    activeCompCategoryFilter = "all";
+    updateCategoryFilterButtons();
+    updateCompCountBadges();
+    renderCompetenciesTable();
+    compModal?.show();
+  } catch (error) {
+    showAlert(`Could not load competencies: ${error.message}`, "danger");
+  }
 }
 
 async function openProgramModal(programId = null) {
@@ -1086,10 +1514,17 @@ function renderCompetenciesTable() {
   });
 
   tbody.querySelectorAll("[data-delete-comp]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const idx = Number(btn.dataset.deleteComp);
       const unit = currentCompetencies[idx];
-      if (confirm(`Remove competency "${unit.title}" from this program?`)) {
+      const confirmed = await showConfirmModal({
+        title: "Remove Competency",
+        message: `Remove competency "${unit.title}" from this program?`,
+        subtext: "This will remove the unit from this qualification.",
+        confirmText: "Remove",
+        confirmClass: "btn-danger",
+      });
+      if (confirmed) {
         currentCompetencies.splice(idx, 1);
         updateCompCountBadges();
         renderCompetenciesTable();
@@ -1100,6 +1535,7 @@ function renderCompetenciesTable() {
 
 async function openCompetenciesModal(programId) {
   currentCompProgram = programs.find((p) => p.id === programId);
+  currentCompAssessment = null;
   const badgeEl = document.getElementById("compModalProgramBadge");
   if (badgeEl) badgeEl.textContent = currentCompProgram ? currentCompProgram.name : `Program #${programId}`;
 
@@ -1129,7 +1565,7 @@ async function openCompetenciesModal(programId) {
 }
 
 async function saveAllProgramCompetencies() {
-  if (!currentCompProgram) return;
+  if (!currentCompProgram && !currentCompAssessment) return;
 
   const payload = {
     competencies: currentCompetencies.map((c, idx) => ({
@@ -1149,13 +1585,21 @@ async function saveAllProgramCompetencies() {
   }
 
   try {
-    await apiRequest(`/admin/api/programs/${currentCompProgram.id}/competencies/`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    if (currentCompProgram) {
+      await apiRequest(`/admin/api/programs/${currentCompProgram.id}/competencies/`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      showAlert(`Competencies for "${currentCompProgram.name}" updated successfully.`);
+    } else if (currentCompAssessment) {
+      await apiRequest(`/admin/api/assessments/${currentCompAssessment.id}/competencies/`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      showAlert(`Competencies for "${currentCompAssessment.name}" updated successfully.`);
+    }
 
     compModal?.hide();
-    showAlert(`Competencies for "${currentCompProgram.name}" updated successfully.`);
     await loadSettings();
   } catch (error) {
     showCompAlert(error.message);
@@ -1274,7 +1718,14 @@ async function saveSchedule() {
 async function deleteSchedule(scheduleId) {
   const sched = schedules.find((s) => s.id === scheduleId);
   const name = sched ? sched.name : "this schedule";
-  if (!confirm(`Are you sure you want to remove ${name}?`)) {
+  const confirmed = await showConfirmModal({
+    title: "Remove Schedule",
+    message: `Are you sure you want to remove ${name}?`,
+    subtext: "This action cannot be undone.",
+    confirmText: "Remove",
+    confirmClass: "btn-danger",
+  });
+  if (!confirmed) {
     return;
   }
   try {
@@ -1323,11 +1774,19 @@ async function saveGeneralSettings() {
 // PDF Competency Curriculum Extractor Module
 // -----------------------------------------------------------------------------
 
-async function handlePdfUpload(file, isProgramFormModal = true) {
+async function handlePdfUpload(file, targetModal = "programForm") {
   if (!file) return;
 
-  const prefix = isProgramFormModal ? "progFormPdf" : "compModalPdf";
-  const btnUpload = document.getElementById(isProgramFormModal ? "btnProgFormUploadPdf" : "btnCompModalUploadPdf");
+  let prefix = "progFormPdf";
+  let btnUpload = document.getElementById("btnProgFormUploadPdf");
+  if (targetModal === "assessmentForm") {
+    prefix = "assessmentFormPdf";
+    btnUpload = document.getElementById("btnAssessmentFormUploadPdf");
+  } else if (targetModal === "compModal" || targetModal === false) {
+    prefix = "compModalPdf";
+    btnUpload = document.getElementById("btnCompModalUploadPdf");
+  }
+
   const statusBox = document.getElementById(`${prefix}Status`);
   const statusText = document.getElementById(`${prefix}StatusText`);
   const spinner = document.getElementById(`${prefix}Spinner`);
@@ -1361,7 +1820,48 @@ async function handlePdfUpload(file, isProgramFormModal = true) {
       throw new Error("No competencies were found in the uploaded PDF.");
     }
 
-    if (isProgramFormModal) {
+    if (targetModal === "assessmentForm") {
+      const assessNameInput = document.getElementById("assessmentName");
+      if (assessNameInput && !assessNameInput.value.trim() && data.program_name) {
+        assessNameInput.value = data.program_name;
+      }
+
+      let replaceExisting = true;
+      if (assessmentFormCompetencies.length > 0) {
+        replaceExisting = await showConfirmModal({
+          title: "Import Competencies from PDF",
+          message: `Found ${data.count} competencies in the uploaded PDF.`,
+          subtext: `Click "Replace Existing" to replace the current ${assessmentFormCompetencies.length} units, or "Cancel" to append them.`,
+          confirmText: "Replace Existing",
+          confirmClass: "btn-primary",
+          icon: "bi-file-earmark-pdf-fill",
+          iconWrapBg: "#eff6ff",
+          iconColor: "#2563eb",
+        });
+      }
+
+      if (replaceExisting) {
+        assessmentFormCompetencies = [];
+      }
+
+      extracted.forEach((c) => {
+        assessmentFormCompetencies.push({
+          id: null,
+          category: c.category || "core",
+          code: c.code || "",
+          title: c.title || "",
+          nominalHours: c.nominal_hours || 40,
+          learningOutcomes: Array.isArray(c.learning_outcomes) ? c.learning_outcomes : [],
+          sortOrder: assessmentFormCompetencies.length + 1,
+        });
+      });
+
+      updateAssessmentFormCompCounts();
+      renderAssessmentFormCompsTable();
+      setTimeout(() => {
+        document.getElementById("assessmentFormCompsTableContainer")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } else if (targetModal === "programForm" || targetModal === true) {
       // Suggest Program Name if currently empty
       const progNameInput = document.getElementById("programName");
       if (progNameInput && !progNameInput.value.trim() && data.program_name) {
@@ -1370,11 +1870,16 @@ async function handlePdfUpload(file, isProgramFormModal = true) {
 
       let replaceExisting = true;
       if (progFormCompetencies.length > 0) {
-        replaceExisting = confirm(
-          `Found ${data.count} competencies in the PDF.\n\n` +
-          `Click OK to REPLACE the existing ${progFormCompetencies.length} units,\n` +
-          `or click Cancel to APPEND these new units to the table.`
-        );
+        replaceExisting = await showConfirmModal({
+          title: "Import Competencies from PDF",
+          message: `Found ${data.count} competencies in the uploaded PDF.`,
+          subtext: `Click "Replace Existing" to replace the current ${progFormCompetencies.length} units, or "Cancel" to append them.`,
+          confirmText: "Replace Existing",
+          confirmClass: "btn-primary",
+          icon: "bi-file-earmark-pdf-fill",
+          iconWrapBg: "#eff6ff",
+          iconColor: "#2563eb",
+        });
       }
 
       if (replaceExisting) {
@@ -1402,11 +1907,16 @@ async function handlePdfUpload(file, isProgramFormModal = true) {
     } else {
       let replaceExisting = true;
       if (currentCompetencies.length > 0) {
-        replaceExisting = confirm(
-          `Found ${data.count} competencies in the PDF.\n\n` +
-          `Click OK to REPLACE the existing ${currentCompetencies.length} units,\n` +
-          `or click Cancel to APPEND these new units to the table.`
-        );
+        replaceExisting = await showConfirmModal({
+          title: "Import Competencies from PDF",
+          message: `Found ${data.count} competencies in the uploaded PDF.`,
+          subtext: `Click "Replace Existing" to replace the current ${currentCompetencies.length} units, or "Cancel" to append them.`,
+          confirmText: "Replace Existing",
+          confirmClass: "btn-primary",
+          icon: "bi-file-earmark-pdf-fill",
+          iconWrapBg: "#eff6ff",
+          iconColor: "#2563eb",
+        });
       }
 
       if (replaceExisting) {
@@ -1478,7 +1988,18 @@ function initSystemSettings() {
   document.getElementById("progFormPdfUpload")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      handlePdfUpload(file, true);
+      handlePdfUpload(file, "programForm");
+    }
+    e.target.value = "";
+  });
+
+  document.getElementById("btnAssessmentFormUploadPdf")?.addEventListener("click", () => {
+    document.getElementById("assessmentFormPdfUpload")?.click();
+  });
+  document.getElementById("assessmentFormPdfUpload")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePdfUpload(file, "assessmentForm");
     }
     e.target.value = "";
   });
@@ -1489,7 +2010,7 @@ function initSystemSettings() {
   document.getElementById("compModalPdfUpload")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      handlePdfUpload(file, false);
+      handlePdfUpload(file, "compModal");
     }
     e.target.value = "";
   });
@@ -1497,6 +2018,11 @@ function initSystemSettings() {
   // Program Form Modal Competency events
   document.getElementById("btnProgFormClearInputs")?.addEventListener("click", resetProgFormManualInputs);
   document.getElementById("btnProgFormApplyManual")?.addEventListener("click", applyProgFormManualUnit);
+
+  // Assessment Form Modal Competency events
+  document.getElementById("btnAssessmentFormClearInputs")?.addEventListener("click", resetAssessmentFormManualInputs);
+  document.getElementById("btnAssessmentFormApplyManual")?.addEventListener("click", applyAssessmentFormManualUnit);
+  document.getElementById("assessmentFormManualOutcomes")?.addEventListener("input", updateAssessmentFormLoCountBadge);
 
   // Standalone Competencies Modal events
   document.querySelectorAll(".comp-filter-btn").forEach((btn) => {

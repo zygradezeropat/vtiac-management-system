@@ -149,3 +149,55 @@ class ScholarGrantRecord(models.Model):
         name = self.scholar_name or f"{self.first_name or ''} {self.last_name or ''}".strip() or "Unnamed Scholar"
         return f"{name} — {self.sponsor_name or 'Grant'} ({self.slot_id or 'No Slot'})"
 
+
+class AssessmentExamGrade(models.Model):
+    """Assessment examination grading results for national competency candidate batches."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    template = models.ForeignKey(
+        RegistrarScheduleTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assessment_grades",
+    )
+    registration = models.ForeignKey(
+        StudentRegistration,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assessment_exam_grades",
+    )
+    student_key = models.CharField(max_length=128, db_index=True)
+    student_name = models.CharField(max_length=200)
+    program = models.CharField(max_length=200, db_index=True)
+    scores = models.JSONField(default=dict, blank=True)
+    learning_outcomes = models.JSONField(default=dict, blank=True)
+    national_assessment = models.JSONField(default=dict, blank=True)
+    result = models.CharField(max_length=32, default="not_yet_assessed")
+    is_competent = models.BooleanField(default=False)
+    examiner_name = models.CharField(max_length=150, blank=True)
+    assessed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="graded_assessment_exams",
+    )
+    assessed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "registrar_assessmentexamgrade"
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student_key", "program"],
+                name="uniq_assessment_student_exam_grade",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.student_name} — {self.program} ({self.result})"
+

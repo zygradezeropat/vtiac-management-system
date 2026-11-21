@@ -1,0 +1,243 @@
+{% extends "registrar/base.html" %}
+{% load static %}
+
+{% block body %}
+{% include "components/registrar/layout_start.html" %}
+
+<header class="registrar-page-header d-flex flex-wrap justify-content-between align-items-start gap-3">
+  <div>
+    <h1 class="registrar-page-title">{{ page_title }}</h1>
+    <p class="registrar-page-subtitle">{{ page_subtitle }}</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge bg-white text-dark border shadow-xs px-3 py-2 rounded-pill fs-8">
+      <i class="bi bi-calendar-check text-success me-1.5" aria-hidden="true"></i>
+      Today: <strong>{{ today_formatted }}</strong>
+    </span>
+  </div>
+</header>
+
+<script id="assessment-grading-data" type="application/json">{{ assessment_grading_data_json|default:"{}"|safe }}</script>
+<script id="assessment-grading-config" type="application/json">{{ grading_config_json|default:"{}"|safe }}</script>
+
+<!-- Filter Notice Banner -->
+<div class="alert alert-info border-0 shadow-xs rounded-4 d-flex align-items-center gap-3 mb-4" role="note">
+  <i class="bi bi-shield-lock-fill fs-3 text-info flex-shrink-0" aria-hidden="true"></i>
+  <div class="small mb-0">
+    <strong>Examination Schedule Lock Rule:</strong> Assessment exam grading sheets automatically unlock on the scheduled exam date (<strong>Today and beyond</strong>). Future-dated assessment batches remain locked until the scheduled date arrives.
+  </div>
+</div>
+
+<!-- Program Category Tabs (Separated by Kind of Program / Qualification) -->
+<div class="card border-0 shadow-xs rounded-4 mb-4 bg-white p-3">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-award-fill text-success fs-5" aria-hidden="true"></i>
+    <h6 class="mb-0 fw-bold">Qualifications / Programs</h6>
+  </div>
+  <div class="registrar-batch-tabs overflow-x-auto pb-1" id="programTabsList" role="tablist" style="white-space: nowrap;">
+    <button type="button" class="registrar-batch-tab is-active" data-program-tab="all" role="tab" aria-selected="true">
+      All Qualifications
+      <span class="registrar-batch-tab__count" id="countAllPrograms">0</span>
+    </button>
+    {% for prog in programs %}
+    <button type="button" class="registrar-batch-tab" data-program-tab="{{ prog }}" role="tab" aria-selected="false">
+      {{ prog }}
+      <span class="registrar-batch-tab__count" data-program-count="{{ prog }}">0</span>
+    </button>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Main Section: Scheduled Batches & Candidates -->
+<section class="registrar-panel mb-4">
+  <div class="registrar-panel__head flex-wrap gap-3 border-0 pb-0">
+    <div>
+      <h2 class="registrar-panel__title mb-1" id="activeProgramHeader">All Assessment Batches</h2>
+      <p class="registrar-panel__subtitle mb-0">Select candidates to grade their written, practical, and interview assessment scores</p>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2 ms-lg-auto">
+      <div class="input-group input-group-sm" style="min-width: 14rem;">
+        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
+        <input type="search" class="form-control border-start-0" id="candidateSearchInput" placeholder="Search candidate..." />
+      </div>
+    </div>
+  </div>
+
+  <div class="registrar-panel__body pt-3">
+    <!-- Active Batches Lock Status Strip -->
+    <div id="batchesLockStatusStrip" class="d-flex flex-wrap gap-2 mb-3"></div>
+
+    <!-- Candidates Table -->
+    <div class="table-responsive registrar-table-wrap">
+      <table class="table registrar-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th scope="col" style="min-width: 220px;">Candidate Name</th>
+            <th scope="col">Qualification</th>
+            <th scope="col">Batch &amp; Schedule</th>
+            <th scope="col" class="text-center">Lock Status</th>
+            <th scope="col" class="text-center">Exam Result</th>
+            <th scope="col" class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assessmentCandidatesTbody">
+          <tr>
+            <td colspan="6" class="text-center text-muted py-5">Loading assessment candidate records...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="assessmentEmptyState" class="text-center py-5 d-none">
+      <i class="bi bi-clipboard-x display-4 text-muted opacity-50" aria-hidden="true"></i>
+      <p class="fw-semibold mt-3 mb-1">No candidate assessment records found</p>
+      <p class="text-muted small mb-0">Scheduled national assessment candidates will appear here.</p>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3 pt-3 border-top">
+      <span class="text-muted small">Showing <span id="displayedCandidatesCount">0</span> candidates</span>
+      <span class="text-muted small"><i class="bi bi-info-circle me-1"></i>Exam grading saves synchronize automatically with E.G.A.C.E records</span>
+    </div>
+  </div>
+</section>
+
+<!-- Assessment Exam Grading Modal (Same Scoring Style as Trainer Module) -->
+<div class="modal fade" id="assessmentGradingModal" tabindex="-1" aria-labelledby="assessmentGradingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <div class="modal-header border-bottom py-3 bg-white">
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill" id="modalTrackBadge">Assessment Track</span>
+            <span class="badge" id="modalLockBadge">Schedule Status</span>
+          </div>
+          <h2 class="modal-title h5 fw-bold mb-0" id="assessmentGradingModalLabel">National Assessment Examination Sheet</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4 bg-light">
+        <!-- Candidate Profile Summary Card -->
+        <div class="card border-0 shadow-xs rounded-3 bg-white p-3 mb-4">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-6">
+              <span class="text-muted small d-block">Candidate Information</span>
+              <h5 class="fw-bold mb-0 text-dark" id="modalCandidateName">—</h5>
+              <p class="text-muted small mb-0" id="modalCandidateMeta">—</p>
+            </div>
+            <div class="col-md-6 border-start-md">
+              <span class="text-muted small d-block">Assessment Schedule &amp; Assessor</span>
+              <p class="fw-semibold mb-0 text-dark" id="modalScheduleMeta">—</p>
+              <p class="text-muted small mb-0" id="modalAssessorVenueMeta">—</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="modalLockAlert" class="alert alert-warning border-0 rounded-3 d-none mb-4" role="alert">
+          <i class="bi bi-lock-fill me-2" aria-hidden="true"></i>
+          <strong>Exam Content Locked:</strong> This assessment batch is scheduled for a future date. Grading and score recording open on the day of the exam.
+        </div>
+
+        <p id="modalGradingError" class="alert alert-danger d-none mb-3" role="alert"></p>
+
+        <!-- Unit Competencies Scoring Table (Written, Demo, Interview, Average) -->
+        <div class="card border-0 shadow-xs rounded-3 bg-white mb-4">
+          <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-table text-primary me-2"></i>Unit Competencies Evaluation</h6>
+              <small class="text-muted">Enter Written (Exam), Demo (Practical), and Oral Interview scores (0–100). Passing average is ≥ 75.0%</small>
+            </div>
+            <span class="badge bg-light text-dark border px-3 py-1.5" id="modalPassingCriterionBadge">Passing Average: ≥ 75%</span>
+          </div>
+
+          <!-- Category Quick Filter Pills (Separate Basic, Common, Core) -->
+          <div class="px-3 py-2 d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom bg-light">
+            <div class="d-flex flex-wrap align-items-center gap-1.5" id="modalCompCategoryFilter">
+              <span class="small fw-bold text-secondary me-1">Filter Units:</span>
+              <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 py-1 fs-8 active" data-comp-filter="all">
+                All Units (<span id="modalCompCountAll">0</span>)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fs-8" data-comp-filter="basic">
+                <i class="bi bi-circle-fill me-1 text-success fs-9"></i>Basic (<span id="modalCompCountBasic">0</span>)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fs-8" data-comp-filter="common">
+                <i class="bi bi-circle-fill me-1 text-primary fs-9"></i>Common (<span id="modalCompCountCommon">0</span>)
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 py-1 fs-8" data-comp-filter="core">
+                <i class="bi bi-circle-fill me-1 text-warning fs-9"></i>Core (<span id="modalCompCountCore">0</span>)
+              </button>
+            </div>
+            <div class="d-flex align-items-center gap-1.5">
+              <span class="badge bg-success-subtle text-success border border-success-subtle fs-8">Basic</span>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-8">Common</span>
+              <span class="badge bg-warning-subtle text-dark border border-warning fs-8">Core</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="modalCompetenciesTable">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" style="width: 40%;">Unit Competency</th>
+                  <th scope="col" class="text-center" style="width: 15%;">Written (0-100)</th>
+                  <th scope="col" class="text-center" style="width: 15%;">Demo (0-100)</th>
+                  <th scope="col" class="text-center" style="width: 15%;">Interview (0-100)</th>
+                  <th scope="col" class="text-center" style="width: 15%;">Average / Result</th>
+                </tr>
+              </thead>
+              <tbody id="modalCompetenciesTbody">
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-4">No competencies configured for this qualification.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Final Assessment Verdict & Official Assessor Decision -->
+        <div class="card border-0 shadow-xs rounded-3 bg-white p-3">
+          <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-patch-check-fill text-success me-2"></i>National Assessment Exam Verdict</h6>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-bold" for="modalVerdictSelect">Official Assessment Verdict <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="modalVerdictSelect" required>
+                <option value="">Select Verdict...</option>
+                <option value="competent">Competent (Passed Exam)</option>
+                <option value="not_yet_competent">Not Yet Competent (Failed Exam)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold" for="modalExamDateInput">Exam Date</label>
+              <input type="date" class="form-control form-control-sm" id="modalExamDateInput" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-bold" for="modalExaminerInput">Assessor / Examiner Name</label>
+              <input type="text" class="form-control form-control-sm" id="modalExaminerInput" placeholder="e.g. Official TESDA Assessor" />
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold" for="modalRemarksInput">Evaluation Remarks / Feedback</label>
+              <input type="text" class="form-control form-control-sm" id="modalRemarksInput" placeholder="Optional comments on candidate competency demonstration..." />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-top py-2.5 bg-white">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-success px-4" id="btnSaveAssessmentGrade">
+          <i class="bi bi-check2-circle me-1.5"></i>Save Assessment Grade
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "components/registrar/layout_end.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'js/registrar-assessment-grading.js' %}?v={% now 'U' %}"></script>
+<script type="module">
+  import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
+  initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
+</script>
+{% endblock %}

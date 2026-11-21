@@ -42,6 +42,15 @@ class ProgramCompetency(models.Model):
         NcProgram,
         on_delete=models.CASCADE,
         related_name="competencies",
+        null=True,
+        blank=True,
+    )
+    assessment = models.ForeignKey(
+        "AssessmentProgram",
+        on_delete=models.CASCADE,
+        related_name="competencies",
+        null=True,
+        blank=True,
     )
     category = models.CharField(
         max_length=20,
@@ -251,19 +260,37 @@ def seed_default_schedules():
 
 
 def seed_default_assessments():
-    if AssessmentProgram.objects.exists():
-        return
-    AssessmentProgram.objects.bulk_create(
-        [
-            AssessmentProgram(
-                name=name,
-                assessment_fee=fee,
-                sort_order=sort_order,
-                is_active=True,
-            )
-            for name, fee, sort_order in DEFAULT_ASSESSMENTS
-        ]
-    )
+    if not AssessmentProgram.objects.exists():
+        AssessmentProgram.objects.bulk_create(
+            [
+                AssessmentProgram(
+                    name=name,
+                    assessment_fee=fee,
+                    sort_order=sort_order,
+                    is_active=True,
+                )
+                for name, fee, sort_order in DEFAULT_ASSESSMENTS
+            ]
+        )
+    # Ensure each assessment has default competencies linked if empty
+    for assess in AssessmentProgram.objects.all():
+        if not assess.competencies.exists():
+            matched_prog = NcProgram.objects.filter(name__iexact=assess.name).first()
+            if matched_prog and matched_prog.competencies.exists():
+                comps_to_copy = [
+                    ProgramCompetency(
+                        assessment=assess,
+                        category=c.category,
+                        code=c.code,
+                        title=c.title,
+                        nominal_hours=c.nominal_hours,
+                        sort_order=c.sort_order,
+                        learning_outcomes=c.learning_outcomes or [],
+                        is_active=c.is_active,
+                    )
+                    for c in matched_prog.competencies.all()
+                ]
+                ProgramCompetency.objects.bulk_create(comps_to_copy)
 
 
 class StaffTouchLog(models.Model):

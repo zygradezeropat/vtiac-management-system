@@ -417,6 +417,7 @@ def assessments_create(request):
             assessment_fee=data.get("assessment_fee"),
             sort_order=data.get("sort_order"),
             is_active=data.get("is_active", True),
+            competencies=data.get("competencies"),
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
@@ -444,11 +445,40 @@ def assessments_update(request, assessment_id):
             assessment_fee=data.get("assessment_fee"),
             sort_order=data.get("sort_order"),
             is_active=data.get("is_active"),
+            competencies=data.get("competencies"),
         )
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
     return JsonResponse({"ok": True, "assessment": assessment})
+
+
+@login_required(login_url="/")
+@require_http_methods(["GET", "POST"])
+def assessments_competencies(request, assessment_id):
+    from .assessments import list_assessment_competencies, save_assessment_competencies
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    if request.method == "GET":
+        try:
+            comps = list_assessment_competencies(assessment_id)
+            return JsonResponse({"ok": True, "competencies": comps})
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=404)
+
+    # POST: Save competencies for assessment
+    data = _json_body(request)
+    if data is None or "competencies" not in data or not isinstance(data["competencies"], list):
+        return JsonResponse({"error": "Invalid competencies payload."}, status=400)
+
+    try:
+        updated_comps = save_assessment_competencies(assessment_id, data["competencies"])
+        return JsonResponse({"ok": True, "competencies": updated_comps})
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
 
 
 @login_required(login_url="/")
