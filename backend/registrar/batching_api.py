@@ -1,5 +1,6 @@
 """Registrar batching & scheduling API (DB-backed course cards and templates)."""
 
+import json
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
