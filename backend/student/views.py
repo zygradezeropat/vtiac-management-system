@@ -83,6 +83,7 @@ def register(request):
         request.session["registration_submitted"] = True
         return redirect("register")
 
+    from backend.system_admin.assessments import enrollment_assessment_options
     from backend.system_admin.schedules import enrollment_schedule_options
 
     return render(
@@ -94,6 +95,7 @@ def register(request):
             "registration_config": {
                 "enrollmentOpen": enrollment_is_open(),
                 "programs": list(enrollment_program_options()),
+                "assessments": list(enrollment_assessment_options()),
                 "schedules": list(enrollment_schedule_options()),
             },
         },

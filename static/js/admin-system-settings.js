@@ -30,6 +30,8 @@ const NC_LEVEL_LABELS = {
 
 let programs = [];
 let editingProgramId = null;
+let assessments = [];
+let editingAssessmentId = null;
 let schedules = [];
 let editingScheduleId = null;
 
@@ -45,6 +47,8 @@ let activeCompCategoryFilter = "all";
 const alertEl = document.getElementById("systemSettingsAlert");
 const programModalEl = document.getElementById("programFormModal");
 const programModal = programModalEl ? new bootstrap.Modal(programModalEl) : null;
+const assessmentModalEl = document.getElementById("assessmentFormModal");
+const assessmentModal = assessmentModalEl ? new bootstrap.Modal(assessmentModalEl) : null;
 const scheduleModalEl = document.getElementById("scheduleFormModal");
 const scheduleModal = scheduleModalEl ? new bootstrap.Modal(scheduleModalEl) : null;
 const compModalEl = document.getElementById("competenciesModal");
@@ -129,6 +133,9 @@ function renderProgramsTable() {
   const tbody = document.getElementById("programsTableBody");
   if (!tbody) return;
 
+  const badgeEl = document.getElementById("badgeProgramsCount");
+  if (badgeEl) badgeEl.textContent = String(programs.length);
+
   if (!programs.length) {
     tbody.innerHTML = `
       <tr>
@@ -201,6 +208,151 @@ async function deleteProgram(programId) {
     programs = programs.filter((p) => p.id !== programId);
     renderProgramsTable();
     showAlert(`Program "${name}" deleted successfully.`);
+  } catch (error) {
+    showAlert(error.message, "danger");
+  }
+}
+
+function renderAssessmentsTable() {
+  const tbody = document.getElementById("assessmentsTableBody");
+  if (!tbody) return;
+
+  const badgeEl = document.getElementById("badgeAssessmentsCount");
+  if (badgeEl) badgeEl.textContent = String(assessments.length);
+
+  if (!assessments.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted py-4">No assessment programs configured yet.</td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = assessments
+    .map((item) => {
+      const status = item.isActive
+        ? '<span class="admin-user-badge admin-user-badge--active">Active</span>'
+        : '<span class="admin-user-badge admin-user-badge--inactive">Inactive</span>';
+
+      return `
+        <tr>
+          <td>
+            <strong>${escapeHtml(item.name)}</strong>
+          </td>
+          <td>${escapeHtml(NC_LEVEL_LABELS[item.ncLevel] || "Other")}</td>
+          <td class="text-end">${formatPeso(item.assessmentFee)}</td>
+          <td class="text-center">${Number(item.sortOrder) || 0}</td>
+          <td class="text-center">${status}</td>
+          <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-light me-1" data-edit-assessment="${item.id}">Edit</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-delete-assessment="${item.id}" title="Delete Assessment">Delete</button>
+          </td>
+        </tr>`;
+    })
+    .join("");
+
+  tbody.querySelectorAll("[data-edit-assessment]").forEach((button) => {
+    button.addEventListener("click", () => openAssessmentModal(Number(button.dataset.editAssessment)));
+  });
+
+  tbody.querySelectorAll("[data-delete-assessment]").forEach((button) => {
+    button.addEventListener("click", () => deleteAssessment(Number(button.dataset.deleteAssessment)));
+  });
+}
+
+function showAssessmentError(message) {
+  const el = document.getElementById("assessmentFormError");
+  if (!el) return;
+  if (!message) {
+    el.classList.add("d-none");
+    el.textContent = "";
+  } else {
+    el.textContent = message;
+    el.classList.remove("d-none");
+  }
+}
+
+function openAssessmentModal(assessmentId = null) {
+  editingAssessmentId = assessmentId;
+  showAssessmentError("");
+
+  const title = document.getElementById("assessmentFormModalLabel");
+  const item = assessments.find((row) => row.id === assessmentId);
+
+  if (title) {
+    title.innerHTML = item
+      ? `<i class="bi bi-pencil-square text-primary me-2"></i>Edit Assessment (Assessment Only)`
+      : `<i class="bi bi-plus-circle-fill text-success me-2"></i>Add Assessment (Assessment Only)`;
+  }
+
+  document.getElementById("assessmentName").value = item?.name || "";
+  document.getElementById("assessmentFee").value = item?.assessmentFee ?? "";
+  document.getElementById("assessmentSortOrder").value = item?.sortOrder ?? assessments.length + 1;
+  document.getElementById("assessmentIsActive").checked = item ? item.isActive : true;
+
+  assessmentModal?.show();
+}
+
+async function saveAssessment() {
+  const name = (document.getElementById("assessmentName")?.value || "").trim();
+  const fee = document.getElementById("assessmentFee")?.value;
+  const sortOrder = document.getElementById("assessmentSortOrder")?.value;
+  const isActive = document.getElementById("assessmentIsActive")?.checked;
+
+  if (!name) {
+    showAssessmentError("Assessment name is required.");
+    return;
+  }
+  if (fee === "" || fee === null || isNaN(Number(fee)) || Number(fee) < 0) {
+    showAssessmentError("Please enter a valid assessment fee (cannot be negative).");
+    return;
+  }
+
+  const payload = {
+    name,
+    assessment_fee: fee,
+    sort_order: sortOrder,
+    is_active: isActive,
+  };
+
+  try {
+    if (editingAssessmentId) {
+      const data = await apiRequest(`/admin/api/assessments/${editingAssessmentId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      assessments = assessments.map((row) => (row.id === editingAssessmentId ? data.assessment : row));
+      showAlert("Assessment updated successfully.");
+    } else {
+      const data = await apiRequest("/admin/api/assessments/create/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      assessments.push(data.assessment);
+      assessments.sort((a, b) => (a.sortOrder - b.sortOrder) || a.name.localeCompare(b.name));
+      showAlert("Assessment added successfully.");
+    }
+
+    assessmentModal?.hide();
+    renderAssessmentsTable();
+  } catch (error) {
+    showAssessmentError(error.message);
+  }
+}
+
+async function deleteAssessment(assessmentId) {
+  const item = assessments.find((a) => a.id === assessmentId);
+  const name = item ? item.name : "this assessment";
+  if (!confirm(`Are you sure you want to delete "${name}" from the assessment list?\n\nThis action cannot be undone.`)) {
+    return;
+  }
+  try {
+    await apiRequest(`/admin/api/assessments/${assessmentId}/delete/`, {
+      method: "POST",
+    });
+    assessments = assessments.filter((a) => a.id !== assessmentId);
+    renderAssessmentsTable();
+    showAlert(`Assessment "${name}" deleted successfully.`);
   } catch (error) {
     showAlert(error.message, "danger");
   }
@@ -1023,6 +1175,9 @@ function renderSchedulesTable() {
   const tbody = document.getElementById("schedulesTableBody");
   if (!tbody) return;
 
+  const badgeEl = document.getElementById("badgeSchedulesCount");
+  if (badgeEl) badgeEl.textContent = String(schedules.length);
+
   if (!schedules.length) {
     tbody.innerHTML = `
       <tr>
@@ -1137,9 +1292,11 @@ async function deleteSchedule(scheduleId) {
 async function loadSettings() {
   const data = await apiRequest("/admin/api/system-settings/");
   programs = data.programs || [];
+  assessments = data.assessments || [];
   schedules = data.schedules || [];
   fillGeneralSettings(data.settings || {});
   renderProgramsTable();
+  renderAssessmentsTable();
   renderSchedulesTable();
 }
 
@@ -1299,6 +1456,8 @@ function initSystemSettings() {
   document.getElementById("clearEvaluationScheduleBtn")?.addEventListener("click", clearEvaluationSchedule);
   document.getElementById("addProgramButton")?.addEventListener("click", () => openProgramModal());
   document.getElementById("saveProgramButton")?.addEventListener("click", saveProgram);
+  document.getElementById("addAssessmentButton")?.addEventListener("click", () => openAssessmentModal());
+  document.getElementById("saveAssessmentButton")?.addEventListener("click", saveAssessment);
   document.getElementById("addScheduleButton")?.addEventListener("click", () => openScheduleModal());
   document.getElementById("saveScheduleButton")?.addEventListener("click", saveSchedule);
 
@@ -1351,6 +1510,26 @@ function initSystemSettings() {
   document.getElementById("btnClearCustomComp")?.addEventListener("click", resetCustomCompInputs);
   document.getElementById("btnSaveCustomComp")?.addEventListener("click", applyCustomComp);
   document.getElementById("btnSaveProgramCompetencies")?.addEventListener("click", saveAllProgramCompetencies);
+
+  // Handle URL hash tab switching (e.g. #general, #programs, #assessments, #schedules)
+  const hash = window.location.hash;
+  if (hash) {
+    const cleanHash = hash.replace("#", "").replace("panel-", "");
+    const tabBtn = document.querySelector(`button[data-bs-target="#panel-${cleanHash}"]`);
+    if (tabBtn && typeof bootstrap !== "undefined" && bootstrap.Tab) {
+      bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+    }
+  }
+
+  // Sync URL hash when switching tabs
+  document.querySelectorAll('#adminSettingsTabs button[data-bs-toggle="tab"]').forEach((btn) => {
+    btn.addEventListener("shown.bs.tab", (e) => {
+      const target = e.target.getAttribute("data-bs-target");
+      if (target) {
+        history.replaceState(null, "", target.replace("#panel-", "#"));
+      }
+    });
+  });
 
   loadSettings().catch((error) => showAlert(error.message, "danger"));
 }

@@ -14,6 +14,14 @@ DEFAULT_PROGRAMS: tuple[tuple[str, Decimal, int], ...] = (
     ("Rice Machinery Operations NC II", Decimal("1323.00"), 5),
 )
 
+DEFAULT_ASSESSMENTS: tuple[tuple[str, Decimal, int], ...] = (
+    ("Automotive Servicing NC I", Decimal("1641.00"), 1),
+    ("Automotive Servicing (Engine Repair) NC II", Decimal("2500.00"), 2),
+    ("Driving NC II", Decimal("1534.00"), 3),
+    ("Driving NC III (Passenger Bus / Straight Truck)", Decimal("2800.00"), 4),
+    ("Rice Machinery Operations NC II", Decimal("1823.00"), 5),
+)
+
 # Alternate spellings from forms / legacy data
 PROGRAM_ALIASES: dict[str, str] = {
     "automotive servicing nc1": "Automotive Servicing NC I",

@@ -7,6 +7,7 @@ from .defaults import (
     DEFAULT_FISCAL_YEAR_LABEL,
     DEFAULT_REGISTRATION_FEE,
     DEFAULT_PROGRAMS,
+    DEFAULT_ASSESSMENTS,
     DEFAULT_SCHEDULES,
     DEFAULT_PROGRAM_COMPETENCIES,
 )
@@ -27,6 +28,8 @@ class NcProgram(models.Model):
 
     def __str__(self):
         return self.name
+
+
 
 
 class ProgramCompetency(models.Model):
@@ -67,6 +70,23 @@ class TrainingSchedule(models.Model):
     code = models.CharField(max_length=80, blank=True)
     days = models.CharField(max_length=120, blank=True)
     time_slot = models.CharField(max_length=120, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class AssessmentProgram(models.Model):
+    """Assessment-only qualification / program offered — managed from the admin portal."""
+
+    name = models.CharField(max_length=200, unique=True)
+    assessment_fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -226,6 +246,22 @@ def seed_default_schedules():
                 is_active=True,
             )
             for name, code, days, time_slot, sort_order in DEFAULT_SCHEDULES
+        ]
+    )
+
+
+def seed_default_assessments():
+    if AssessmentProgram.objects.exists():
+        return
+    AssessmentProgram.objects.bulk_create(
+        [
+            AssessmentProgram(
+                name=name,
+                assessment_fee=fee,
+                sort_order=sort_order,
+                is_active=True,
+            )
+            for name, fee, sort_order in DEFAULT_ASSESSMENTS
         ]
     )
 

@@ -139,8 +139,8 @@ function renderRow(row, activeTab = "training") {
             </div>
           </div>
         </td>
-        ${manualMilestoneCell(row, "graduate", "Graduate")}
         ${manualMilestoneCell(row, "certificate", "Certificate")}
+        ${manualMilestoneCell(row, "employment", "Employment")}
       </tr>`;
   }
 
@@ -199,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const seedEl = document.getElementById("trainer-egace-seed");
   const tbody = document.getElementById("egace-table-body");
   const countEl = document.getElementById("egace-row-count");
+  const footerCaptionEl = document.getElementById("egace-footer-caption");
   const searchEl = document.getElementById("egace-search");
   const courseEl = document.getElementById("egace-course-filter");
   const batchEl = document.getElementById("egace-batch-filter");
@@ -279,8 +280,8 @@ document.addEventListener("DOMContentLoaded", () => {
       theadEl.innerHTML = `
         <tr>
           <th scope="col">Student Name</th>
-          <th scope="col" class="text-center">Graduate</th>
           <th scope="col" class="text-center">Certificate</th>
+          <th scope="col" class="text-center">Employment</th>
         </tr>
       `;
     } else {
@@ -483,16 +484,43 @@ document.addEventListener("DOMContentLoaded", () => {
     renderTableHead();
     populateFilterOptions();
     const allRows = getEgaceTableRows();
+    const categoryRows = allRows.filter((r) =>
+      activeCategoryTab === "assessment" ? isAssessmentRow(r) : isTrainingRow(r)
+    );
     const rows = filteredRows();
     const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE) || 1);
     currentPage = Math.min(Math.max(1, currentPage), totalPages);
 
-    if (countEl) {
-      countEl.textContent =
-        rows.length === allRows.length
-          ? String(allRows.length)
-          : `${rows.length} of ${allRows.length}`;
+    const countStr =
+      rows.length === categoryRows.length
+        ? String(categoryRows.length)
+        : `${rows.length} of ${categoryRows.length}`;
+
+    if (footerCaptionEl) {
+      if (activeCategoryTab === "assessment") {
+        const noun = categoryRows.length === 1 ? "candidate" : "candidates";
+        footerCaptionEl.innerHTML = `
+          <span id="egace-row-count">${countStr}</span> ${noun} ·
+          <strong>C</strong>ertificate,
+          <strong>E</strong>mployment.
+          Click <strong>Certificate</strong> or <strong>Employment</strong> to set Yes or No manually.
+        `;
+      } else {
+        const noun = categoryRows.length === 1 ? "student" : "students";
+        footerCaptionEl.innerHTML = `
+          <span id="egace-row-count">${countStr}</span> ${noun} ·
+          <strong>E</strong>nrolled,
+          <strong>G</strong>raduate,
+          <strong>A</strong>ssessment,
+          <strong>C</strong>ertificate,
+          <strong>E</strong>mployment.
+          Enrolled, Graduate, Assessment, and Certificate follow trainer grades. Click <strong>Employment</strong> to set Yes or No manually.
+        `;
+      }
+    } else if (countEl) {
+      countEl.textContent = countStr;
     }
+
     if (rows.length === 0) {
       tbody.innerHTML = "";
       paginationEl?.classList.add("d-none");
@@ -500,8 +528,8 @@ document.addEventListener("DOMContentLoaded", () => {
       emptyEl?.classList.remove("d-none");
       const emptyText = emptyEl?.querySelector("p.fw-semibold");
       if (emptyText) {
-        emptyText.textContent = allRows.length
-          ? "No students match your filters"
+        emptyText.textContent = categoryRows.length
+          ? (activeCategoryTab === "assessment" ? "No candidates match your filters" : "No students match your filters")
           : "No records to display";
       }
       return;

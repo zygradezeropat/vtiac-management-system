@@ -386,6 +386,89 @@ def schedules_delete(request, schedule_id):
 
 
 @login_required(login_url="/")
+@require_GET
+def assessments_list(request):
+    from .assessments import list_assessments
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    items = list_assessments()
+    return JsonResponse({"ok": True, "assessments": items})
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def assessments_create(request):
+    from .assessments import create_assessment
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    data = _json_body(request)
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON body."}, status=400)
+
+    try:
+        assessment = create_assessment(
+            name=data.get("name"),
+            assessment_fee=data.get("assessment_fee"),
+            sort_order=data.get("sort_order"),
+            is_active=data.get("is_active", True),
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({"ok": True, "assessment": assessment}, status=201)
+
+
+@login_required(login_url="/")
+@require_http_methods(["PATCH", "PUT"])
+def assessments_update(request, assessment_id):
+    from .assessments import update_assessment
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    data = _json_body(request)
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON body."}, status=400)
+
+    try:
+        assessment = update_assessment(
+            assessment_id,
+            name=data.get("name"),
+            assessment_fee=data.get("assessment_fee"),
+            sort_order=data.get("sort_order"),
+            is_active=data.get("is_active"),
+        )
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({"ok": True, "assessment": assessment})
+
+
+@login_required(login_url="/")
+@require_http_methods(["DELETE", "POST"])
+def assessments_delete(request, assessment_id):
+    from .assessments import delete_assessment
+
+    denied = _admin_access(request)
+    if denied:
+        return denied
+
+    try:
+        delete_assessment(assessment_id)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    return JsonResponse({"ok": True})
+
+
+@login_required(login_url="/")
 @require_http_methods(["POST"])
 def extract_competencies_from_pdf(request):
     denied = _admin_access(request)

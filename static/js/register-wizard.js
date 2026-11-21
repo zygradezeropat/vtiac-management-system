@@ -53,16 +53,19 @@ function loadRegistrationConfig() {
   try {
     const data = JSON.parse(el.textContent);
     const programs = Array.isArray(data.programs) && data.programs.length ? data.programs : FALLBACK_PROGRAM_OPTIONS;
+    const assessments = Array.isArray(data.assessments) && data.assessments.length ? data.assessments : programs;
     const schedules = Array.isArray(data.schedules) && data.schedules.length ? data.schedules : FALLBACK_SCHEDULE_OPTIONS;
     return {
       enrollmentOpen: data.enrollmentOpen !== false,
       programs,
+      assessments,
       schedules,
     };
   } catch {
     return {
       enrollmentOpen: true,
       programs: FALLBACK_PROGRAM_OPTIONS,
+      assessments: FALLBACK_PROGRAM_OPTIONS,
       schedules: FALLBACK_SCHEDULE_OPTIONS,
     };
   }
@@ -70,6 +73,7 @@ function loadRegistrationConfig() {
 
 const registrationConfig = loadRegistrationConfig();
 const PROGRAM_OPTIONS = registrationConfig.programs;
+const ASSESSMENT_OPTIONS = registrationConfig.assessments || registrationConfig.programs;
 const SCHEDULE_OPTIONS = registrationConfig.schedules;
 
 const VALID_SCHEDULE_IDS = new Set(SCHEDULE_OPTIONS.map((o) => o.id));
@@ -717,7 +721,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyPresetProgramTypeUI();
     section.classList.toggle("hidden-step", !formData.programType);
     list.innerHTML = "";
-    PROGRAM_OPTIONS.forEach((program) => {
+    const options = (formData.programType === "assessment_only" && ASSESSMENT_OPTIONS.length)
+      ? ASSESSMENT_OPTIONS
+      : PROGRAM_OPTIONS;
+    options.forEach((program) => {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className =

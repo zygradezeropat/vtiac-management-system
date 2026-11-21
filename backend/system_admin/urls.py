@@ -57,6 +57,18 @@ urlpatterns = [
         api.schedules_delete,
         name="admin_schedules_delete",
     ),
+    path("admin/api/assessments/", api.assessments_list, name="admin_assessments_list"),
+    path("admin/api/assessments/create/", api.assessments_create, name="admin_assessments_create"),
+    path(
+        "admin/api/assessments/<int:assessment_id>/",
+        api.assessments_update,
+        name="admin_assessments_update",
+    ),
+    path(
+        "admin/api/assessments/<int:assessment_id>/delete/",
+        api.assessments_delete,
+        name="admin_assessments_delete",
+    ),
     path("admin/api/touch-logs/", api.touch_logs_api, name="admin_touch_logs_api"),
     path("admin/<str:module>/", views.module_page, name="admin_module"),
 ]

@@ -87,6 +87,7 @@ def _serialize_settings(settings: SystemSettings) -> dict:
 
 
 def system_settings_payload() -> dict:
+    from .assessments import list_assessments
     from .schedules import list_schedules
 
     settings = SystemSettings.load()
@@ -95,10 +96,12 @@ def system_settings_payload() -> dict:
         for row in NcProgram.objects.prefetch_related("competencies").order_by("sort_order", "name")
     ]
     schedules = list_schedules()
+    assessments = list_assessments()
     return {
         "settings": _serialize_settings(settings),
         "programs": programs,
         "schedules": schedules,
+        "assessments": assessments,
     }
 
 
