@@ -187,6 +187,82 @@
   </div>
 </section>
 
+<style>
+  .cashier-category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .cashier-category-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1.1rem;
+    border: none;
+    border-radius: 999px;
+    background: #e8ecf1;
+    color: #475569;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .cashier-category-tab:hover {
+    background: #dfe4ea;
+    color: #1e293b;
+  }
+  .cashier-category-tab.is-active {
+    background: #10b981;
+    color: #fff;
+  }
+  .cashier-category-tab__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+  .cashier-category-tab:not(.is-active) .cashier-category-tab__count {
+    background: #fff;
+    color: #64748b;
+  }
+</style>
+
+<!-- Course Category Separation Tabs (Training with Assessment vs Assessment Only) -->
+<div
+  id="cashier-category-tabs"
+  class="cashier-category-tabs mb-3"
+  role="tablist"
+  aria-label="Client Category">
+  <button
+    type="button"
+    class="cashier-category-tab is-active"
+    role="tab"
+    aria-selected="true"
+    data-category-tab="training"
+    id="tabCashierTraining"
+  >
+    Training with Assessment
+    <span class="cashier-category-tab__count" id="countCashierTraining">0</span>
+  </button>
+  <button
+    type="button"
+    class="cashier-category-tab"
+    role="tab"
+    aria-selected="false"
+    data-category-tab="assessment"
+    id="tabCashierAssessment"
+  >
+    Assessment Only
+    <span class="cashier-category-tab__count" id="countCashierAssessment">0</span>
+  </button>
+</div>
+
 <!-- =========================================================================
      Filter Bar & Quick Toggles + Balance Data Table
      ========================================================================= -->

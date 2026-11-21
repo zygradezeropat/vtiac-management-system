@@ -20,7 +20,7 @@ const filterState = {
   searchQuery: "",
   status: "all", // "all" | "unpaid" | "partial" | "paid" | "overdue"
   agingBracket: "all", // "all" | "current" | "1-30" | "31-60" | "61-90" | "90+"
-  courseType: "all", // "all" | "training_with_assessment" | "assessment_only"
+  courseType: "training_with_assessment", // "all" | "training_with_assessment" | "assessment_only"
   program: "all",
   feeCategory: "all", // "all" | "regular" | "scholar"
   sort: "name_asc",
@@ -106,7 +106,11 @@ function applyFilters(students) {
 
   // 4. Academic Dimension: Course Type
   if (filterState.courseType && filterState.courseType !== "all") {
-    result = result.filter((s) => s.courseType === filterState.courseType);
+    if (filterState.courseType === "assessment_only") {
+      result = result.filter((s) => s.courseType === "assessment_only" || Boolean(s.isCandidate));
+    } else {
+      result = result.filter((s) => s.courseType === "training_with_assessment" && !s.isCandidate);
+    }
   }
 
   // 5. Specific Course / Qualification
@@ -262,6 +266,38 @@ function renderAgingModule(aging, students) {
   document.querySelectorAll(".cashier-aging-bracket-btn").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.bracket === filterState.agingBracket);
   });
+}
+
+/**
+ * Update client category separation tab counts and active styling.
+ */
+function updateCategoryTabCounts(students) {
+  const trainingCount = students.filter(
+    (s) => s.courseType === "training_with_assessment" && !s.isCandidate
+  ).length;
+  const assessmentCount = students.filter(
+    (s) => s.courseType === "assessment_only" || Boolean(s.isCandidate)
+  ).length;
+
+  const countTrainingEl = document.getElementById("countCashierTraining");
+  const countAssessmentEl = document.getElementById("countCashierAssessment");
+  if (countTrainingEl) countTrainingEl.textContent = trainingCount;
+  if (countAssessmentEl) countAssessmentEl.textContent = assessmentCount;
+
+  const isTraining = filterState.courseType === "training_with_assessment";
+  const isAssessment = filterState.courseType === "assessment_only";
+
+  const tabTraining = document.getElementById("tabCashierTraining");
+  const tabAssessment = document.getElementById("tabCashierAssessment");
+
+  if (tabTraining) {
+    tabTraining.classList.toggle("is-active", isTraining);
+    tabTraining.setAttribute("aria-selected", isTraining ? "true" : "false");
+  }
+  if (tabAssessment) {
+    tabAssessment.classList.toggle("is-active", isAssessment);
+    tabAssessment.setAttribute("aria-selected", isAssessment ? "true" : "false");
+  }
 }
 
 /**
@@ -790,8 +826,9 @@ function resetAllFilters() {
   const searchInput = document.getElementById("studentSearch");
   if (searchInput) searchInput.value = "";
 
+  filterState.courseType = "training_with_assessment";
   const courseTypeSelect = document.getElementById("courseTypeFilter");
-  if (courseTypeSelect) courseTypeSelect.value = "all";
+  if (courseTypeSelect) courseTypeSelect.value = "training_with_assessment";
 
   const programSelect = document.getElementById("programFilter");
   if (programSelect) programSelect.value = "all";
@@ -827,7 +864,18 @@ function resetAllFilters() {
 function refreshView(resetPage = false) {
   if (resetPage) currentPage = 1;
   const filtered = applyFilters(cachedStudents);
-  updateQuickToggleCounts(cachedStudents);
+  updateCategoryTabCounts(cachedStudents);
+
+  const categoryStudents =
+    filterState.courseType && filterState.courseType !== "all"
+      ? cachedStudents.filter((s) =>
+          filterState.courseType === "assessment_only"
+            ? s.courseType === "assessment_only" || Boolean(s.isCandidate)
+            : s.courseType === "training_with_assessment" && !s.isCandidate
+        )
+      : cachedStudents;
+
+  updateQuickToggleCounts(categoryStudents);
   renderAgingModule(cachedAging, cachedStudents);
   renderTable(filtered, currentPage);
 }
@@ -856,6 +904,8 @@ async function loadStudentsData() {
       cachedAging = data.aging || data.summary || null;
       currentUserPrimaryRole = data.currentUserPrimaryRole || "";
       populateProgramDropdown(cachedStudents);
+      const courseTypeSelect = document.getElementById("courseTypeFilter");
+      if (courseTypeSelect) courseTypeSelect.value = filterState.courseType;
       refreshView(false);
     }
   } catch (err) {
@@ -897,6 +947,22 @@ export async function initCashierStudents() {
       filterState.searchQuery = searchInput.value;
       refreshView(true);
     }, 180);
+  });
+
+  // Category separation tabs (Training with Assessment vs Assessment Only)
+  const tabTraining = document.getElementById("tabCashierTraining");
+  const tabAssessment = document.getElementById("tabCashierAssessment");
+
+  tabTraining?.addEventListener("click", () => {
+    filterState.courseType = "training_with_assessment";
+    if (courseTypeSelect) courseTypeSelect.value = "training_with_assessment";
+    refreshView(true);
+  });
+
+  tabAssessment?.addEventListener("click", () => {
+    filterState.courseType = "assessment_only";
+    if (courseTypeSelect) courseTypeSelect.value = "assessment_only";
+    refreshView(true);
   });
 
   // Academic Dimension: Course Type

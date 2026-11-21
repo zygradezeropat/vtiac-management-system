@@ -192,9 +192,27 @@ def _serialize_student(reg: StudentRegistration, profile: StudentEnrollmentProfi
         scholarship_label = "Regular"
 
     # Course type display label
-    is_candidate = course_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY
+    is_candidate = (
+        course_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY
+        or getattr(reg, "program_type", "") == StudentRegistration.ProgramType.ASSESSMENT_ONLY
+        or (profile and getattr(profile, "program_type", "") == StudentRegistration.ProgramType.ASSESSMENT_ONLY)
+    )
+    if not is_candidate:
+        from backend.registrar.models import RegistrarScheduleTemplate
+        reg_id_str = str(reg.pk).lower()
+        ref_id_str = (reg.reference_id or "").lower()
+        for tpl in RegistrarScheduleTemplate.objects.filter(batch_kind="national_assessment"):
+            for cand in tpl.students_snapshot or []:
+                cid = str(cand.get("registration_id") or cand.get("reference_id") or cand.get("id") or "").lower()
+                if cid and (cid == reg_id_str or cid == ref_id_str):
+                    is_candidate = True
+                    course_type = StudentRegistration.ProgramType.ASSESSMENT_ONLY
+                    break
+            if is_candidate:
+                break
     client_type = "Candidate" if is_candidate else "Student"
     if is_candidate:
+        course_type = StudentRegistration.ProgramType.ASSESSMENT_ONLY
         course_type_label = "Assessment Only"
         client_type_label = "Candidate (Assessment Only)"
     elif course_type == StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT:
