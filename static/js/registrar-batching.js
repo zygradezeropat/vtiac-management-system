@@ -2047,6 +2047,7 @@ document.addEventListener(
         const deduction = existing ? existing.deduction : defaults.deduction;
         const trainingDays = existing ? existing.trainingDays : defaults.trainingDays;
         const trainerId = existing ? existing.trainerId : defaultTrainer;
+        const assessorName = existing ? (existing.assessorName || "") : "";
         const startDate = existing ? existing.startDate : todayStr;
         const endDate = computeEndDateForNominalDays(startDate, trainingDays, days);
         const students = (existing && existing.students) ? existing.students : rg.students;
@@ -2067,6 +2068,7 @@ document.addEventListener(
           deduction,
           trainingDays,
           trainerId,
+          assessorName,
           startDate,
           endDate,
         };
@@ -2300,6 +2302,8 @@ document.addEventListener(
         statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Auto-grouped</span>`;
       } else if (!isReady) {
         statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Waitlist (min 3)</span>`;
+      } else if (isNational && !group.assessorName) {
+        statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">No assessor</span>`;
       } else if (!isNational && !group.trainerId) {
         statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">No trainer</span>`;
       } else {
@@ -2553,13 +2557,19 @@ document.addEventListener(
             isNational
               ? `
             <div class="row g-2 mb-3">
-              <div class="col-sm-6">
+              <div class="col-sm-12 col-md-4">
+                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Assessor name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control form-control-sm" data-action="assessor-name" data-group="${
+                  group.id
+                }" placeholder="Type assessor name..." value="${escapeHtml(group.assessorName || "")}" />
+              </div>
+              <div class="col-sm-6 col-md-4">
                 <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Assessment Start date <span class="text-danger">*</span></label>
                 <input type="date" class="form-control form-control-sm" data-action="start-date" data-group="${
                   group.id
                 }" value="${group.startDate || ""}" />
               </div>
-              <div class="col-sm-6">
+              <div class="col-sm-6 col-md-4">
                 <div class="d-flex align-items-center justify-content-between mb-1">
                   <label class="form-label small fw-semibold text-muted mb-0" style="font-size: 0.75rem;">Assessment End date <span class="text-danger">*</span></label>
                   <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary" data-action="auto-calc-end" data-group="${
@@ -3088,10 +3098,23 @@ document.addEventListener(
           renderGroupedBatchingUI(curCourse);
         } else if (action === "end-date") {
           group.endDate = input.value;
+        } else if (action === "assessor-name") {
+          group.assessorName = input.value;
+          updateGroupedBottomBar();
         }
       });
 
       containerEl.addEventListener("input", (e) => {
+        const assessorInput = e.target.closest('[data-action="assessor-name"]');
+        if (assessorInput) {
+          const groupId = assessorInput.dataset.group;
+          const group = groupedBatches.find((g) => g.id === groupId);
+          if (group) {
+            group.assessorName = assessorInput.value;
+          }
+          return;
+        }
+
         const searchInput = e.target.closest('[data-action="search-assigned-student"]');
         if (!searchInput) return;
         const groupId = searchInput.dataset.group;
@@ -3151,6 +3174,18 @@ document.addEventListener(
               );
               return;
             }
+          } else {
+            const missingAssessor = readyGroups.find(
+              (g) => !g.assessorName || !g.assessorName.trim()
+            );
+            if (missingAssessor) {
+              showNoticeModal(
+                `Please enter an assessor name for "${missingAssessor.scheduleTitle}" (${missingAssessor.batchLabel}).`,
+                "Assessor Name Required",
+                "warning"
+              );
+              return;
+            }
           }
 
           const missingDate = readyGroups.find((g) => !g.startDate);
@@ -3184,6 +3219,7 @@ document.addEventListener(
             const ay = academicYearEl?.value || "AY 2026–2027";
             const term = termEl?.value || "1st Semester";
             const batchKind = isNat ? "national_assessment" : "training";
+            const assessorVal = isNat ? (group.assessorName || "").trim() : "";
 
             const templateData = {
               courseId: curCourse.id,
@@ -3200,7 +3236,9 @@ document.addEventListener(
               availableFrom: group.startDate,
               availableUntil: group.endDate,
               trainerId: isNat ? "" : group.trainerId,
-              trainerName: isNat ? "" : tName,
+              trainerName: isNat ? assessorVal : tName,
+              examiner_name: assessorVal,
+              assessor_name: assessorVal,
               students: group.students,
             };
 
