@@ -1879,11 +1879,41 @@ document.addEventListener(
     */
 
     let groupedBatches = [];
+    let currentBatchingCourseId = null;
+    let recommendationsDismissed = false;
+
+    const SCHEDULE_COLOR_PALETTE = [
+      { bg: "#10b981", light: "#d1fae5", text: "#065f46", border: "#a7f3d0", name: "green" }, // 0: Green (Majority)
+      { bg: "#8b5cf6", light: "#ede9fe", text: "#5b21b6", border: "#ddd6fe", name: "purple" }, // 1: Purple (Evening / High Alt)
+      { bg: "#3b82f6", light: "#dbeafe", text: "#1e40af", border: "#bfdbfe", name: "blue" },   // 2: Blue (Morning / Day)
+      { bg: "#f59e0b", light: "#fef3c7", text: "#92400e", border: "#fde68a", name: "amber" },  // 3: Amber / Orange
+      { bg: "#06b6d4", light: "#cffafe", text: "#155e75", border: "#a5f3fc", name: "cyan" },   // 4: Cyan
+      { bg: "#ec4899", light: "#fce7f3", text: "#9d174d", border: "#fbcfe8", name: "pink" },   // 5: Pink
+      { bg: "#6366f1", light: "#e0e7ff", text: "#3730a3", border: "#c7d2fe", name: "indigo" }, // 6: Indigo
+    ];
+
+    function getScheduleColor(scheduleTitle, index = 0, isMajority = false) {
+      if (isMajority) return SCHEDULE_COLOR_PALETTE[0];
+      const text = (scheduleTitle || "").toLowerCase();
+      if (text.includes("5pm") || text.includes("9pm") || text.includes("evening")) {
+        return SCHEDULE_COLOR_PALETTE[1];
+      }
+      if (text.includes("8am") && (text.includes("mon") || text.includes("weekday") || text.includes("fri"))) {
+        return SCHEDULE_COLOR_PALETTE[2];
+      }
+      if (text.includes("sat") || text.includes("sun") || text.includes("weekend")) {
+        return SCHEDULE_COLOR_PALETTE[3];
+      }
+      return SCHEDULE_COLOR_PALETTE[(index + 1) % SCHEDULE_COLOR_PALETTE.length];
+    }
 
     function groupStudentsByPreferredSchedule(students) {
       const map = new Map();
       (students || []).forEach((s) => {
-        const pref = (s.preferredSchedule || "Standard Schedule").trim();
+        if (!s.originalPreferredSchedule) {
+          s.originalPreferredSchedule = (s.preferredSchedule || "Standard Schedule").trim();
+        }
+        const pref = s.originalPreferredSchedule;
         if (!map.has(pref)) {
           map.set(pref, []);
         }
@@ -1960,7 +1990,21 @@ document.addEventListener(
       };
     }
 
-    function initOrUpdateGroupedBatches(course, allStudents) {
+    function initOrUpdateGroupedBatches(course, allStudents, forceReset = false) {
+      if (currentBatchingCourseId !== course.id || forceReset) {
+        groupedBatches = [];
+        currentBatchingCourseId = course.id;
+        if (forceReset) {
+          recommendationsDismissed = false;
+        }
+      }
+
+      (allStudents || []).forEach((s) => {
+        if (!s.originalPreferredSchedule) {
+          s.originalPreferredSchedule = (s.preferredSchedule || "Standard Schedule").trim();
+        }
+      });
+
       const { majority, different } = groupStudentsByPreferredSchedule(allStudents);
       if (!majority) {
         groupedBatches = [];
@@ -2005,13 +2049,14 @@ document.addEventListener(
         const trainerId = existing ? existing.trainerId : defaultTrainer;
         const startDate = existing ? existing.startDate : todayStr;
         const endDate = computeEndDateForNominalDays(startDate, trainingDays, days);
+        const students = (existing && existing.students) ? existing.students : rg.students;
 
         return {
           id: rg.id,
           isMajority: rg.isMajority,
           scheduleTitle: rg.scheduleTitle,
-          students: rg.students,
-          count: rg.students.length,
+          students: students,
+          count: students.length,
           batchLabel: rg.label,
           type,
           days,
@@ -2026,6 +2071,212 @@ document.addEventListener(
           endDate,
         };
       });
+    }
+
+    function renderBatchingRecommendationsHtml(course, allStudents) {
+      if (recommendationsDismissed) {
+        return `
+          <div class="card p-2 px-3 border rounded-3 bg-white shadow-sm mb-4">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="small text-muted"><i class="bi bi-info-circle me-1 text-primary"></i>System recommendations are currently hidden.</span>
+              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none fw-semibold" data-action="show-recs" style="font-size: 0.775rem;">
+                <i class="bi bi-eye me-1"></i>Show recommendations
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      const prefMap = new Map();
+      (allStudents || []).forEach((s) => {
+        const pref = (s.originalPreferredSchedule || s.preferredSchedule || "Standard Schedule").trim();
+        if (!prefMap.has(pref)) prefMap.set(pref, []);
+        prefMap.get(pref).push(s);
+      });
+
+      const totalStudents = allStudents.length;
+      if (!totalStudents || !prefMap.size) return "";
+
+      const sortedPrefs = [...prefMap.entries()].sort((a, b) => b[1].length - a[1].length);
+      const topCount = sortedPrefs[0][1].length;
+      const topPct = Math.round((topCount / totalStudents) * 100);
+      const has70Majority = topPct >= 70;
+
+      // 1. Preferred Schedules Distribution Rows
+      const distRowsHtml = sortedPrefs
+        .map(([sched, stList], idx) => {
+          const count = stList.length;
+          const pct = Math.round((count / totalStudents) * 100);
+          const color = getScheduleColor(sched, idx, idx === 0);
+          return `
+            <div class="d-flex align-items-center gap-2" style="font-size: 0.825rem;">
+              <span class="d-inline-block rounded-circle flex-shrink-0" style="width: 10px; height: 10px; background-color: ${color.bg};"></span>
+              <span class="fw-semibold text-dark text-truncate" style="min-width: 130px; max-width: 180px;" title="${escapeHtml(sched)}">
+                ${escapeHtml(sched)}
+              </span>
+              <div class="progress flex-grow-1" style="height: 10px; background-color: #f1f5f9; border-radius: 999px;">
+                <div class="progress-bar" role="progressbar" style="width: ${pct}%; background-color: ${color.bg}; border-radius: 999px;" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"></div>
+              </div>
+              <span class="fw-bold text-muted text-nowrap flex-shrink-0 ms-1" style="font-size: 0.8rem;">
+                ${count} · ${pct}%
+              </span>
+            </div>
+          `;
+        })
+        .join("");
+
+      // 2. System Recommendations Rows
+      const majorityGroup = groupedBatches.find((b) => b.isMajority) || groupedBatches[0];
+      const recs = [];
+      let hasMergeable = false;
+
+      groupedBatches.forEach((group, gIdx) => {
+        const groupColor = getScheduleColor(group.scheduleTitle, gIdx, group.isMajority);
+        if (group.isMajority || group.count >= MIN_STUDENTS_TO_FINALIZE) {
+          recs.push({
+            type: "own_batch",
+            sourceGroup: group,
+            color: groupColor,
+            count: group.count,
+            meetsMin: group.count >= MIN_STUDENTS_TO_FINALIZE,
+          });
+        } else if (group.count > 0) {
+          hasMergeable = true;
+          const srcText = (group.scheduleTitle || "").toLowerCase();
+          const isSrcWeekend = srcText.includes("sat") || srcText.includes("sun");
+          let target = null;
+          if (isSrcWeekend) {
+            target =
+              groupedBatches.find(
+                (b) => b.id !== group.id && (b.scheduleTitle || "").toLowerCase().includes("sat")
+              ) || majorityGroup;
+          } else {
+            target =
+              groupedBatches.find(
+                (b) => b.id !== group.id && !((b.scheduleTitle || "").toLowerCase().includes("sat"))
+              ) || majorityGroup;
+          }
+          if (!target || target.id === group.id) {
+            target = majorityGroup;
+          }
+
+          const targetIdx = groupedBatches.findIndex((b) => b.id === target.id);
+          const targetColor = getScheduleColor(target.scheduleTitle, targetIdx, target.isMajority);
+
+          let targetShort = target.scheduleTitle;
+          if (targetShort.toLowerCase().includes("mon") && targetShort.toLowerCase().includes("fri")) {
+            targetShort = "Mon-Fri";
+          } else if (targetShort.toLowerCase().includes("sat") && targetShort.toLowerCase().includes("sun")) {
+            targetShort = "Sat-Sun";
+          }
+
+          recs.push({
+            type: "merge",
+            sourceGroup: group,
+            targetGroup: target,
+            sourceColor: groupColor,
+            targetColor: targetColor,
+            count: group.count,
+            targetShort,
+            meetsMin: false,
+          });
+        }
+      });
+
+      const recRowsHtml = recs
+        .map((rec) => {
+          if (rec.type === "own_batch") {
+            return `
+              <div class="d-flex align-items-center justify-content-between p-2 px-3 rounded-3 bg-light border border-light-subtle" style="font-size: 0.825rem;">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background-color: ${rec.color.bg};"></span>
+                  <span class="fw-bold text-dark">${rec.count}</span>
+                  <span class="text-muted fw-bold">=</span>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fw-semibold batching-rec-pill">Own batch</span>
+                  <span class="badge bg-success-subtle text-success border-0 px-2 py-1 fw-semibold batching-rec-pill">
+                    <i class="bi bi-check2 me-1"></i>meets min ${MIN_STUDENTS_TO_FINALIZE}
+                  </span>
+                </div>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="d-flex align-items-center justify-content-between p-2 px-3 rounded-3 bg-light border border-light-subtle" style="font-size: 0.825rem;">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background-color: ${rec.sourceColor.bg};"></span>
+                  <span class="fw-bold text-dark">${rec.count}</span>
+                  <span class="text-muted fw-bold">➔</span>
+                  <span class="d-inline-block rounded-circle" style="width: 10px; height: 10px; background-color: ${rec.targetColor.bg};"></span>
+                  <span class="fw-semibold text-dark">${escapeHtml(rec.targetShort)}</span>
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 fw-semibold batching-rec-pill">Below min</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-semibold shadow-sm" data-action="apply-rec" data-source="${rec.sourceGroup.id}" data-target="${rec.targetGroup.id}" style="font-size: 0.75rem;">
+                  Apply
+                </button>
+              </div>
+            `;
+          }
+        })
+        .join("");
+
+      return `
+        <div class="card p-3 p-md-4 border-0 shadow-sm rounded-4 mb-4 bg-white" id="batching-recommendation-panel">
+          <div class="row g-4 align-items-stretch">
+            <!-- LEFT: Preferred schedules -->
+            <div class="col-lg-6 d-flex flex-column justify-content-between pe-lg-4 border-end-lg">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <h6 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-pie-chart text-success fs-6"></i>
+                    Preferred schedules
+                  </h6>
+                </div>
+                <div class="d-flex flex-column gap-3 mb-3">
+                  ${distRowsHtml}
+                </div>
+              </div>
+              <div class="pt-2">
+                ${
+                  has70Majority
+                    ? `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 small fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>70%+ majority</span>`
+                    : `<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 small fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>No 70% majority</span>`
+                }
+              </div>
+            </div>
+
+            <!-- RIGHT: System recommendation -->
+            <div class="col-lg-6 ps-lg-4 d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <h6 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                    <i class="bi bi-gear-wide-connected text-secondary fs-6"></i>
+                    System recommendation
+                  </h6>
+                  ${
+                    hasMergeable
+                      ? `<button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1 fw-semibold shadow-sm" data-action="accept-all-recs" style="font-size: 0.775rem;">Accept all</button>`
+                      : `<button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-semibold disabled" style="font-size: 0.775rem;" disabled>Accept all</button>`
+                  }
+                </div>
+                <div class="d-flex flex-column gap-2 mb-3">
+                  ${recRowsHtml || `<div class="text-muted small py-2">No recommendations needed. All batches meet minimum.</div>`}
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2 pt-2 border-top">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 small fw-semibold" data-action="modify-recs" title="Customize batch assignments" style="font-size: 0.75rem;">
+                  ✋ Modify
+                </button>
+                <button type="button" class="btn btn-sm btn-light border text-secondary rounded-pill px-3 py-1 small fw-semibold" data-action="dismiss-recs" style="font-size: 0.75rem;">
+                  Dismiss
+                </button>
+                <button type="button" class="btn btn-sm btn-light border text-secondary rounded-pill px-3 py-1 small fw-semibold" data-action="reset-recs" style="font-size: 0.75rem;">
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function renderScheduleCardHtml(group, course, qualifiedTrainers) {
@@ -2127,17 +2378,65 @@ document.addEventListener(
               const phone = escapeHtml(s.phoneNumber || "");
               const ref = escapeHtml(s.referenceId || "");
               const searchHay = `${name} ${email} ${phone} ${ref}`.toLowerCase();
+
+              const origPref = s.originalPreferredSchedule || s.preferredSchedule || group.scheduleTitle;
+              const isMoved = origPref.trim().toLowerCase() !== group.scheduleTitle.trim().toLowerCase();
+              const prefColor = getScheduleColor(origPref, 0, false);
+
+              const prefBadge = isMoved
+                ? `<span class="badge border bg-warning-subtle text-dark ms-1 d-inline-flex align-items-center gap-1" style="font-size: 0.65rem; border-color: ${prefColor.border} !important;" title="Original preference: ${escapeHtml(origPref)}">
+                     <span class="d-inline-block rounded-circle" style="width: 6px; height: 6px; background-color: ${prefColor.bg};"></span>
+                     Prefers: ${escapeHtml(origPref)}
+                   </span>`
+                : `<span class="badge border bg-light text-muted ms-1 d-inline-flex align-items-center gap-1" style="font-size: 0.65rem;" title="Preferred time: ${escapeHtml(origPref)}">
+                     <span class="d-inline-block rounded-circle" style="width: 6px; height: 6px; background-color: ${prefColor.bg};"></span>
+                     ${escapeHtml(origPref)}
+                   </span>`;
+
+              const otherGroups = groupedBatches.filter((b) => b.id !== group.id);
+              const moveOptions = otherGroups
+                .map(
+                  (og) =>
+                    `<li><a class="dropdown-item py-1 small" href="#" data-action="move-single-student" data-student-id="${escapeHtml(
+                      s.id || s.referenceId
+                    )}" data-source-group="${group.id}" data-target-group="${og.id}"><i class="bi bi-arrow-right me-1 text-primary"></i>Move to ${escapeHtml(
+                      og.batchLabel
+                    )} (${escapeHtml(og.scheduleTitle)})</a></li>`
+                )
+                .join("");
+
               return `
                 <tr data-student-search="${escapeHtml(searchHay)}">
                   <td class="text-muted small py-1 ps-2 align-middle" style="width: 32px;">${idx + 1}</td>
                   <td class="py-1 align-middle">
-                    <div class="fw-semibold text-dark text-truncate" style="max-width: 190px;" title="${name}">
-                      <i class="bi bi-person me-1 text-secondary"></i>${name}
+                    <div class="d-flex align-items-center flex-wrap gap-1">
+                      <span class="fw-semibold text-dark text-truncate" style="max-width: 170px;" title="${name}">
+                        <i class="bi bi-person me-1 text-secondary"></i>${name}
+                      </span>
+                      ${prefBadge}
                     </div>
                   </td>
                   <td class="py-1 align-middle text-muted" style="font-size: 0.725rem;">
-                    ${email ? `<div class="text-truncate" style="max-width: 140px;" title="${email}">${email}</div>` : ""}
-                    ${phone || ref ? `<span class="font-monospace text-secondary">${phone || ref}</span>` : (!email ? "-" : "")}
+                    <div class="d-flex align-items-center justify-content-between gap-1">
+                      <div class="text-truncate" style="max-width: 120px;" title="${email || phone || ref}">
+                        ${email || phone || ref || "-"}
+                      </div>
+                      ${
+                        otherGroups.length
+                          ? `
+                        <div class="dropdown">
+                          <button class="btn btn-sm btn-link p-0 text-muted" type="button" data-bs-toggle="dropdown" title="Move student to another batch" style="line-height: 1;">
+                            <i class="bi bi-three-dots-vertical" style="font-size: 0.75rem;"></i>
+                          </button>
+                          <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="font-size: 0.75rem;">
+                            <li class="dropdown-header small text-muted py-1">Move to batch:</li>
+                            ${moveOptions}
+                          </ul>
+                        </div>
+                      `
+                          : ""
+                      }
+                    </div>
                   </td>
                 </tr>
               `;
@@ -2426,6 +2725,16 @@ document.addEventListener(
 
       initOrUpdateGroupedBatches(course, allStudents);
 
+      const recsWrapperEl = document.getElementById(
+        "batching-recommendations-wrapper"
+      );
+      if (recsWrapperEl) {
+        recsWrapperEl.innerHTML = renderBatchingRecommendationsHtml(
+          course,
+          allStudents
+        );
+      }
+
       const qualified = qualifiedTrainersForCourse(course);
       const majorityGroup = groupedBatches.find((b) => b.isMajority);
       const differentGroups = groupedBatches.filter((b) => !b.isMajority);
@@ -2455,16 +2764,17 @@ document.addEventListener(
         </div>
       `;
 
-      if (!differentGroups.length) {
+      const activeDifferentGroups = differentGroups.filter((g) => g.count > 0);
+      if (!activeDifferentGroups.length) {
         diffHtml += `
           <div class="card p-4 text-center border-dashed rounded-3 bg-light text-muted">
             <i class="bi bi-check2-all fs-4 text-success mb-1"></i>
-            <div class="small fw-semibold">No alternative schedules requested</div>
+            <div class="small fw-semibold">${differentGroups.length ? "All alternative students moved to other batches" : "No alternative schedules requested"}</div>
             <div class="small" style="font-size: 0.75rem;">All students enrolled in the majority schedule track.</div>
           </div>
         `;
       } else {
-        diffHtml += differentGroups
+        diffHtml += activeDifferentGroups
           .map((g) => renderScheduleCardHtml(g, course, qualified))
           .join("");
       }
@@ -2491,6 +2801,119 @@ document.addEventListener(
         if (!curCourse) return;
 
         const action = btn.dataset.action;
+
+        // Recommendation & Global Batching Actions
+        if (action === "apply-rec") {
+          const srcId = btn.dataset.source;
+          const tgtId = btn.dataset.target;
+          const srcGroup = groupedBatches.find((g) => g.id === srcId);
+          const tgtGroup = groupedBatches.find((g) => g.id === tgtId);
+          if (srcGroup && tgtGroup && srcGroup.students.length) {
+            srcGroup.students.forEach((s) => {
+              if (!s.originalPreferredSchedule) {
+                s.originalPreferredSchedule = srcGroup.scheduleTitle;
+              }
+            });
+            tgtGroup.students.push(...srcGroup.students);
+            tgtGroup.count = tgtGroup.students.length;
+            srcGroup.students = [];
+            srcGroup.count = 0;
+            renderGroupedBatchingUI(curCourse);
+          }
+          return;
+        }
+
+        if (action === "accept-all-recs") {
+          const majorityGroup =
+            groupedBatches.find((b) => b.isMajority) || groupedBatches[0];
+          groupedBatches.forEach((g) => {
+            if (!g.isMajority && g.count < MIN_STUDENTS_TO_FINALIZE && g.count > 0) {
+              const srcText = (g.scheduleTitle || "").toLowerCase();
+              const isSrcWeekend = srcText.includes("sat") || srcText.includes("sun");
+              let tgt = null;
+              if (isSrcWeekend) {
+                tgt =
+                  groupedBatches.find(
+                    (b) => b.id !== g.id && (b.scheduleTitle || "").toLowerCase().includes("sat")
+                  ) || majorityGroup;
+              } else {
+                tgt =
+                  groupedBatches.find(
+                    (b) => b.id !== g.id && !((b.scheduleTitle || "").toLowerCase().includes("sat"))
+                  ) || majorityGroup;
+              }
+              if (!tgt || tgt.id === g.id) tgt = majorityGroup;
+              if (tgt && tgt.id !== g.id) {
+                g.students.forEach((s) => {
+                  if (!s.originalPreferredSchedule) s.originalPreferredSchedule = g.scheduleTitle;
+                });
+                tgt.students.push(...g.students);
+                tgt.count = tgt.students.length;
+                g.students = [];
+                g.count = 0;
+              }
+            }
+          });
+          renderGroupedBatchingUI(curCourse);
+          return;
+        }
+
+        if (action === "reset-recs") {
+          const allStudents =
+            curCourse.batches &&
+            curCourse.batches[0] &&
+            Array.isArray(curCourse.batches[0].students)
+              ? curCourse.batches[0].students
+              : [];
+          initOrUpdateGroupedBatches(curCourse, allStudents, true);
+          renderGroupedBatchingUI(curCourse);
+          return;
+        }
+
+        if (action === "dismiss-recs") {
+          recommendationsDismissed = true;
+          renderGroupedBatchingUI(curCourse);
+          return;
+        }
+
+        if (action === "show-recs") {
+          recommendationsDismissed = false;
+          renderGroupedBatchingUI(curCourse);
+          return;
+        }
+
+        if (action === "modify-recs") {
+          document
+            .getElementById("batching-different-column")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+
+        if (action === "move-single-student") {
+          e.preventDefault();
+          const studentId = btn.dataset.studentId;
+          const srcId = btn.dataset.sourceGroup;
+          const tgtId = btn.dataset.targetGroup;
+          const srcGroup = groupedBatches.find((g) => g.id === srcId);
+          const tgtGroup = groupedBatches.find((g) => g.id === tgtId);
+          if (srcGroup && tgtGroup) {
+            const sIdx = srcGroup.students.findIndex(
+              (s) => String(s.id || s.referenceId) === String(studentId)
+            );
+            if (sIdx !== -1) {
+              const [st] = srcGroup.students.splice(sIdx, 1);
+              if (!st.originalPreferredSchedule) {
+                st.originalPreferredSchedule = srcGroup.scheduleTitle;
+              }
+              tgtGroup.students.push(st);
+              srcGroup.count = srcGroup.students.length;
+              tgtGroup.count = tgtGroup.students.length;
+              renderGroupedBatchingUI(curCourse);
+            }
+          }
+          return;
+        }
+
         const groupId = btn.dataset.group;
         const group = groupedBatches.find((g) => g.id === groupId);
         if (!group) return;

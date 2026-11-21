@@ -265,10 +265,28 @@
     background-color: #cbd5e1;
     border-radius: 3px;
   }
+  .border-end-lg {
+    border-right: 1px solid #e2e8f0;
+  }
+  @media (max-width: 991.98px) {
+    .border-end-lg {
+      border-right: none;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+  }
+  .batching-rec-pill {
+    font-size: 0.725rem;
+    font-weight: 600;
+  }
 </style>
 
     <!-- Dual-Column Preferred Schedule Grouping (Institutional Competency) -->
     <div id="batching-grouped-container" class="mb-4 d-none">
+      <!-- Recommendations & Preferred Schedules Summary (System Recommendation & Distribution) -->
+      <div id="batching-recommendations-wrapper" class="mb-4"></div>
+
       <div class="row g-4 align-items-start">
         <!-- LEFT: Majority Schedule Column -->
         <div class="col-lg-6" id="batching-majority-column"></div>
