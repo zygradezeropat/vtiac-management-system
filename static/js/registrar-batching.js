@@ -1865,6 +1865,920 @@ document.addEventListener(
           pendingNoticeEl.classList.add("d-none");
         }
       }
+
+      renderGroupedBatchingUI(course);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | DUAL-COLUMN PREFERRED SCHEDULE GROUPING (INSTITUTIONAL BATCHING)
+    |--------------------------------------------------------------------------
+    | Auto-groups students by preferred schedule:
+    | Left: Majority schedule
+    | Right: Different schedule(s)
+    */
+
+    let groupedBatches = [];
+
+    function groupStudentsByPreferredSchedule(students) {
+      const map = new Map();
+      (students || []).forEach((s) => {
+        const pref = (s.preferredSchedule || "Standard Schedule").trim();
+        if (!map.has(pref)) {
+          map.set(pref, []);
+        }
+        map.get(pref).push(s);
+      });
+
+      const sorted = [...map.entries()].sort((a, b) => b[1].length - a[1].length);
+      if (!sorted.length) return { majority: null, different: [] };
+
+      const majority = {
+        scheduleTitle: sorted[0][0],
+        students: sorted[0][1],
+      };
+      const different = sorted.slice(1).map(([scheduleTitle, groupStudents]) => ({
+        scheduleTitle,
+        students: groupStudents,
+      }));
+
+      return { majority, different };
+    }
+
+    function parseScheduleDefaults(scheduleTitle, nominalDays = 24, nominalHours = 192) {
+      const text = (scheduleTitle || "").toLowerCase();
+      let type = "weekdays";
+      let days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+      let timeFrom = "08:00";
+      let timeTo = "17:00";
+      let preset = "full-day";
+      let dailyHours = 8;
+      let deduction = "1 hr/day deduction";
+
+      if (text.includes("sat") || text.includes("sun") || text.includes("weekend")) {
+        type = "weekends";
+        days = ["Sat", "Sun"];
+      }
+
+      if (text.includes("5pm") || text.includes("9pm") || text.includes("evening")) {
+        timeFrom = "17:00";
+        timeTo = "21:00";
+        preset = "evening";
+        dailyHours = 4;
+        deduction = "No lunch deduction";
+      } else if (text.includes("1pm") || text.includes("afternoon")) {
+        timeFrom = "13:00";
+        timeTo = "17:00";
+        preset = "afternoon";
+        dailyHours = 4;
+        deduction = "No lunch deduction";
+      } else if (text.includes("8am") && text.includes("12pm") && !text.includes("5pm")) {
+        timeFrom = "08:00";
+        timeTo = "12:00";
+        preset = "morning";
+        dailyHours = 4;
+        deduction = "No lunch deduction";
+      } else {
+        timeFrom = "08:00";
+        timeTo = "17:00";
+        preset = "full-day";
+        dailyHours = 8;
+        deduction = "1 hr/day deduction";
+      }
+
+      const trainingDays = Math.max(1, Math.ceil((nominalHours || 192) / dailyHours));
+
+      return {
+        type,
+        days,
+        timeFrom,
+        timeTo,
+        preset,
+        dailyHours,
+        deduction,
+        trainingDays,
+      };
+    }
+
+    function initOrUpdateGroupedBatches(course, allStudents) {
+      const { majority, different } = groupStudentsByPreferredSchedule(allStudents);
+      if (!majority) {
+        groupedBatches = [];
+        return;
+      }
+
+      const nominalDays = courseDurationDays(course) || 24;
+      const nominalHours = (course.nominalHours || (nominalDays * 8)) || 192;
+      const qualified = qualifiedTrainersForCourse(course);
+      const defaultTrainer = qualified.length > 0 ? qualified[0].id : "";
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      const rawGroups = [
+        { isMajority: true, ...majority, label: "Batch 1", id: "majority" },
+        ...different.map((d, i) => ({
+          isMajority: false,
+          ...d,
+          label: `Batch ${i + 2}`,
+          id: `diff-${i}`,
+        })),
+      ];
+
+      groupedBatches = rawGroups.map((rg) => {
+        const existing = groupedBatches.find(
+          (b) => b.id === rg.id && b.scheduleTitle === rg.scheduleTitle
+        );
+        const defaults = parseScheduleDefaults(rg.scheduleTitle, nominalDays, nominalHours);
+
+        const type = existing ? existing.type : defaults.type;
+        const days = existing ? existing.days : defaults.days;
+        const timeFrom = existing ? existing.timeFrom : defaults.timeFrom;
+        const timeTo = existing ? existing.timeTo : defaults.timeTo;
+        const preset = existing ? existing.preset : defaults.preset;
+        const dailyHours = existing ? existing.dailyHours : defaults.dailyHours;
+        const deduction = existing ? existing.deduction : defaults.deduction;
+        const trainingDays = existing ? existing.trainingDays : defaults.trainingDays;
+        const trainerId = existing ? existing.trainerId : defaultTrainer;
+        const startDate = existing ? existing.startDate : todayStr;
+        const endDate = computeEndDateForNominalDays(startDate, trainingDays, days);
+
+        return {
+          id: rg.id,
+          isMajority: rg.isMajority,
+          scheduleTitle: rg.scheduleTitle,
+          students: rg.students,
+          count: rg.students.length,
+          batchLabel: rg.label,
+          type,
+          days,
+          timeFrom,
+          timeTo,
+          preset,
+          dailyHours,
+          deduction,
+          trainingDays,
+          trainerId,
+          startDate,
+          endDate,
+        };
+      });
+    }
+
+    function renderScheduleCardHtml(group, course, qualifiedTrainers) {
+      const isMaj = group.isMajority;
+      const cardBorderClass = isMaj
+        ? "batching-schedule-card--majority"
+        : "batching-schedule-card--different";
+      const count = group.students.length;
+      const isReady = count >= MIN_STUDENTS_TO_FINALIZE;
+      const capacityText = `${count} / 25 students · min ${MIN_STUDENTS_TO_FINALIZE}`;
+
+      const countBadge = `<span class="badge ${
+        isMaj
+          ? "bg-success-subtle text-success border border-success-subtle"
+          : "bg-warning-subtle text-warning border border-warning-subtle"
+      } px-2 py-1">${count} students</span>`;
+
+      let statusBadge = "";
+      if (isMaj) {
+        statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Auto-grouped</span>`;
+      } else if (!isReady) {
+        statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Waitlist (min 3)</span>`;
+      } else if (!group.trainerId) {
+        statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">No trainer</span>`;
+      } else {
+        statusBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Ready</span>`;
+      }
+
+      const types = [
+        { key: "weekdays", label: "Weekdays (Mon-Fri)" },
+        { key: "weekends", label: "Weekends (Sat-Sun)" },
+        { key: "custom", label: "Custom (Pick days)" },
+      ];
+      const typePillsHtml = types
+        .map(
+          (t) => `
+        <button type="button" class="batching-pill-btn ${
+          group.type === t.key ? "is-active" : ""
+        }" data-action="set-type" data-group="${group.id}" data-type="${t.key}">
+          ${t.label}
+        </button>
+      `
+        )
+        .join("");
+
+      const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      const daysHtml = dayNames
+        .map((d) => {
+          const active = group.days.includes(d);
+          return `
+          <button type="button" class="batching-day-btn ${
+            active ? "is-active" : ""
+          }" data-action="toggle-day" data-group="${group.id}" data-day="${d}">
+            ${d}
+          </button>
+        `;
+        })
+        .join("");
+
+      const presets = [
+        { key: "morning", label: "Morning (8AM-12PM)" },
+        { key: "afternoon", label: "Afternoon (1PM-5PM)" },
+        { key: "full-day", label: "Full-day (8AM-5PM)" },
+        { key: "evening", label: "Evening (5PM-9PM)" },
+      ];
+      const presetsHtml = presets
+        .map(
+          (p) => `
+        <button type="button" class="batching-preset-btn ${
+          group.preset === p.key ? "is-active" : ""
+        }" data-action="set-preset" data-group="${group.id}" data-preset="${p.key}">
+          ${p.label}
+        </button>
+      `
+        )
+        .join("");
+
+      const trainerOptions = [
+        `<option value="">Select trainer</option>`,
+        ...qualifiedTrainers.map(
+          (t) => `
+          <option value="${escapeHtml(t.id)}"${
+            String(t.id) === String(group.trainerId) ? " selected" : ""
+          }>
+            ${escapeHtml(t.name)}
+          </option>
+        `
+        ),
+      ].join("");
+
+      const studentTableRows = group.students.length
+        ? group.students
+            .map((s, idx) => {
+              const l = escapeHtml(s.lastName || "");
+              const f = escapeHtml(s.firstName || "");
+              const m = escapeHtml(s.middleName || "");
+              const name = `${l}, ${f}${m ? " " + m : ""}`;
+              const email = escapeHtml(s.email || "");
+              const phone = escapeHtml(s.phoneNumber || "");
+              const ref = escapeHtml(s.referenceId || "");
+              const searchHay = `${name} ${email} ${phone} ${ref}`.toLowerCase();
+              return `
+                <tr data-student-search="${escapeHtml(searchHay)}">
+                  <td class="text-muted small py-1 ps-2 align-middle" style="width: 32px;">${idx + 1}</td>
+                  <td class="py-1 align-middle">
+                    <div class="fw-semibold text-dark text-truncate" style="max-width: 190px;" title="${name}">
+                      <i class="bi bi-person me-1 text-secondary"></i>${name}
+                    </div>
+                  </td>
+                  <td class="py-1 align-middle text-muted" style="font-size: 0.725rem;">
+                    ${email ? `<div class="text-truncate" style="max-width: 140px;" title="${email}">${email}</div>` : ""}
+                    ${phone || ref ? `<span class="font-monospace text-secondary">${phone || ref}</span>` : (!email ? "-" : "")}
+                  </td>
+                </tr>
+              `;
+            })
+            .join("")
+        : `<tr><td colspan="3" class="text-center text-muted py-2 small">No students assigned</td></tr>`;
+
+      const nominalHours =
+        course.nominalHours || (courseDurationDays(course) * 8) || 192;
+      const calcNote = `${group.deduction} · ${group.trainingDays} training days for ${nominalHours} hrs`;
+
+      let endsOnText = "";
+      if (group.endDate) {
+        try {
+          const d = new Date(group.endDate + "T00:00:00");
+          endsOnText = `Ends on: ${d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}`;
+        } catch {
+          endsOnText = `Ends on: ${group.endDate}`;
+        }
+      }
+
+      return `
+        <div class="card p-3 p-md-4 batching-schedule-card ${cardBorderClass} mb-4" id="batching-card-${
+        group.id
+      }">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+            <div class="d-flex align-items-center gap-2">
+              ${
+                isMaj
+                  ? `<span class="fw-bold text-success fs-6"><i class="bi bi-check-circle-fill me-1"></i> Majority schedule</span>`
+                  : `<span class="fw-bold text-dark fs-6"><i class="bi bi-dot text-primary fs-4 align-middle"></i> ${escapeHtml(
+                      group.scheduleTitle
+                    )}</span>`
+              }
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              ${countBadge}
+              ${statusBadge}
+            </div>
+          </div>
+
+          ${
+            isMaj
+              ? `
+            <div class="mb-2">
+              <span class="fw-semibold text-dark small">• ${escapeHtml(
+                group.scheduleTitle
+              )}</span>
+            </div>
+          `
+              : ""
+          }
+
+          <div class="text-muted small mb-3">
+            ${capacityText}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-muted d-block mb-1">Schedule type</label>
+            <div class="d-flex flex-wrap gap-1">
+              ${typePillsHtml}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label class="form-label small fw-semibold text-muted mb-0">Days of the week</label>
+              <span class="text-muted small" style="font-size: 0.75rem;">${
+                group.days.length
+              } days / week</span>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              ${daysHtml}
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <div class="row g-2 align-items-center">
+              <div class="col-sm-5">
+                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Time from</label>
+                <input type="time" class="form-control form-control-sm" data-action="time-from" data-group="${
+                  group.id
+                }" value="${group.timeFrom}" />
+              </div>
+              <div class="col-sm-5">
+                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Time to</label>
+                <input type="time" class="form-control form-control-sm" data-action="time-to" data-group="${
+                  group.id
+                }" value="${group.timeTo}" />
+              </div>
+              <div class="col-sm-2 text-sm-end pt-sm-3">
+                <span class="badge bg-success text-white py-1 px-2" style="font-size: 0.75rem;">${
+                  group.dailyHours
+                } hrs/day</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <div class="d-flex flex-wrap gap-1">
+              ${presetsHtml}
+            </div>
+            <div class="text-muted mt-1" style="font-size: 0.75rem;">
+              <i class="bi bi-info-circle me-1"></i>${calcNote}
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-sm-12 col-md-4">
+              <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Assigned trainer <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" data-action="select-trainer" data-group="${
+                group.id
+              }">
+                ${trainerOptions}
+              </select>
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Start date <span class="text-danger">*</span></label>
+              <input type="date" class="form-control form-control-sm" data-action="start-date" data-group="${
+                group.id
+              }" value="${group.startDate || ""}" />
+            </div>
+            <div class="col-sm-6 col-md-4">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label small fw-semibold text-muted mb-0" style="font-size: 0.75rem;">End date <span class="text-danger">*</span></label>
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary" data-action="auto-calc-end" data-group="${
+                  group.id
+                }" style="font-size: 0.7rem;" title="Auto-calculate end date">
+                  <i class="bi bi-magic me-1"></i>Auto (${group.trainingDays}d)
+                </button>
+              </div>
+              <input type="date" class="form-control form-control-sm" data-action="end-date" data-group="${
+                group.id
+              }" value="${group.endDate || ""}" />
+            </div>
+          </div>
+
+          <div class="pt-3 border-top">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="small fw-semibold text-dark" style="font-size: 0.8rem;">
+                  <i class="bi bi-people me-1 text-muted"></i>Assigned students
+                </span>
+                <span class="badge bg-secondary-subtle text-secondary border py-0 px-2" id="batching-assigned-count-${group.id}" style="font-size: 0.725rem;">
+                  ${count}
+                </span>
+              </div>
+              <div style="min-width: 160px; max-width: 220px; flex-grow: 1;">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-white border-end-0 py-0 text-muted" style="font-size: 0.72rem;">
+                    <i class="bi bi-search"></i>
+                  </span>
+                  <input
+                    type="text"
+                    class="form-control form-control-sm border-start-0 ps-1"
+                    placeholder="Search student..."
+                    data-action="search-assigned-student"
+                    data-group="${group.id}"
+                    style="font-size: 0.75rem;"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="table-responsive border rounded bg-white" style="max-height: 185px; overflow-y: auto;">
+              <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.775rem;">
+                <thead class="table-light sticky-top" style="z-index: 1;">
+                  <tr>
+                    <th class="text-muted fw-semibold py-1 ps-2" style="width: 32px; font-size: 0.72rem;">#</th>
+                    <th class="text-muted fw-semibold py-1" style="font-size: 0.72rem;">Student Name</th>
+                    <th class="text-muted fw-semibold py-1" style="font-size: 0.72rem;">Contact / Ref</th>
+                  </tr>
+                </thead>
+                <tbody id="batching-assigned-tbody-${group.id}">
+                  ${studentTableRows}
+                  <tr id="batching-assigned-empty-${group.id}" class="d-none">
+                    <td colspan="3" class="text-center text-muted py-3 small">
+                      <i class="bi bi-search me-1"></i>No matching students found
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateGroupedBottomBar() {
+      const readyBadge = document.getElementById("batching-ready-badge");
+      const readyCountEl = document.getElementById(
+        "batching-ready-batches-count"
+      );
+      const waitlistBadge = document.getElementById(
+        "batching-waitlist-badge"
+      );
+      const waitlistCountEl = document.getElementById(
+        "batching-waitlist-students-count"
+      );
+      const saveBtn = document.getElementById(
+        "btn-save-grouped-schedules"
+      );
+
+      const readyBatches = groupedBatches.filter(
+        (g) => g.count >= MIN_STUDENTS_TO_FINALIZE
+      );
+      const waitlistStudents = groupedBatches
+        .filter((g) => g.count < MIN_STUDENTS_TO_FINALIZE)
+        .reduce((sum, g) => sum + g.count, 0);
+
+      if (readyCountEl) {
+        readyCountEl.textContent = String(readyBatches.length);
+      }
+      if (readyBadge) {
+        readyBadge.classList.toggle("d-none", readyBatches.length === 0);
+      }
+      if (waitlistBadge && waitlistCountEl) {
+        waitlistCountEl.textContent = String(waitlistStudents);
+        waitlistBadge.classList.toggle("d-none", waitlistStudents === 0);
+      }
+      if (saveBtn) {
+        saveBtn.disabled = readyBatches.length === 0;
+      }
+    }
+
+    function renderGroupedBatchingUI(course) {
+      const containerEl = document.getElementById(
+        "batching-grouped-container"
+      );
+      const majorityColEl = document.getElementById(
+        "batching-majority-column"
+      );
+      const differentColEl = document.getElementById(
+        "batching-different-column"
+      );
+      const enrolledRosterEl = document.getElementById(
+        "batching-enrolled-roster"
+      );
+      const scheduleFormEl = document.getElementById(
+        "schedule-template-form"
+      );
+
+      if (!containerEl || !majorityColEl || !differentColEl) return;
+
+      const isNational =
+        batchingCourseCategory(course) === "national";
+      if (!course || isNational) {
+        containerEl.classList.add("d-none");
+        enrolledRosterEl?.classList.remove("d-none");
+        scheduleFormEl?.classList.remove("d-none");
+        return;
+      }
+
+      containerEl.classList.remove("d-none");
+      enrolledRosterEl?.classList.add("d-none");
+      scheduleFormEl?.classList.add("d-none");
+
+      const allStudents =
+        course.batches &&
+        course.batches[0] &&
+        Array.isArray(course.batches[0].students)
+          ? course.batches[0].students
+          : [];
+
+      if (!allStudents.length) {
+        majorityColEl.innerHTML = `
+          <div class="alert alert-light text-center py-5 border rounded-3 w-100">
+            <i class="bi bi-people display-6 text-muted mb-2 d-block"></i>
+            <p class="text-muted mb-0">No unassigned enrolled students found for this program at the moment.</p>
+          </div>
+        `;
+        differentColEl.innerHTML = "";
+        document
+          .getElementById("batching-multi-save-bar")
+          ?.classList.add("d-none");
+        return;
+      }
+
+      document
+        .getElementById("batching-multi-save-bar")
+        ?.classList.remove("d-none");
+
+      initOrUpdateGroupedBatches(course, allStudents);
+
+      const qualified = qualifiedTrainersForCourse(course);
+      const majorityGroup = groupedBatches.find((b) => b.isMajority);
+      const differentGroups = groupedBatches.filter((b) => !b.isMajority);
+
+      if (majorityGroup) {
+        majorityColEl.innerHTML = renderScheduleCardHtml(
+          majorityGroup,
+          course,
+          qualified
+        );
+      } else {
+        majorityColEl.innerHTML = "";
+      }
+
+      const totalDifferentStudents = differentGroups.reduce(
+        (acc, g) => acc + g.count,
+        0
+      );
+      let diffHtml = `
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span class="fw-bold fs-6" style="color: #d97706 !important;">
+            <i class="bi bi-shuffle me-1"></i> Different schedule
+          </span>
+          <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+            ${totalDifferentStudents} students
+          </span>
+        </div>
+      `;
+
+      if (!differentGroups.length) {
+        diffHtml += `
+          <div class="card p-4 text-center border-dashed rounded-3 bg-light text-muted">
+            <i class="bi bi-check2-all fs-4 text-success mb-1"></i>
+            <div class="small fw-semibold">No alternative schedules requested</div>
+            <div class="small" style="font-size: 0.75rem;">All students enrolled in the majority schedule track.</div>
+          </div>
+        `;
+      } else {
+        diffHtml += differentGroups
+          .map((g) => renderScheduleCardHtml(g, course, qualified))
+          .join("");
+      }
+      differentColEl.innerHTML = diffHtml;
+
+      updateGroupedBottomBar();
+      bindGroupedCardEvents(course);
+    }
+
+    let groupedEventsBound = false;
+    function bindGroupedCardEvents(course) {
+      if (groupedEventsBound) return;
+      groupedEventsBound = true;
+
+      const containerEl = document.getElementById(
+        "batching-grouped-container"
+      );
+      if (!containerEl) return;
+
+      containerEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const curCourse = selectedCourse();
+        if (!curCourse) return;
+
+        const action = btn.dataset.action;
+        const groupId = btn.dataset.group;
+        const group = groupedBatches.find((g) => g.id === groupId);
+        if (!group) return;
+
+        const nominalDays = courseDurationDays(curCourse) || 24;
+        const nominalHours =
+          curCourse.nominalHours || (nominalDays * 8) || 192;
+
+        if (action === "set-type") {
+          const type = btn.dataset.type;
+          group.type = type;
+          if (type === "weekdays")
+            group.days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+          else if (type === "weekends") group.days = ["Sat", "Sun"];
+          group.endDate = computeEndDateForNominalDays(
+            group.startDate,
+            group.trainingDays,
+            group.days
+          );
+          renderGroupedBatchingUI(curCourse);
+        } else if (action === "toggle-day") {
+          const day = btn.dataset.day;
+          if (group.days.includes(day)) {
+            if (group.days.length > 1) {
+              group.days = group.days.filter((d) => d !== day);
+            }
+          } else {
+            group.days.push(day);
+          }
+          const isWkdays =
+            group.days.length === 5 &&
+            ["Mon", "Tue", "Wed", "Thu", "Fri"].every((d) =>
+              group.days.includes(d)
+            );
+          const isWkends =
+            group.days.length === 2 &&
+            ["Sat", "Sun"].every((d) => group.days.includes(d));
+          if (isWkdays) group.type = "weekdays";
+          else if (isWkends) group.type = "weekends";
+          else group.type = "custom";
+          group.endDate = computeEndDateForNominalDays(
+            group.startDate,
+            group.trainingDays,
+            group.days
+          );
+          renderGroupedBatchingUI(curCourse);
+        } else if (action === "set-preset") {
+          const preset = btn.dataset.preset;
+          group.preset = preset;
+          if (preset === "morning") {
+            group.timeFrom = "08:00";
+            group.timeTo = "12:00";
+            group.dailyHours = 4;
+            group.deduction = "No lunch deduction";
+          } else if (preset === "afternoon") {
+            group.timeFrom = "13:00";
+            group.timeTo = "17:00";
+            group.dailyHours = 4;
+            group.deduction = "No lunch deduction";
+          } else if (preset === "evening") {
+            group.timeFrom = "17:00";
+            group.timeTo = "21:00";
+            group.dailyHours = 4;
+            group.deduction = "No lunch deduction";
+          } else {
+            group.timeFrom = "08:00";
+            group.timeTo = "17:00";
+            group.dailyHours = 8;
+            group.deduction = "1 hr/day deduction";
+          }
+          group.trainingDays = Math.max(
+            1,
+            Math.ceil(nominalHours / group.dailyHours)
+          );
+          group.endDate = computeEndDateForNominalDays(
+            group.startDate,
+            group.trainingDays,
+            group.days
+          );
+          renderGroupedBatchingUI(curCourse);
+        } else if (action === "auto-calc-end") {
+          group.endDate = computeEndDateForNominalDays(
+            group.startDate,
+            group.trainingDays,
+            group.days
+          );
+          renderGroupedBatchingUI(curCourse);
+        }
+      });
+
+      containerEl.addEventListener("change", (e) => {
+        const input = e.target.closest("[data-action]");
+        if (!input) return;
+        const curCourse = selectedCourse();
+        if (!curCourse) return;
+
+        const action = input.dataset.action;
+        const groupId = input.dataset.group;
+        const group = groupedBatches.find((g) => g.id === groupId);
+        if (!group) return;
+
+        const nominalDays = courseDurationDays(curCourse) || 24;
+        const nominalHours =
+          curCourse.nominalHours || (nominalDays * 8) || 192;
+
+        if (action === "time-from") {
+          group.timeFrom = input.value;
+          group.dailyHours =
+            computeDailyHours(group.timeFrom, group.timeTo) || 4;
+          group.trainingDays = Math.max(
+            1,
+            Math.ceil(nominalHours / group.dailyHours)
+          );
+          group.endDate = computeEndDateForNominalDays(
+            group.startDate,
+            group.trainingDays,
+            group.days
+          );
+          renderGroupedBatchingUI(curCourse);
+        } else if (action === "time-to") {
+          group.timeTo = input.value;
+          group.dailyHours =
+            computeDailyHours(group.timeFrom, group.timeTo) || 4;
+          group.trainingDays = Math.max(
+            1,
+            Math.ceil(nominalHours / group.dailyHours)
+          );
+          group.endDate = computeEndDateForNominalDays(
+            group.startDate,
+            group.trainingDays,
+            group.days
+          );
+          renderGroupedBatchingUI(curCourse);
+        } else if (action === "select-trainer") {
+          group.trainerId = input.value;
+          updateGroupedBottomBar();
+          renderGroupedBatchingUI(curCourse);
+        } else if (action === "start-date") {
+          group.startDate = input.value;
+          group.endDate = computeEndDateForNominalDays(
+            group.startDate,
+            group.trainingDays,
+            group.days
+          );
+          renderGroupedBatchingUI(curCourse);
+        } else if (action === "end-date") {
+          group.endDate = input.value;
+        }
+      });
+
+      containerEl.addEventListener("input", (e) => {
+        const searchInput = e.target.closest('[data-action="search-assigned-student"]');
+        if (!searchInput) return;
+        const groupId = searchInput.dataset.group;
+        const query = (searchInput.value || "").trim().toLowerCase();
+        const tbody = document.getElementById(`batching-assigned-tbody-${groupId}`);
+        if (!tbody) return;
+
+        const rows = tbody.querySelectorAll("tr[data-student-search]");
+        let visibleCount = 0;
+        rows.forEach((tr) => {
+          const hay = tr.dataset.studentSearch || "";
+          if (!query || hay.includes(query)) {
+            tr.classList.remove("d-none");
+            visibleCount++;
+          } else {
+            tr.classList.add("d-none");
+          }
+        });
+
+        const emptyRow = document.getElementById(`batching-assigned-empty-${groupId}`);
+        if (emptyRow) {
+          emptyRow.classList.toggle("d-none", visibleCount > 0);
+        }
+        const counterEl = document.getElementById(`batching-assigned-count-${groupId}`);
+        if (counterEl) {
+          const total = rows.length;
+          counterEl.textContent = query ? `${visibleCount} of ${total}` : `${total}`;
+        }
+      });
+
+      document
+        .getElementById("btn-save-grouped-schedules")
+        ?.addEventListener("click", async () => {
+          const curCourse = selectedCourse();
+          if (!curCourse) return;
+
+          const readyGroups = groupedBatches.filter(
+            (g) => g.count >= MIN_STUDENTS_TO_FINALIZE
+          );
+          if (!readyGroups.length) {
+            showNoticeModal(
+              `At least ${MIN_STUDENTS_TO_FINALIZE} students are required in a batch before it can be saved as a schedule.`,
+              "Minimum Students Quota",
+              "warning"
+            );
+            return;
+          }
+
+          const missingTrainer = readyGroups.find((g) => !g.trainerId);
+          if (missingTrainer) {
+            showNoticeModal(
+              `Please select an assigned trainer for "${missingTrainer.scheduleTitle}" (${missingTrainer.batchLabel}).`,
+              "Trainer Required",
+              "warning"
+            );
+            return;
+          }
+
+          const missingDate = readyGroups.find((g) => !g.startDate);
+          if (missingDate) {
+            showNoticeModal(
+              `Please specify a start date for "${missingDate.scheduleTitle}" (${missingDate.batchLabel}).`,
+              "Start Date Required",
+              "warning"
+            );
+            return;
+          }
+
+          const saveBtn = document.getElementById(
+            "btn-save-grouped-schedules"
+          );
+          if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML =
+              '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Saving schedules...';
+          }
+
+          const qualified = qualifiedTrainersForCourse(curCourse);
+          let savedCount = 0;
+          let lastError = null;
+
+          for (const group of readyGroups) {
+            const tObj = qualified.find(
+              (t) => String(t.id) === String(group.trainerId)
+            );
+            const tName = tObj ? tObj.name : "";
+            const ay = academicYearEl?.value || "AY 2026–2027";
+            const term = termEl?.value || "1st Semester";
+
+            const templateData = {
+              courseId: curCourse.id,
+              courseName: curCourse.name,
+              batchKind: "training",
+              academicYear: ay,
+              term: term,
+              name: group.batchLabel,
+              scheduleType: group.type,
+              days: group.days,
+              timeFrom: group.timeFrom,
+              timeTo: group.timeTo,
+              dailyHours: group.dailyHours,
+              availableFrom: group.startDate,
+              availableUntil: group.endDate,
+              trainerId: group.trainerId,
+              trainerName: tName,
+              students: group.students,
+            };
+
+            try {
+              await upsertTemplateForCourse(curCourse.id, templateData);
+              savedCount++;
+            } catch (err) {
+              lastError = err;
+            }
+          }
+
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML =
+              '<i class="bi bi-floppy me-1"></i>Save schedules as draft';
+          }
+
+          if (savedCount > 0) {
+            showScheduleSavedConfirm({
+              courseName: curCourse.name,
+              count: savedCount,
+            });
+            renderCourseCards();
+            renderProgramTabs();
+          } else if (lastError) {
+            showNoticeModal(
+              lastError.message || "Failed to save schedules.",
+              "Schedule Save Notice",
+              "warning"
+            );
+          }
+        });
     }
 
     function renderEnrollmentApproval() {
@@ -2581,6 +3495,10 @@ document.addEventListener(
         "assessment_venue",
         template.assessmentVenue || ""
       );
+
+      if (Array.isArray(template.students) && template.students.length > 0) {
+        body.set("students", JSON.stringify(template.students));
+      }
 
       const res =
         await fetch(
@@ -4313,6 +5231,10 @@ document.addEventListener(
       detailEl?.classList.add(
         "d-none"
       );
+
+      document
+        .getElementById("batching-grouped-container")
+        ?.classList.add("d-none");
 
       placeholderEl?.classList.remove(
         "d-none"

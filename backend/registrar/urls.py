@@ -17,7 +17,7 @@ from .document_review_api import (
     hard_copies_update,
 )
 from .enrollment_detail import enrollment_detail
-from .egace_api import egace_set_certificate, egace_set_employment
+from .egace_api import egace_set_certificate, egace_set_employment, egace_set_graduate
 from .pending_enrollment import enrollment_approve, enrollment_bulk_approve, enrollment_reject
 from .schedule_api import student_schedule_options
 from .scholarship_api import (
@@ -101,6 +101,11 @@ urlpatterns = [
         "registrar/api/egace/certificate/",
         egace_set_certificate,
         name="registrar_egace_set_certificate",
+    ),
+    path(
+        "registrar/api/egace/graduate/",
+        egace_set_graduate,
+        name="registrar_egace_set_graduate",
     ),
     path(
         "registrar/api/batching/batches/",

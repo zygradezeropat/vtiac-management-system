@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from django.db.models import Q
+
 from backend.registrar.models import RegistrarScheduleTemplate
 from backend.student.models import StudentEnrollmentProfile, StudentRegistration
 from backend.trainer.grading_sample import record_sheet_structure_for_program
@@ -274,6 +276,48 @@ def build_registrar_egace_rows() -> list[dict]:
     by_key, by_name_program = _latest_grades_index()
     rows: list[dict] = []
 
+    # Map students in active/draft/completed National Assessment batches
+    assessment_templates = list(
+        RegistrarScheduleTemplate.objects.filter(
+            Q(batch_kind=RegistrarScheduleTemplate.BatchKind.NATIONAL_ASSESSMENT)
+            | Q(batch_kind="national_assessment")
+            | Q(batch_kind="assessment")
+            | Q(assessment_at__isnull=False)
+        )
+    )
+
+    assessment_by_reg_id: dict[str, RegistrarScheduleTemplate] = {}
+    assessment_by_ref: dict[str, RegistrarScheduleTemplate] = {}
+    assessment_by_name: dict[tuple[str, str], RegistrarScheduleTemplate] = {}
+    assessment_by_raw_name: dict[str, RegistrarScheduleTemplate] = {}
+
+    for t in assessment_templates:
+        snapshot = t.students_snapshot or []
+        for s in snapshot:
+            if not isinstance(s, dict):
+                continue
+            sid = str(
+                s.get("registrationId")
+                or s.get("registration_id")
+                or s.get("id")
+                or s.get("student_id")
+                or ""
+            ).strip()
+            ref = str(s.get("referenceId") or s.get("reference_id") or "").strip()
+            lname = (s.get("lastName") or s.get("last_name") or "").strip().lower()
+            fname = (s.get("firstName") or s.get("first_name") or "").strip().lower()
+            if sid:
+                assessment_by_reg_id[sid] = t
+            if ref:
+                assessment_by_ref[ref] = t
+            if lname and fname:
+                assessment_by_name[(lname, fname)] = t
+            raw_full = (
+                s.get("fullName") or s.get("name") or s.get("studentName") or ""
+            ).strip().lower()
+            if raw_full:
+                assessment_by_raw_name[raw_full] = t
+
     registrations = (
         StudentRegistration.objects.filter(
             status=StudentRegistration.Status.APPROVED,
@@ -285,12 +329,78 @@ def build_registrar_egace_rows() -> list[dict]:
         .order_by("last_name", "first_name", "reference_id")
     )
 
+    seen_reg_ids: set[str] = set()
+    seen_refs: set[str] = set()
+    seen_names: set[tuple[str, str]] = set()
+
     for reg in registrations:
         program = (reg.selected_program or "").strip()
         name = _registration_display_name(reg)
         grade = _grade_for_registration(reg, program, by_key, by_name_program)
         payload = grade.payload if grade and isinstance(grade.payload, dict) else None
         batch = _batch_info(reg, program, grade)
+
+        reg_id_str = str(reg.pk)
+        reg_ref = (reg.reference_id or "").strip()
+        lname_lower = (reg.last_name or "").strip().lower()
+        fname_lower = (reg.first_name or "").strip().lower()
+        name_key = (lname_lower, fname_lower)
+        name_reverse = f"{lname_lower}, {fname_lower}".strip()
+        name_display = name.lower().strip()
+
+        seen_reg_ids.add(reg_id_str)
+        if reg_ref:
+            seen_refs.add(reg_ref)
+        if lname_lower and fname_lower:
+            seen_names.add(name_key)
+
+        assessment_tmpl = (
+            assessment_by_reg_id.get(reg_id_str)
+            or assessment_by_ref.get(reg_ref)
+            or assessment_by_name.get(name_key)
+            or assessment_by_raw_name.get(name_reverse)
+            or assessment_by_raw_name.get(name_display)
+        )
+        is_assessment_only = (reg.program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY)
+        has_assessment = is_assessment_only or (assessment_tmpl is not None)
+
+        if assessment_tmpl:
+            assessment_batch_id = _batch_filter_id(
+                assessment_tmpl.course_name,
+                assessment_tmpl.batch_label or assessment_tmpl.name or "Batch 1",
+            )
+            assessment_batch_label = (
+                assessment_tmpl.batch_label or assessment_tmpl.name or "Batch 1"
+            ).strip()
+            assessment_course = assessment_tmpl.course_name
+        else:
+            assessment_batch_id = batch["batchId"]
+            assessment_batch_label = batch["batchLabel"]
+            assessment_course = program or "—"
+
+        snap_graduate = False
+        snap_certificate = False
+        snap_employment = False
+        if assessment_tmpl:
+            for s in (assessment_tmpl.students_snapshot or []):
+                if not isinstance(s, dict):
+                    continue
+                sid = str(
+                    s.get("registrationId")
+                    or s.get("registration_id")
+                    or s.get("id")
+                    or s.get("student_id")
+                    or ""
+                ).strip()
+                ref = str(s.get("referenceId") or s.get("reference_id") or "").strip()
+                if (sid and sid == reg_id_str) or (reg_ref and ref == reg_ref):
+                    if "graduate" in s:
+                        snap_graduate = bool(s.get("graduate"))
+                    if "certificate" in s:
+                        snap_certificate = bool(s.get("certificate"))
+                    if "employment" in s:
+                        snap_employment = bool(s.get("employment"))
+                    break
 
         rows.append(
             {
@@ -301,15 +411,85 @@ def build_registrar_egace_rows() -> list[dict]:
                 "batchId": batch["batchId"],
                 "batchLabel": batch["batchLabel"],
                 "referenceId": reg.reference_id,
+                "programType": reg.program_type or StudentRegistration.ProgramType.TRAINING_WITH_ASSESSMENT.value,
+                "isAssessment": has_assessment,
+                "hasTraining": not is_assessment_only,
+                "assessmentCourse": assessment_course,
+                "assessmentBatchId": assessment_batch_id,
+                "assessmentBatchLabel": assessment_batch_label,
                 "enrolled": True,
                 "created_at_iso": reg.created_at.strftime("%Y-%m-%d") if reg.created_at else "",
                 "year": reg.created_at.year if reg.created_at else 2026,
                 "month": reg.created_at.month if reg.created_at else 11,
-                "graduate": student_is_graduate(payload, program),
+                "graduate": snap_graduate or bool(reg.is_graduated) or student_is_graduate(payload, program),
                 "assessment": student_is_assessment_competent(payload),
-                "certificate": student_is_certified(payload, program),
-                "employment": bool(reg.egace_employment),
+                "certificate": snap_certificate or bool(reg.egace_certificate) or student_is_certified(payload, program),
+                "employment": snap_employment or bool(reg.egace_employment),
             }
         )
+
+    # Ensure any candidate explicitly in an active/draft assessment template snapshot is included
+    for t in assessment_templates:
+        snapshot = t.students_snapshot or []
+        for idx, s in enumerate(snapshot):
+            if not isinstance(s, dict):
+                continue
+            sid = str(
+                s.get("registrationId")
+                or s.get("registration_id")
+                or s.get("id")
+                or s.get("student_id")
+                or ""
+            ).strip()
+            ref = str(s.get("referenceId") or s.get("reference_id") or "").strip()
+            lname = (s.get("lastName") or s.get("last_name") or "").strip()
+            fname = (s.get("firstName") or s.get("first_name") or "").strip()
+            name_tuple = (lname.lower(), fname.lower())
+
+            if sid and sid in seen_reg_ids:
+                continue
+            if ref and ref in seen_refs:
+                continue
+            if lname and fname and name_tuple in seen_names:
+                continue
+
+            full_name = (
+                s.get("fullName")
+                or s.get("name")
+                or s.get("studentName")
+                or f"{fname} {lname}".strip()
+                or "Candidate"
+            )
+            assessment_batch_id = _batch_filter_id(
+                t.course_name, t.batch_label or t.name or "Batch 1"
+            )
+            assessment_batch_label = (t.batch_label or t.name or "Batch 1").strip()
+            row_id = sid or ref or f"assessment-{t.pk}-{idx}"
+
+            rows.append(
+                {
+                    "id": row_id,
+                    "initials": _initials(full_name),
+                    "studentName": full_name,
+                    "course": t.course_name,
+                    "batchId": assessment_batch_id,
+                    "batchLabel": assessment_batch_label,
+                    "referenceId": ref or None,
+                    "programType": StudentRegistration.ProgramType.ASSESSMENT_ONLY.value,
+                    "isAssessment": True,
+                    "hasTraining": False,
+                    "assessmentCourse": t.course_name,
+                    "assessmentBatchId": assessment_batch_id,
+                    "assessmentBatchLabel": assessment_batch_label,
+                    "enrolled": True,
+                    "created_at_iso": "",
+                    "year": 2026,
+                    "month": 11,
+                    "graduate": bool(s.get("graduate", False)),
+                    "assessment": bool(s.get("assessment", False)),
+                    "certificate": bool(s.get("certificate", False)),
+                    "employment": bool(s.get("employment", False)),
+                }
+            )
 
     return rows

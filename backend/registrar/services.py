@@ -327,6 +327,8 @@ def module_page_context(module, request=None):
         ctx["egace_config_json"] = json.dumps(
             {
                 "employment_url": reverse("registrar_egace_set_employment"),
+                "certificate_url": reverse("registrar_egace_set_certificate"),
+                "graduate_url": reverse("registrar_egace_set_graduate"),
             }
         )
     if module == "scholarship":

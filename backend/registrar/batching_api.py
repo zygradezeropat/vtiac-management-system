@@ -1652,6 +1652,16 @@ def batching_template_upsert(request):
     # SAVE
     # ---------------------------------------------------------
 
+    students_raw = data.get("students") or data.get("students_snapshot")
+    if students_raw:
+        try:
+            if isinstance(students_raw, str):
+                obj.students_snapshot = json.loads(students_raw)
+            elif isinstance(students_raw, list):
+                obj.students_snapshot = students_raw
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     if not obj.students_snapshot:
         available_pool = available_students_for_course(
             obj.course_name,

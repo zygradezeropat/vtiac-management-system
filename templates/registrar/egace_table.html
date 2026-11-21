@@ -15,6 +15,34 @@
 <script id="trainer-egace-seed" type="application/json">{{ trainer_egace_seed_json|default:"[]"|safe }}</script>
 <script id="egace-config" type="application/json">{{ egace_config_json|default:"{}"|safe }}</script>
 
+<!-- Schedule category tabs (Training with Assessment vs Assessment Only) -->
+<div
+  id="egace-category-tabs"
+  class="registrar-batch-tabs mb-4"
+  role="tablist"
+  aria-label="Schedule category">
+  <button
+    type="button"
+    class="registrar-batch-tab is-active"
+    role="tab"
+    aria-selected="true"
+    data-category-tab="training"
+  >
+    Training with Assessment
+    <span class="registrar-batch-tab__count" id="egace-training-count">0</span>
+  </button>
+  <button
+    type="button"
+    class="registrar-batch-tab"
+    role="tab"
+    aria-selected="false"
+    data-category-tab="assessment"
+  >
+    Assessment Only
+    <span class="registrar-batch-tab__count" id="egace-assessment-count">0</span>
+  </button>
+</div>
+
 <section class="registrar-panel mb-0">
   <div class="registrar-panel__head flex-wrap gap-3 border-0 pb-0">
     <div class="d-flex align-items-start gap-3">
@@ -55,7 +83,7 @@
   <div class="registrar-panel__body pt-3">
     <div class="table-responsive registrar-egace-table-wrap">
       <table class="table registrar-table registrar-egace-table mb-0">
-        <thead>
+        <thead id="egace-table-head">
           <tr>
             <th scope="col">Student Name</th>
             <th scope="col" class="text-center">Enrolled</th>
@@ -94,7 +122,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module" src="{% static 'js/registrar-egace-table.js' %}"></script>
+<script type="module" src="{% static 'js/registrar-egace-table.js' %}?v={% now 'U' %}"></script>
 <script type="module">
   import { initStaffHeader } from "{% static 'js/staff-common.js' %}";
   initStaffHeader("Registrar", "{{ portal_display_name|default:'Registrar User' }}");
