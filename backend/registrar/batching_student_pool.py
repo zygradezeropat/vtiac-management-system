@@ -65,6 +65,48 @@ def registration_has_assigned_schedule(reg: StudentRegistration) -> bool:
     return False
 
 
+def is_student_paid_on_cashier(
+    reg: StudentRegistration,
+    course_name: str | None = None,
+) -> bool:
+    """
+    Check if the student/candidate is settled / paid in full on the cashier side.
+    A candidate will not appear in assessment-only scheduling if not paid.
+    """
+    from django.db.models import Q
+    from backend.cashier.balance import fee_balance_for_profile
+    from backend.cashier.models import CashierPayment
+
+    profiles = _profiles_for_registration(reg)
+    prog = course_name or reg.selected_program or ""
+
+    # 1. Check CashierPayment records for full payment or zero remaining balance
+    payments = CashierPayment.objects.filter(
+        Q(registration=reg) | Q(profile__in=profiles)
+    )
+    if payments.filter(status=CashierPayment.Status.FULL).exists():
+        return True
+    if payments.filter(paid_amount__gt=0, remaining_balance__lte=0).exists():
+        return True
+
+    # 2. Check running fee balance for any profile
+    for profile in profiles:
+        bal = fee_balance_for_profile(profile, prog)
+        if bal.get("isFullyPaid"):
+            return True
+        if bal.get("totalPaid", 0) > 0 and bal.get("totalRemaining", 0) <= 0:
+            return True
+        # Check scholar vouchers covering the assessed amount
+        voucher = sum(
+            float(getattr(g, "amount", 0) or 0)
+            for g in profile.scholarship_grants.all()
+        )
+        if voucher > 0 and (bal.get("totalRemaining", 0) - voucher) <= 0:
+            return True
+
+    return False
+
+
 def is_student_available_for_batching(
     reg: StudentRegistration,
     course_name: str,
@@ -76,6 +118,10 @@ def is_student_available_for_batching(
         return False
 
     if batch_kind == RegistrarScheduleTemplate.BatchKind.NATIONAL_ASSESSMENT:
+        # Candidate will not appear in assessment scheduling if they have not paid on the cashier side
+        if not is_student_paid_on_cashier(reg, course_name):
+            return False
+
         if not registration_needs_national_assessment(
             reg, grade_payload_for_registration(reg)
         ):

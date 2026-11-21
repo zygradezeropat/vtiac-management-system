@@ -586,6 +586,43 @@ def _students_for_course(
     )
 
 
+def _is_snapshot_student_paid_on_cashier(s: dict, course_name: str) -> bool:
+    from .batching_student_pool import is_student_paid_on_cashier
+    from backend.student.models import StudentRegistration, StudentEnrollmentProfile
+    import uuid
+
+    sid = s.get("id") or s.get("studentId") or s.get("registration_id")
+    ref = s.get("referenceId") or s.get("reference_id")
+    email = s.get("email")
+    last_name = s.get("lastName") or s.get("last_name")
+    first_name = s.get("firstName") or s.get("first_name")
+
+    reg = None
+    if sid:
+        try:
+            u = uuid.UUID(str(sid))
+            reg = StudentRegistration.objects.filter(id=u).first()
+        except (ValueError, TypeError):
+            pass
+        if not reg:
+            prof = StudentEnrollmentProfile.objects.filter(id=sid).first()
+            if prof:
+                reg = prof.registration
+    if not reg and ref:
+        reg = StudentRegistration.objects.filter(reference_id__iexact=str(ref)).first()
+    if not reg and email:
+        reg = StudentRegistration.objects.filter(email__iexact=str(email)).first()
+    if not reg and last_name and first_name:
+        reg = StudentRegistration.objects.filter(
+            last_name__iexact=last_name,
+            first_name__iexact=first_name,
+        ).first()
+
+    if reg:
+        return is_student_paid_on_cashier(reg, course_name)
+    return False
+
+
 def _students_for_template(
     t: RegistrarScheduleTemplate,
 ) -> list[dict]:
@@ -604,6 +641,11 @@ def _students_for_template(
             list,
         )
     ):
+        if t.batch_kind == BatchKind.NATIONAL_ASSESSMENT:
+            return [
+                s for s in t.students_snapshot
+                if _is_snapshot_student_paid_on_cashier(s, t.course_name)
+            ]
         return t.students_snapshot
 
     dynamic = _students_for_course(
@@ -612,6 +654,12 @@ def _students_for_template(
     )
 
     snapshot = list(t.students_snapshot or [])
+    if t.batch_kind == BatchKind.NATIONAL_ASSESSMENT:
+        snapshot = [
+            s for s in snapshot
+            if _is_snapshot_student_paid_on_cashier(s, t.course_name)
+        ]
+
     if not snapshot:
         return dynamic
 
@@ -1668,6 +1716,12 @@ def batching_template_upsert(request):
             batch_kind=obj.batch_kind,
         )
         obj.students_snapshot = available_pool[:25]
+
+    if obj.batch_kind == BatchKind.NATIONAL_ASSESSMENT and isinstance(obj.students_snapshot, list):
+        obj.students_snapshot = [
+            s for s in obj.students_snapshot
+            if _is_snapshot_student_paid_on_cashier(s, obj.course_name)
+        ]
 
     obj.save()
 
