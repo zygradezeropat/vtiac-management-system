@@ -2280,6 +2280,7 @@ document.addEventListener(
     }
 
     function renderScheduleCardHtml(group, course, qualifiedTrainers) {
+      const isNational = batchingCourseCategory(course) === "national";
       const isMaj = group.isMajority;
       const cardBorderClass = isMaj
         ? "batching-schedule-card--majority"
@@ -2299,7 +2300,7 @@ document.addEventListener(
         statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Auto-grouped</span>`;
       } else if (!isReady) {
         statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Waitlist (min 3)</span>`;
-      } else if (!group.trainerId) {
+      } else if (!isNational && !group.trainerId) {
         statusBadge = `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">No trainer</span>`;
       } else {
         statusBadge = `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Ready</span>`;
@@ -2548,35 +2549,63 @@ document.addEventListener(
             </div>
           </div>
 
-          <div class="row g-2 mb-3">
-            <div class="col-sm-12 col-md-4">
-              <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Assigned trainer <span class="text-danger">*</span></label>
-              <select class="form-select form-select-sm" data-action="select-trainer" data-group="${
-                group.id
-              }">
-                ${trainerOptions}
-              </select>
-            </div>
-            <div class="col-sm-6 col-md-4">
-              <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Start date <span class="text-danger">*</span></label>
-              <input type="date" class="form-control form-control-sm" data-action="start-date" data-group="${
-                group.id
-              }" value="${group.startDate || ""}" />
-            </div>
-            <div class="col-sm-6 col-md-4">
-              <div class="d-flex align-items-center justify-content-between mb-1">
-                <label class="form-label small fw-semibold text-muted mb-0" style="font-size: 0.75rem;">End date <span class="text-danger">*</span></label>
-                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary" data-action="auto-calc-end" data-group="${
+          ${
+            isNational
+              ? `
+            <div class="row g-2 mb-3">
+              <div class="col-sm-6">
+                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Assessment Start date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" data-action="start-date" data-group="${
                   group.id
-                }" style="font-size: 0.7rem;" title="Auto-calculate end date">
-                  <i class="bi bi-magic me-1"></i>Auto (${group.trainingDays}d)
-                </button>
+                }" value="${group.startDate || ""}" />
               </div>
-              <input type="date" class="form-control form-control-sm" data-action="end-date" data-group="${
-                group.id
-              }" value="${group.endDate || ""}" />
+              <div class="col-sm-6">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <label class="form-label small fw-semibold text-muted mb-0" style="font-size: 0.75rem;">Assessment End date <span class="text-danger">*</span></label>
+                  <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary" data-action="auto-calc-end" data-group="${
+                    group.id
+                  }" style="font-size: 0.7rem;" title="Auto-calculate end date">
+                    <i class="bi bi-magic me-1"></i>Auto (${group.trainingDays}d)
+                  </button>
+                </div>
+                <input type="date" class="form-control form-control-sm" data-action="end-date" data-group="${
+                  group.id
+                }" value="${group.endDate || ""}" />
+              </div>
             </div>
-          </div>
+          `
+              : `
+            <div class="row g-2 mb-3">
+              <div class="col-sm-12 col-md-4">
+                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Assigned trainer <span class="text-danger">*</span></label>
+                <select class="form-select form-select-sm" data-action="select-trainer" data-group="${
+                  group.id
+                }">
+                  ${trainerOptions}
+                </select>
+              </div>
+              <div class="col-sm-6 col-md-4">
+                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.75rem;">Start date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control form-control-sm" data-action="start-date" data-group="${
+                  group.id
+                }" value="${group.startDate || ""}" />
+              </div>
+              <div class="col-sm-6 col-md-4">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                  <label class="form-label small fw-semibold text-muted mb-0" style="font-size: 0.75rem;">End date <span class="text-danger">*</span></label>
+                  <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-primary" data-action="auto-calc-end" data-group="${
+                    group.id
+                  }" style="font-size: 0.7rem;" title="Auto-calculate end date">
+                    <i class="bi bi-magic me-1"></i>Auto (${group.trainingDays}d)
+                  </button>
+                </div>
+                <input type="date" class="form-control form-control-sm" data-action="end-date" data-group="${
+                  group.id
+                }" value="${group.endDate || ""}" />
+              </div>
+            </div>
+          `
+          }
 
           <div class="pt-3 border-top">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
@@ -2685,9 +2714,7 @@ document.addEventListener(
 
       if (!containerEl || !majorityColEl || !differentColEl) return;
 
-      const isNational =
-        batchingCourseCategory(course) === "national";
-      if (!course || isNational) {
+      if (!course) {
         containerEl.classList.add("d-none");
         enrolledRosterEl?.classList.remove("d-none");
         scheduleFormEl?.classList.remove("d-none");
@@ -3113,14 +3140,17 @@ document.addEventListener(
             return;
           }
 
-          const missingTrainer = readyGroups.find((g) => !g.trainerId);
-          if (missingTrainer) {
-            showNoticeModal(
-              `Please select an assigned trainer for "${missingTrainer.scheduleTitle}" (${missingTrainer.batchLabel}).`,
-              "Trainer Required",
-              "warning"
-            );
-            return;
+          const isNat = batchingCourseCategory(curCourse) === "national";
+          if (!isNat) {
+            const missingTrainer = readyGroups.find((g) => !g.trainerId);
+            if (missingTrainer) {
+              showNoticeModal(
+                `Please select an assigned trainer for "${missingTrainer.scheduleTitle}" (${missingTrainer.batchLabel}).`,
+                "Trainer Required",
+                "warning"
+              );
+              return;
+            }
           }
 
           const missingDate = readyGroups.find((g) => !g.startDate);
@@ -3153,11 +3183,12 @@ document.addEventListener(
             const tName = tObj ? tObj.name : "";
             const ay = academicYearEl?.value || "AY 2026–2027";
             const term = termEl?.value || "1st Semester";
+            const batchKind = isNat ? "national_assessment" : "training";
 
             const templateData = {
               courseId: curCourse.id,
               courseName: curCourse.name,
-              batchKind: "training",
+              batchKind: batchKind,
               academicYear: ay,
               term: term,
               name: group.batchLabel,
@@ -3168,8 +3199,8 @@ document.addEventListener(
               dailyHours: group.dailyHours,
               availableFrom: group.startDate,
               availableUntil: group.endDate,
-              trainerId: group.trainerId,
-              trainerName: tName,
+              trainerId: isNat ? "" : group.trainerId,
+              trainerName: isNat ? "" : tName,
               students: group.students,
             };
 
@@ -5364,8 +5395,13 @@ document.addEventListener(
             const qualifiedTrainers =
               qualifiedTrainersForCourse(course);
 
-            const trainerBadge =
-              qualifiedTrainers.length === 0
+            const trainerBadge = isNational
+              ? `
+                <div class="small text-muted">
+                  <i class="bi bi-award me-1 text-primary" aria-hidden="true"></i>National Assessment
+                </div>
+              `
+              : qualifiedTrainers.length === 0
                 ? `
                   <div class="small text-danger fw-semibold">
                     <i class="bi bi-person-x-fill me-1" aria-hidden="true"></i>No trainer assigned
