@@ -3,7 +3,8 @@
  */
 
 import { escapeHtml, initStudentViewModal } from "./registrar-student-detail.js";
-import { renderLearnerProfileModalBody } from "./registrar-enrollment-profile-view.js";
+import { renderLearnerProfileModalBody, printCandidateAssessmentForm } from "./registrar-enrollment-profile-view.js";
+import { initFilePreviewTriggers } from "./file-upload-preview.js";
 
 const FALLBACK_PROGRAMS = [
   "Automotive Servicing (Engine Repair) NC II",
@@ -45,13 +46,19 @@ function loadRegistrarStudentsData() {
   }
 }
 
-const serverData = loadRegistrarStudentsData();
-const MODULE_DATA = serverData.modules || [];
-const PROGRAMS = serverData.programs?.length ? serverData.programs : FALLBACK_PROGRAMS;
+let MODULE_DATA = [];
+let PROGRAMS = FALLBACK_PROGRAMS;
+
+function refreshServerData() {
+  const serverData = loadRegistrarStudentsData();
+  MODULE_DATA = serverData.modules || [];
+  PROGRAMS = serverData.programs?.length ? serverData.programs : FALLBACK_PROGRAMS;
+}
 
 const ROWS_PER_PAGE = 10;
 
 function findStudent(moduleKey, studentId, registrationId) {
+  if (!MODULE_DATA.length) refreshServerData();
   const mod = MODULE_DATA.find((m) => m.key === moduleKey);
   if (!mod) return null;
   if (studentId) {
@@ -76,7 +83,12 @@ function statusBadgeClass(status) {
   return "bg-primary-subtle text-primary";
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function initRegistrarStudents() {
+  try {
+    refreshServerData();
+  } catch (err) {
+    console.error("Failed to load registrar students server data:", err);
+  }
   let activeTab = "training";
   const filters = { training: "All Programs", assessment: "All Programs", graduates: "All Programs" };
   const docFilters = { training: "all", assessment: "all", graduates: "all" };
@@ -131,6 +143,50 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       if (viewBodyEl) {
         viewBodyEl.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(err.message || "Failed to load profile.")}</div>`;
+      }
+    }
+  }
+
+  async function handlePrintStudent(moduleKey, studentId, registrationId, btnEl) {
+    const student = findStudent(moduleKey, studentId, registrationId);
+    if (!student) return;
+
+    // Reuse context if already open
+    const matches =
+      currentDetailContext &&
+      ((student.id != null && String(currentDetailContext.id) === String(student.id)) ||
+        (student.registrationId && currentDetailContext.registrationId === student.registrationId));
+
+    if (matches) {
+      printCandidateAssessmentForm(currentDetailContext);
+      return;
+    }
+
+    const originalHtml = btnEl ? btnEl.innerHTML : "";
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+    }
+
+    try {
+      const params = new URLSearchParams();
+      if (student.id != null) params.set("profile_id", String(student.id));
+      else if (student.registrationId) params.set("registration_id", student.registrationId);
+
+      const res = await fetch(`/registrar/api/enrollment/detail/?${params}`, {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      const detail = await res.json();
+      if (!res.ok) throw new Error(detail.error || "Could not load candidate profile.");
+      currentDetailContext = detail;
+      printCandidateAssessmentForm(detail);
+    } catch (err) {
+      alert(err.message || "Failed to load document for printing.");
+    } finally {
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerHTML = originalHtml;
       }
     }
   }
@@ -424,7 +480,8 @@ document.addEventListener("DOMContentLoaded", () => {
         </td>
         <td class="text-secondary">${escapeHtml(displayDate)}</td>
         <td class="text-center text-nowrap">
-          <button type="button" class="btn registrar-table-action registrar-table-action--view btn-sm view-student-btn" data-module-key="${activeTab}" data-student-id="${s.id != null ? s.id : ""}" data-registration-id="${escapeHtml(s.registrationId || "")}" aria-label="View ${escapeHtml(s.name)}"><i class="bi bi-eye" aria-hidden="true"></i></button>
+          <button type="button" class="btn registrar-table-action registrar-table-action--view btn-sm view-student-btn" data-module-key="${activeTab}" data-student-id="${s.id != null ? s.id : ""}" data-registration-id="${escapeHtml(s.registrationId || "")}" aria-label="View ${escapeHtml(s.name)}" title="View Profile"><i class="bi bi-eye" aria-hidden="true"></i></button>
+          <button type="button" class="btn registrar-table-action registrar-table-action--print btn-sm print-student-btn ms-1" data-module-key="${activeTab}" data-student-id="${s.id != null ? s.id : ""}" data-registration-id="${escapeHtml(s.registrationId || "")}" aria-label="Print ${escapeHtml(s.name)}" title="Print TESDA Form & Admission Slip"><i class="bi bi-printer" aria-hidden="true"></i></button>
         </td>
       </tr>`;
       })
@@ -500,9 +557,29 @@ document.addEventListener("DOMContentLoaded", () => {
       renderTable();
       return;
     }
+    const printBtn = e.target.closest(".print-student-btn");
+    if (printBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      handlePrintStudent(printBtn.dataset.moduleKey, printBtn.dataset.studentId, printBtn.dataset.registrationId, printBtn);
+      return;
+    }
     const btn = e.target.closest(".view-student-btn");
     if (!btn) return;
     openViewStudentModal(btn.dataset.moduleKey, btn.dataset.studentId, btn.dataset.registrationId);
+  });
+
+  document.getElementById("modal-print-student-btn")?.addEventListener("click", () => {
+    if (currentDetailContext) {
+      printCandidateAssessmentForm(currentDetailContext);
+    } else if (currentStudentContext) {
+      handlePrintStudent(
+        activeTab,
+        currentStudentContext.id,
+        currentStudentContext.registrationId,
+        document.getElementById("modal-print-student-btn")
+      );
+    }
   });
 
   sortEl?.addEventListener("change", (e) => {
@@ -544,4 +621,10 @@ document.addEventListener("DOMContentLoaded", () => {
   renderTabs();
   renderFilterOptions();
   renderTable();
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initRegistrarStudents);
+} else {
+  initRegistrarStudents();
+}

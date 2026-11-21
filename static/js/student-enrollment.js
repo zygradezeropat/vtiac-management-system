@@ -165,9 +165,11 @@ function validateAssessmentForm(form) {
   if (!hasRadioGroupSelected(form, "assessment_client_type")) return false;
 
   const photo = form.querySelector("#field-photo");
-  const hasExistingPhoto = form.dataset.hasPhoto === "1";
-  if (!hasExistingPhoto && isEmpty(photo)) return false;
-  if (!isValidPhotoField(form)) return false;
+  if (photo) {
+    const hasExistingPhoto = form.dataset.hasPhoto === "1";
+    if (!hasExistingPhoto && isEmpty(photo)) return false;
+    if (!isValidPhotoField(form)) return false;
+  }
   if (!isValidContactNumber(form)) return false;
   if (!isAddressComplete()) return false;
 
@@ -194,9 +196,11 @@ function validateTrainingForm(form) {
   if (!hasClassificationSelected(form)) return false;
 
   const photo = form.querySelector("#field-photo");
-  const hasExistingPhoto = form.dataset.hasPhoto === "1";
-  if (!hasExistingPhoto && isEmpty(photo)) return false;
-  if (!isValidPhotoField(form)) return false;
+  if (photo) {
+    const hasExistingPhoto = form.dataset.hasPhoto === "1";
+    if (!hasExistingPhoto && isEmpty(photo)) return false;
+    if (!isValidPhotoField(form)) return false;
+  }
   if (!isValidContactNumber(form)) return false;
   if (!isAddressComplete()) return false;
 

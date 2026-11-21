@@ -3288,3 +3288,365 @@
   margin-left: 0.35rem;
   transition: transform 0.2s ease, color 0.15s ease;
 }
+
+/* Print action button in student table */
+.registrar-table-action--print {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.registrar-table-action--print:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Dashed cut line with scissors icon */
+.tesda-cut-line {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 0.75rem 0 0.5rem 0;
+  color: #475569;
+}
+
+.tesda-cut-dashes {
+  flex: 1;
+  border-bottom: 1.5px dashed #334155;
+  height: 1px;
+}
+
+.tesda-cut-line i {
+  padding: 0 0.5rem;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+/* Admission Slip */
+.tesda-admission-slip {
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.tesda-flex-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  width: 100% !important;
+}
+
+.tesda-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 11px;
+  height: 11px;
+  border: 1px solid #000;
+  font-size: 8pt;
+  line-height: 1;
+  font-weight: 700;
+  margin-right: 3px;
+  flex-shrink: 0;
+  background: #fff;
+  color: #000;
+}
+
+.tesda-cut-line {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 3px 0;
+  color: #475569;
+}
+
+.tesda-cut-dashes {
+  flex: 1;
+  border-bottom: 1.5px dashed #475569;
+  height: 1px;
+}
+
+.tesda-cut-scissors {
+  font-size: 0.85rem;
+  color: #1e293b;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.tesda-admission-slip .tesda-slip-header,
+.tesda-slip-header {
+  background-color: #c7f0f5 !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  color: #000000 !important;
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 2px 0;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.tesda-ref-sublabel {
+  font-size: 4.8pt;
+  line-height: 1;
+  margin-top: 1px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Dynamic 2-page print layout for Candidate Assessment Form & Admission Slip */
+@page {
+  size: portrait;
+  margin: 4mm 5mm;
+}
+
+@media print {
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body.registrar-print-candidate {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 5.7pt !important;
+    line-height: 1.1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.registrar-print-candidate > *:not(#registrarPrintArea),
+  body.registrar-print-candidate .registrar-layout,
+  body.registrar-print-candidate .registrar-sidebar,
+  body.registrar-print-candidate .registrar-topbar,
+  body.registrar-print-candidate .registrar-page-header,
+  body.registrar-print-candidate .registrar-tabs,
+  body.registrar-print-candidate .registrar-panel,
+  body.registrar-print-candidate #registrar-students-root,
+  body.registrar-print-candidate .modal,
+  body.registrar-print-candidate .modal-backdrop,
+  body.registrar-print-candidate .no-print {
+    display: none !important;
+  }
+
+  body.registrar-print-candidate #registrarPrintArea {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body.registrar-print-candidate .tesda-print-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 1px 2px !important;
+    border: 1.5px solid #000000 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body.registrar-print-candidate .tesda-print-page--1 {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    height: 268mm !important;
+    max-height: 268mm !important;
+    overflow: hidden !important;
+  }
+
+  body.registrar-print-candidate .tesda-print-page--2 {
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    height: 268mm !important;
+    max-height: 268mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    overflow: hidden !important;
+  }
+
+  body.registrar-print-candidate .tesda-official-form__title {
+    color: #0d6efd !important;
+    font-size: 1.05rem !important;
+    margin: 0 !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  body.registrar-print-candidate .tesda-official-form__header {
+    margin-bottom: 2px !important;
+  }
+
+  body.registrar-print-candidate .tesda-official-form__logo {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  body.registrar-print-candidate .tesda-official-form__agency-en {
+    font-size: 6pt !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+  }
+
+  body.registrar-print-candidate .tesda-official-form__agency-fil {
+    font-size: 5.2pt !important;
+    line-height: 1.1 !important;
+  }
+
+  body.registrar-print-candidate .tesda-section-title {
+    font-size: 6.6pt !important;
+    padding: 1px 3px !important;
+    background: #f1f5f9 !important;
+    border-bottom: 1px solid #000000 !important;
+    color: #0d6efd !important;
+    font-weight: 800 !important;
+    line-height: 1.15 !important;
+  }
+
+  body.registrar-print-candidate .tesda-official-table th,
+  body.registrar-print-candidate .tesda-official-table td {
+    padding: 1px 2px !important;
+    font-size: 5.5pt !important;
+    line-height: 1.1 !important;
+    border-color: #000000 !important;
+  }
+
+  body.registrar-print-candidate .tesda-official-table tr {
+    height: 12px !important;
+  }
+
+  body.registrar-print-candidate .tesda-name-table td {
+    padding: 0.5px 1.5px !important;
+    border-color: #000000 !important;
+  }
+
+  body.registrar-print-candidate .tesda-name-label {
+    padding: 0.5px 2px !important;
+    font-size: 5.5pt !important;
+    font-weight: 700 !important;
+    width: 72px !important;
+  }
+
+  body.registrar-print-candidate .border-dark {
+    border-color: #000000 !important;
+  }
+
+  body.registrar-print-candidate .tesda-char-box {
+    width: 8.8px !important;
+    height: 10px !important;
+    font-size: 5.2pt !important;
+    line-height: 10px !important;
+    border: 1px solid #000000 !important;
+    margin: 0 0.5px !important;
+    text-align: center !important;
+  }
+
+  body.registrar-print-candidate .tesda-ref-box {
+    min-width: 8.8px !important;
+    height: 10px !important;
+    font-size: 5.2pt !important;
+    line-height: 10px !important;
+    border: 1px solid #000000 !important;
+    margin: 0 0.5px !important;
+  }
+
+  body.registrar-print-candidate .tesda-box {
+    width: 8px !important;
+    height: 8px !important;
+    border: 1px solid #000000 !important;
+    font-size: 5.2pt !important;
+    line-height: 8px !important;
+    margin-right: 2px !important;
+  }
+
+  body.registrar-print-candidate .tesda-form-check {
+    font-size: 5.6pt !important;
+    gap: 1.5px !important;
+    color: #000000 !important;
+  }
+
+  body.registrar-print-candidate .text-2xs {
+    font-size: 5.2pt !important;
+    line-height: 1.1 !important;
+  }
+
+  body.registrar-print-candidate .small {
+    font-size: 5.6pt !important;
+  }
+
+  body.registrar-print-candidate .p-2 {
+    padding: 1px 2px !important;
+  }
+
+  body.registrar-print-candidate .p-1 {
+    padding: 1px 2px !important;
+  }
+
+  body.registrar-print-candidate .mb-1,
+  body.registrar-print-candidate .mb-2,
+  body.registrar-print-candidate .mb-3 {
+    margin-bottom: 1px !important;
+  }
+
+  body.registrar-print-candidate .tesda-admission-slip {
+    margin-top: 1px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body.registrar-print-candidate .tesda-slip-header {
+    background-color: #c7f0f5 !important;
+    font-size: 7pt !important;
+    padding: 1px !important;
+    font-weight: 800 !important;
+  }
+
+  body.registrar-print-candidate .tesda-cut-line {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 1px 0 !important;
+    color: #000000 !important;
+  }
+
+  body.registrar-print-candidate .tesda-cut-dashes {
+    flex: 1 !important;
+    border-bottom: 1px dashed #000000 !important;
+    height: 1px !important;
+  }
+
+  body.registrar-print-candidate .tesda-cut-scissors {
+    font-size: 7.2pt !important;
+    color: #000000 !important;
+    line-height: 1 !important;
+    padding: 0 4px !important;
+  }
+
+  body.registrar-print-candidate .tesda-ref-sublabel {
+    font-size: 4.2pt !important;
+    line-height: 1 !important;
+    color: #333333 !important;
+  }
+}

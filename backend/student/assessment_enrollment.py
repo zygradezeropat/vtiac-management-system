@@ -264,7 +264,7 @@ PH_MOBILE_RE = re.compile(r"^09\d{9}$")
 PHONE_MSG = "Enter 11 digits including 09 (example: 09171234567)."
 
 
-def validate_assessment_enrollment_data(data, *, require_photo=True) -> list[str]:
+def validate_assessment_enrollment_data(data, *, require_photo=False) -> list[str]:
     errors = []
     required = [
         ("last_name", "Surname is required."),

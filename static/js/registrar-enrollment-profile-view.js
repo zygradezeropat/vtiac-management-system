@@ -482,17 +482,17 @@ export function renderTrainingLearnerProfile(detail) {
 
 function renderCheck(label, isChecked) {
   return `<span class="tesda-form-check ${isChecked ? 'tesda-form-check--on' : ''}">
-    <i class="bi ${isChecked ? 'bi-check-square-fill' : 'bi-square'}" aria-hidden="true"></i>
+    <span class="tesda-box">${isChecked ? '✔' : '&nbsp;'}</span>
     <span class="tesda-form-check__label">${escapeHtml(label)}</span>
   </span>`;
 }
 
-function renderLetterBoxes(text, totalBoxes = 20) {
+function renderLetterBoxes(text, totalBoxes = 30) {
   const clean = (text || "").toUpperCase().replace(/[^A-Z0-9 ]/g, "");
   const chars = clean.split("");
   let boxes = "";
   for (let i = 0; i < totalBoxes; i++) {
-    const ch = chars[i] || "&nbsp;";
+    const ch = chars[i] ? escapeHtml(chars[i]) : "&nbsp;";
     boxes += `<span class="tesda-char-box">${ch}</span>`;
   }
   return `<div class="tesda-char-boxes">${boxes}</div>`;
@@ -500,22 +500,25 @@ function renderLetterBoxes(text, totalBoxes = 20) {
 
 function renderRefBoxes() {
   const groups = [
-    { cls: "tesda-ref-box--y", count: 3 },
-    { cls: "tesda-ref-box--b", count: 2 },
-    { cls: "tesda-ref-box--pink", count: 2 },
-    { cls: "tesda-ref-box--g", count: 2 },
-    { cls: "tesda-ref-box--o", count: 4 },
-    { cls: "tesda-ref-box--p", count: 4 },
+    { cls: "tesda-ref-box--y", count: 3, label: "Web appl. code" },
+    { cls: "tesda-ref-box--b", count: 2, label: "TV" },
+    { cls: "tesda-ref-box--pink", count: 2, label: "Region" },
+    { cls: "tesda-ref-box--g", count: 2, label: "Province" },
+    { cls: "tesda-ref-box--o", count: 4, label: "Number Series Assigned in AC" },
+    { cls: "tesda-ref-box--p", count: 4, label: "Number Series" },
   ];
-  return groups
+  return `<div class="d-inline-flex flex-wrap align-items-start gap-1">` + groups
     .map((grp) => {
       let bHtml = "";
       for (let i = 0; i < grp.count; i++) {
         bHtml += `<span class="tesda-ref-box ${grp.cls}">&nbsp;</span>`;
       }
-      return `<div class="d-inline-flex gap-1 me-1">${bHtml}</div>`;
+      return `<div class="d-flex flex-column align-items-center">
+        <div class="d-inline-flex gap-0.5">${bHtml}</div>
+        <div class="text-center text-muted tesda-ref-sublabel">${grp.label}</div>
+      </div>`;
     })
-    .join("");
+    .join("") + `</div>`;
 }
 
 function renderUliBoxes() {
@@ -526,16 +529,17 @@ function renderUliBoxes() {
       for (let i = 0; i < count; i++) {
         bHtml += `<span class="tesda-ref-box tesda-ref-box--b">&nbsp;</span>`;
       }
-      return `${idx > 0 ? '<span class="fw-bold text-muted px-1">-</span>' : ""}<div class="d-inline-flex gap-1">${bHtml}</div>`;
+      return `${idx > 0 ? '<span class="fw-bold text-muted px-0.5">-</span>' : ""}<div class="d-inline-flex gap-0.5">${bHtml}</div>`;
     })
     .join("");
 }
 
 function renderWorkExperienceRows(rows) {
   const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
-  const displayRows = validRows.length ? validRows : [{}, {}];
-  if (displayRows.length === 1) displayRows.push({});
+  const displayRows = [...validRows];
+  while (displayRows.length < 4) displayRows.push({});
   return displayRows
+    .slice(0, 4)
     .map(
       (r) => `<tr>
         <td>${escapeHtml(r.company || "—")}</td>
@@ -551,9 +555,10 @@ function renderWorkExperienceRows(rows) {
 
 function renderTrainingRows(rows) {
   const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
-  const displayRows = validRows.length ? validRows : [{}, {}];
-  if (displayRows.length === 1) displayRows.push({});
+  const displayRows = [...validRows];
+  while (displayRows.length < 4) displayRows.push({});
   return displayRows
+    .slice(0, 4)
     .map(
       (r) => `<tr>
         <td>${escapeHtml(r.title || "—")}</td>
@@ -568,9 +573,10 @@ function renderTrainingRows(rows) {
 
 function renderLicenseRows(rows) {
   const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
-  const displayRows = validRows.length ? validRows : [{}, {}];
-  if (displayRows.length === 1) displayRows.push({});
+  const displayRows = [...validRows];
+  while (displayRows.length < 3) displayRows.push({});
   return displayRows
+    .slice(0, 3)
     .map(
       (r) => `<tr>
         <td>${escapeHtml(r.title || "—")}</td>
@@ -586,9 +592,10 @@ function renderLicenseRows(rows) {
 
 function renderCompetencyRows(rows) {
   const validRows = (rows || []).filter((r) => r && Object.values(r).some((v) => String(v).trim()));
-  const displayRows = validRows.length ? validRows : [{}, {}];
-  if (displayRows.length === 1) displayRows.push({});
+  const displayRows = [...validRows];
+  while (displayRows.length < 2) displayRows.push({});
   return displayRows
+    .slice(0, 2)
     .map(
       (r) => `<tr>
         <td>${escapeHtml(r.title || "—")}</td>
@@ -600,6 +607,210 @@ function renderCompetencyRows(rows) {
       </tr>`
     )
     .join("");
+}
+
+export function renderAdmissionSlip(detail, { school, contact, nameObj, assessmentTypes } = {}) {
+  const aa = detail?.assessmentApplication || {};
+  const admissionData = aa.admissionSlip || {};
+  const orNumber = admissionData.orNumber || detail?.officialReceiptNumber || detail?.orNumber || "";
+  const dateIssued = admissionData.dateIssued || detail?.receiptDateIssued || detail?.dateIssued || "";
+  const assessmentDate = admissionData.assessmentDate || detail?.assessmentDate || "";
+  const assessmentTime = admissionData.assessmentTime || detail?.assessmentTime || "";
+
+  const nameParts = [nameObj?.firstName, nameObj?.middleName, nameObj?.surname].filter(Boolean);
+  const fullName = nameParts.length ? nameParts.join(" ") : (detail?.name || "—");
+  const phone = contact?.mobile || contact?.tel || detail?.section2?.contact || "—";
+  const assessmentTitle = school?.assessmentTitle || detail?.program || "—";
+  const centerName = school?.name || "Valiant Technical Institute and Assessment Center, Inc.";
+
+  return `
+    <div class="tesda-admission-slip">
+      <!-- Cut line with scissors -->
+      <div class="tesda-cut-line">
+        <div class="tesda-cut-dashes"></div>
+        <span class="tesda-cut-scissors">✂</span>
+        <div class="tesda-cut-dashes"></div>
+      </div>
+
+      <div class="border border-dark">
+        <!-- Header banner -->
+        <div class="tesda-slip-header border-bottom border-dark">
+          ADMISSION SLIP
+        </div>
+
+        <!-- Reference Number and Photo Box Row -->
+        <div class="tesda-flex-row border-bottom border-dark">
+          <div style="flex: 1 1 auto; min-width: 0;" class="border-end border-dark">
+            <!-- Reference Number -->
+            <div class="p-1 border-bottom border-dark d-flex align-items-center gap-1 flex-wrap">
+              <span class="fw-bold text-uppercase text-2xs" style="white-space: nowrap;">REFERENCE NUMBER :</span>
+              <div class="d-flex flex-wrap align-items-center">
+                ${renderRefBoxes()}
+              </div>
+            </div>
+
+            <!-- Name of Applicant & Tel Number -->
+            <div class="tesda-flex-row border-bottom border-dark">
+              <div style="flex: 0 0 60%; max-width: 60%;" class="p-1 border-end border-dark">
+                <span class="text-2xs fw-bold text-dark">Name of Applicant:</span>
+                <span class="fw-bold text-dark ms-1">${escapeHtml(fullName)}</span>
+              </div>
+              <div style="flex: 0 0 40%; max-width: 40%;" class="p-1">
+                <span class="text-2xs fw-bold text-dark">Tel. Number:</span>
+                <span class="fw-bold text-dark ms-1">${escapeHtml(phone)}</span>
+              </div>
+            </div>
+
+            <!-- Assessment Applied for & OR / Date Issued -->
+            <div class="tesda-flex-row">
+              <div style="flex: 0 0 60%; max-width: 60%;" class="p-1 border-end border-dark">
+                <span class="text-2xs fw-bold text-dark">Assessment Applied for:</span>
+                <div class="fw-bold text-dark mt-0.5">${escapeHtml(assessmentTitle)}</div>
+              </div>
+              <div style="flex: 0 0 40%; max-width: 40%;" class="p-1">
+                <div>
+                  <span class="text-2xs fw-bold text-dark">Official Receipt Number:</span>
+                  <span class="fw-bold text-dark ms-1">${escapeHtml(orNumber || "—")}</span>
+                </div>
+                <div>
+                  <span class="text-2xs fw-bold text-dark">Date Issued:</span>
+                  <span class="fw-bold text-dark ms-1">${escapeHtml(dateIssued || "—")}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Passport Picture Box on Right -->
+          <div class="p-1 d-flex flex-column align-items-center justify-content-center text-center flex-shrink-0" style="width: 100px; background: #fff;">
+            <div class="border border-dark w-100 h-100 d-flex flex-column align-items-center justify-content-center p-1" style="min-height: 68px; max-height: 78px;">
+              <div class="fw-bold text-dark" style="font-size: 0.72rem; letter-spacing: 0.05em;">PICTURE</div>
+              <div class="fst-italic text-muted mt-0.5" style="font-size: 0.58rem; line-height: 1.15;">
+                (Passport<br>size)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner: To be accomplished by the Processing Officer -->
+        <div class="bg-light px-2 py-0.5 border-bottom border-dark fw-bold fst-italic text-dark" style="font-size: 0.68rem;">
+          To be accomplished by the Processing Officer
+        </div>
+
+        <!-- Name of Assessment Center -->
+        <div class="p-1 border-bottom border-dark">
+          <span class="text-2xs fw-bold text-dark">Name of Assessment Center:</span>
+          <span class="fw-bold text-dark ms-1">${escapeHtml(centerName)}</span>
+        </div>
+
+        <!-- Check submitted requirements & Remarks -->
+        <div class="tesda-flex-row border-bottom border-dark">
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1 border-end border-dark">
+            <div class="text-2xs fw-bold text-dark mb-0.5">Check submitted requirements:</div>
+            <div class="d-flex flex-column gap-0.5 ms-1">
+              <div class="d-flex align-items-center gap-1">
+                <span class="tesda-box">&nbsp;</span>
+                <span class="text-2xs text-dark">Accomplished Self-Assessment Guide</span>
+              </div>
+              <div class="d-flex align-items-center gap-1">
+                <span class="tesda-box">&nbsp;</span>
+                <span class="text-2xs text-dark">Three (3) pieces colored passport size pictures</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1">
+            <div class="text-2xs fw-bold text-dark mb-0.5">Remarks:</div>
+            <div class="d-flex flex-column gap-0.5 ms-1">
+              <div class="d-flex align-items-center gap-1">
+                <span class="tesda-box">&nbsp;</span>
+                <span class="text-2xs text-dark">Bring own Personal Protective Equipment</span>
+              </div>
+              <div class="d-flex align-items-center gap-1">
+                <span class="tesda-box">&nbsp;</span>
+                <span class="text-2xs text-dark">Others. Pls. specify</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assessment Date & Time -->
+        <div class="tesda-flex-row border-bottom border-dark">
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1 border-end border-dark">
+            <span class="text-2xs fw-bold text-dark">Assessment Date:</span>
+            <span class="fw-bold text-dark ms-1">${escapeHtml(assessmentDate || "—")}</span>
+          </div>
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1">
+            <span class="text-2xs fw-bold text-dark">Assessment Time:</span>
+            <span class="fw-bold text-dark ms-1">${escapeHtml(assessmentTime || "—")}</span>
+          </div>
+        </div>
+
+        <!-- Signatures Row -->
+        <div class="tesda-flex-row border-bottom border-dark">
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1 border-end border-dark d-flex flex-column justify-content-between text-center" style="min-height: 40px;">
+            <div class="mt-auto">
+              <div class="border-bottom border-dark mx-auto" style="width: 80%; height: 14px;"></div>
+              <div class="text-2xs fw-bold text-dark mt-0.5">Printed Name & Signature of Processing Officer</div>
+            </div>
+            <div class="text-start mt-0.5">
+              <span class="text-2xs fw-bold text-dark">Date:</span>
+              <span class="text-2xs text-dark ms-1">________________</span>
+            </div>
+          </div>
+
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1 d-flex flex-column justify-content-between text-center" style="min-height: 40px;">
+            <div class="mt-auto">
+              <div class="border-bottom border-dark mx-auto fw-bold text-dark small" style="width: 80%; min-height: 13px;">
+                ${escapeHtml(fullName)}
+              </div>
+              <div class="text-2xs fw-bold text-dark mt-0.5">Printed Name & Signature of Applicant</div>
+            </div>
+            <div class="text-start mt-0.5">
+              <span class="text-2xs fw-bold text-dark">Date:</span>
+              <span class="text-2xs text-dark ms-1">________________</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer note -->
+        <div class="text-center py-0.5 fst-italic fw-semibold text-primary" style="font-size: 0.72rem;">
+          Note: Please bring this Admission Slip on your assessment date.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+export function printCandidateAssessmentForm(detail) {
+  if (!detail) return;
+  let printArea = document.getElementById("registrarPrintArea");
+  if (!printArea) {
+    printArea = document.createElement("div");
+    printArea.id = "registrarPrintArea";
+    document.body.appendChild(printArea);
+  } else if (printArea.parentElement !== document.body) {
+    document.body.appendChild(printArea);
+  }
+
+  printArea.classList.remove("d-none");
+  printArea.innerHTML = renderAssessmentApplicationProfile(detail);
+
+  const bodyClass = "registrar-print-candidate";
+  const cleanup = () => {
+    document.body.classList.remove(bodyClass);
+    if (printArea) {
+      printArea.innerHTML = "";
+      printArea.classList.add("d-none");
+    }
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  document.body.classList.add(bodyClass);
+  window.addEventListener("afterprint", cleanup);
+
+  setTimeout(() => {
+    window.print();
+  }, 150);
 }
 
 export function renderAssessmentApplicationProfile(detail) {
@@ -657,16 +868,16 @@ export function renderAssessmentApplicationProfile(detail) {
   const assessmentTypes = Array.isArray(school.assessmentTypes) ? school.assessmentTypes : [];
   const clientTypes = Array.isArray(sec1.selected) ? sec1.selected : [];
 
-  const photoHtml = `<div class="border border-dark w-100 h-100 d-flex flex-column align-items-center justify-content-center p-2" style="min-height: 145px; background: #fff;">
-    <div class="fw-bold text-dark" style="font-size: 0.8125rem; letter-spacing: 0.05em;">PICTURE</div>
-    <div class="fst-italic text-muted mt-2 text-center" style="font-size: 0.7rem; line-height: 1.35;">
+  const photoHtml = `<div class="border border-dark w-100 h-100 d-flex flex-column align-items-center justify-content-center p-1" style="min-height: 80px; max-height: 90px; background: #fff;">
+    <div class="fw-bold text-dark" style="font-size: 0.72rem; letter-spacing: 0.05em;">PICTURE</div>
+    <div class="fst-italic text-muted mt-0.5 text-center" style="font-size: 0.58rem; line-height: 1.15;">
       colored,<br>
       passport size,
     </div>
   </div>`;
 
   const incompleteBanner = detail.source === "registration"
-    ? `<div class="alert alert-warning mb-3"><strong>Candidate profile not yet completed.</strong> Showing initial registration data. The candidate must submit the full TESDA Application Form (Step 1).</div>`
+    ? `<div class="alert alert-warning mb-2 no-print"><strong>Candidate profile not yet completed.</strong> Showing initial registration data. The candidate must submit the full TESDA Application Form (Step 1).</div>`
     : "";
 
   // Education matching
@@ -692,14 +903,14 @@ export function renderAssessmentApplicationProfile(detail) {
 
   return `
     ${incompleteBanner}
-    <div class="tesda-official-form">
+    <div class="tesda-official-form tesda-print-page tesda-print-page--1">
       <!-- Top header line -->
-      <div class="tesda-official-form__top-bar mb-2">
+      <div class="tesda-official-form__top-bar mb-1">
         <span>TESDA-OP-CO-05-F26</span> &nbsp;&nbsp; <span>Rev. 00 — 03/01/17</span>
       </div>
 
       <!-- Main agency header -->
-      <header class="tesda-official-form__header">
+      <header class="tesda-official-form__header mb-1">
         <img src="/static/img/TESDA%20Logo%20official.png" alt="TESDA Logo" class="tesda-official-form__logo" onerror="this.style.display='none'" />
         <div class="text-center flex-grow-1">
           <p class="tesda-official-form__agency-en mb-0">TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY</p>
@@ -710,57 +921,49 @@ export function renderAssessmentApplicationProfile(detail) {
 
       <!-- Reference number, ULI, Signature & Photo header box -->
       <div class="border border-dark mb-0">
-        <div class="row g-0">
-          <div class="col border-end border-dark p-2 d-flex flex-column justify-content-between">
+        <div class="tesda-flex-row">
+          <div style="flex: 1 1 auto; min-width: 0;" class="border-end border-dark p-1 d-flex flex-column justify-content-between">
             <div>
-              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                <span class="fw-bold text-2xs text-uppercase" style="white-space: nowrap;">Reference Number :</span>
+              <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+                <span class="fw-bold text-2xs text-uppercase" style="white-space: nowrap;">REFERENCE NUMBER :</span>
                 <div class="d-flex flex-wrap align-items-center">
                   ${renderRefBoxes()}
                 </div>
               </div>
-              <div class="d-flex justify-content-between text-muted mb-2 px-1" style="font-size: 0.6rem;">
-                <span>Web appl. code</span>
-                <span>TV</span>
-                <span>Region</span>
-                <span>Province</span>
-                <span>Number Series Assigned in AC</span>
-                <span>Number Series</span>
-              </div>
 
-              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                <span class="fw-bold text-2xs text-uppercase" style="white-space: nowrap;">Unique Learners Identifier (ULI):</span>
+              <div class="d-flex flex-wrap align-items-center gap-1 mb-0.5">
+                <span class="fw-bold text-2xs text-uppercase" style="white-space: nowrap;">UNIQUE LEARNERS IDENTIFIER (ULI):</span>
                 <div class="d-flex flex-wrap align-items-center">
                   ${renderUliBoxes()}
                 </div>
               </div>
-              <div class="text-center fst-italic text-muted mb-2" style="font-size: 0.65rem;">to be filled - out by the Processing Officer</div>
+              <div class="text-center fst-italic text-muted mb-1" style="font-size: 0.6rem;">to be filled - out by the Processing Officer</div>
             </div>
 
-            <div class="row g-2 pt-2 border-top border-dark">
-              <div class="col-6 text-center">
-                <div class="border-bottom border-dark pb-1 fw-bold small text-dark">${escapeHtml(header.signature || detail.name || "—")}</div>
-                <div class="text-muted mt-1" style="font-size: 0.7rem;">Applicant's Signature</div>
+            <div class="tesda-flex-row pt-1 border-top border-dark">
+              <div style="flex: 0 0 50%; max-width: 50%;" class="text-center px-2">
+                <div class="border-bottom border-dark pb-0.5 fw-bold small text-dark">${escapeHtml(header.signature || detail.name || "—")}</div>
+                <div class="text-muted mt-0.5" style="font-size: 0.65rem;">Applicant's Signature</div>
               </div>
-              <div class="col-6 text-center">
-                <div class="border-bottom border-dark pb-1 fw-bold small text-dark">${escapeHtml(header.dateOfApplication || detail.section1?.entryDate || "—")}</div>
-                <div class="text-muted mt-1" style="font-size: 0.7rem;">Date of Application</div>
+              <div style="flex: 0 0 50%; max-width: 50%;" class="text-center px-2">
+                <div class="border-bottom border-dark pb-0.5 fw-bold small text-dark">${escapeHtml(header.dateOfApplication || detail.section1?.entryDate || "—")}</div>
+                <div class="text-muted mt-0.5" style="font-size: 0.65rem;">Date of Application</div>
               </div>
             </div>
           </div>
 
-          <div class="col-auto p-2 d-flex align-items-center justify-content-center" style="width: 140px; background: #fff;">
+          <div class="p-1 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 100px; background: #fff;">
             ${photoHtml}
           </div>
         </div>
       </div>
 
       <!-- Training Center & Assessment Applied for -->
-      <div class="border border-dark border-top-0 p-2">
-        <div class="mb-1"><span class="fw-bold text-primary">Name of School/Training Center/Company:</span> <span class="fw-semibold text-dark ms-1">${escapeHtml(school.name || "Valiant Technical Institute and Assessment Center, Inc.")}</span></div>
-        <div class="mb-1"><span class="fw-bold text-primary">Address:</span> <span class="fw-semibold text-dark ms-1">${escapeHtml(school.address || "Bangoy St., Salvacion, Panabo, Philippines, 8105")}</span></div>
-        <div class="mb-1"><span class="fw-bold text-primary">Title of Assessment applied for:</span> <span class="fw-bold text-primary ms-1">${escapeHtml(school.assessmentTitle || detail.program || "—")}</span></div>
-        <div class="d-flex flex-wrap align-items-center gap-4 mt-2 pt-1 border-top border-secondary-subtle">
+      <div class="border border-dark border-top-0 p-1">
+        <div class="mb-0.5"><span class="fw-bold text-primary">Name of School/Training Center/Company:</span> <span class="fw-semibold text-dark ms-1">${escapeHtml(school.name || "Valiant Technical Institute and Assessment Center, Inc.")}</span></div>
+        <div class="mb-0.5"><span class="fw-bold text-primary">Address:</span> <span class="fw-semibold text-dark ms-1">${escapeHtml(school.address || "Bangoy St., Salvacion, Panabo, Philippines, 8105")}</span></div>
+        <div class="mb-0.5"><span class="fw-bold text-primary">Title of Assessment applied for:</span> <span class="fw-bold text-primary ms-1">${escapeHtml(school.assessmentTitle || detail.program || "—")}</span></div>
+        <div class="d-flex flex-wrap align-items-center gap-3 mt-1 pt-0.5 border-top border-secondary-subtle">
           ${renderCheck("Full Qualification", assessmentTypes.includes("full_qualification"))}
           ${renderCheck("COC", assessmentTypes.includes("coc"))}
           ${renderCheck("Renewal", assessmentTypes.includes("renewal"))}
@@ -769,10 +972,10 @@ export function renderAssessmentApplicationProfile(detail) {
 
       <!-- 1. Client Type -->
       <div class="border border-dark border-top-0">
-        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+        <div class="bg-light px-2 py-0.5 border-bottom border-dark fw-bold text-primary tesda-section-title">
           1. Client Type
         </div>
-        <div class="p-2 d-flex flex-wrap gap-4 align-items-center">
+        <div class="p-1 d-flex flex-wrap gap-3 align-items-center">
           ${renderCheck("TVET Graduating Student", clientTypes.includes("tvet_graduating"))}
           ${renderCheck("TVET graduate", clientTypes.includes("tvet_graduate"))}
           ${renderCheck("Industry worker", clientTypes.includes("industry_worker"))}
@@ -783,166 +986,170 @@ export function renderAssessmentApplicationProfile(detail) {
 
       <!-- 2. Profile -->
       <div class="border border-dark border-top-0">
-        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
+        <div class="bg-light px-2 py-0.5 border-bottom border-dark fw-bold text-primary tesda-section-title">
           2. Profile
         </div>
 
         <!-- 2.1 Name -->
-        <div class="p-2 border-bottom border-dark">
-          <div class="fw-bold text-2xs text-muted mb-1">2.1. Name:</div>
-          <div class="table-responsive">
-            <table class="tesda-name-table w-100 mb-0">
-              <tbody>
-                <tr>
-                  <td class="tesda-name-label" style="width: 110px;">SURNAME</td>
-                  <td class="p-1">${renderLetterBoxes(nameObj.surname, 24)}</td>
-                </tr>
-                <tr>
-                  <td class="tesda-name-label">FIRST NAME</td>
-                  <td class="p-1">${renderLetterBoxes(nameObj.firstName, 24)}</td>
-                </tr>
-                <tr>
-                  <td class="tesda-name-label">MIDDLE NAME</td>
-                  <td class="p-1">
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                      ${renderLetterBoxes(nameObj.middleName, 17)}
-                      <div class="d-flex align-items-center gap-1">
-                        <span class="text-2xs text-muted">middle initial:</span>
-                        <span class="tesda-char-box bg-light fw-bold">${escapeHtml(nameObj.middleInitial || "—")}</span>
-                      </div>
-                      <div class="d-flex align-items-center gap-1">
-                        <span class="text-2xs text-muted">extension:</span>
-                        <span class="tesda-char-box bg-light fw-bold px-1" style="width: auto; min-width: 1.5rem;">${escapeHtml(nameObj.nameExtension || "—")}</span>
-                      </div>
+        <div class="p-1 border-bottom border-dark">
+          <div class="fw-bold text-2xs text-muted mb-0.5">2.1. Name:</div>
+          <table class="tesda-name-table w-100 mb-0">
+            <tbody>
+              <tr>
+                <td class="tesda-name-label" style="width: 85px;">SURNAME</td>
+                <td class="p-0.5">${renderLetterBoxes(nameObj.surname, 30)}</td>
+              </tr>
+              <tr>
+                <td class="tesda-name-label">FIRST NAME</td>
+                <td class="p-0.5">${renderLetterBoxes(nameObj.firstName, 30)}</td>
+              </tr>
+              <tr>
+                <td class="tesda-name-label">MIDDLE NAME</td>
+                <td class="p-0.5">
+                  <div class="d-flex flex-wrap align-items-center gap-1">
+                    ${renderLetterBoxes(nameObj.middleName, 18)}
+                    <div class="d-flex align-items-center gap-0.5 ms-1">
+                      <span class="text-2xs text-muted" style="white-space: nowrap;">middle initial:</span>
+                      <span class="tesda-char-box bg-light fw-bold">${escapeHtml(nameObj.middleInitial || (nameObj.middleName ? nameObj.middleName[0] : ""))}</span>
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                    <div class="d-flex align-items-center gap-0.5 ms-1">
+                      <span class="text-2xs text-muted" style="white-space: nowrap;">extension:</span>
+                      <span class="tesda-char-box bg-light fw-bold px-1" style="width: auto; min-width: 1.4rem;">${escapeHtml(nameObj.nameExtension || "")}</span>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- 2.2 Mailing Address -->
-        <div class="p-2 border-bottom border-dark">
-          <div class="fw-bold text-2xs text-muted mb-1">2.2. Mailing Address:</div>
-          <div class="row g-2">
-            <div class="col-md-5">
+        <div class="border-bottom border-dark">
+          <div class="px-2 py-0.5 bg-light-subtle text-2xs fw-bold text-muted border-bottom border-dark">2.2. Mailing Address:</div>
+          <!-- Row 1: Street, Barangay, District -->
+          <div class="tesda-flex-row border-bottom border-dark">
+            <div style="flex: 0 0 34%; max-width: 34%;" class="p-1 border-end border-dark">
               <span class="text-2xs text-muted d-block">Number, Street</span>
-              <span class="fw-semibold text-dark small">${escapeHtml(addr.street)}</span>
+              <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(addr.street)}</span>
             </div>
-            <div class="col-md-4">
+            <div style="flex: 0 0 33%; max-width: 33%;" class="p-1 border-end border-dark">
               <span class="text-2xs text-muted d-block">Barangay</span>
-              <span class="fw-semibold text-dark small">${escapeHtml(addr.barangay)}</span>
+              <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(addr.barangay)}</span>
             </div>
-            <div class="col-md-3">
+            <div style="flex: 0 0 33%; max-width: 33%;" class="p-1">
               <span class="text-2xs text-muted d-block">District</span>
-              <span class="fw-semibold text-dark small">${escapeHtml(addr.district)}</span>
+              <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(addr.district)}</span>
             </div>
-            <div class="col-md-4">
+          </div>
+          <!-- Row 2: City / Municipality, Province, Region, Zip Code -->
+          <div class="tesda-flex-row">
+            <div style="flex: 0 0 28%; max-width: 28%;" class="p-1 border-end border-dark">
               <span class="text-2xs text-muted d-block">City / Municipality</span>
-              <span class="fw-semibold text-dark small">${escapeHtml(addr.city)}</span>
+              <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(addr.city)}</span>
             </div>
-            <div class="col-md-3">
+            <div style="flex: 0 0 28%; max-width: 28%;" class="p-1 border-end border-dark">
               <span class="text-2xs text-muted d-block">Province</span>
-              <span class="fw-semibold text-dark small">${escapeHtml(addr.province)}</span>
+              <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(addr.province)}</span>
             </div>
-            <div class="col-md-3">
+            <div style="flex: 0 0 28%; max-width: 28%;" class="p-1 border-end border-dark">
               <span class="text-2xs text-muted d-block">Region</span>
-              <span class="fw-semibold text-dark small">${escapeHtml(addr.region)}</span>
+              <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(addr.region)}</span>
             </div>
-            <div class="col-md-2">
+            <div style="flex: 0 0 16%; max-width: 16%;" class="p-1">
               <span class="text-2xs text-muted d-block">Zip Code</span>
-              <span class="fw-semibold text-dark small">${escapeHtml(addr.zipCode)}</span>
+              <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(addr.zipCode)}</span>
             </div>
           </div>
         </div>
 
         <!-- 2.3 & 2.4 Parents -->
-        <div class="row g-0 border-bottom border-dark">
-          <div class="col-md-6 p-2 border-end border-dark">
+        <div class="tesda-flex-row border-bottom border-dark">
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1 border-end border-dark">
             <span class="text-2xs text-muted d-block">2.3. Mother's Name</span>
-            <span class="fw-semibold text-dark small">${escapeHtml(parents.motherName)}</span>
+            <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(parents.motherName)}</span>
           </div>
-          <div class="col-md-6 p-2">
+          <div style="flex: 0 0 50%; max-width: 50%;" class="p-1">
             <span class="text-2xs text-muted d-block">2.4. Father's Name</span>
-            <span class="fw-semibold text-dark small">${escapeHtml(parents.fatherName)}</span>
+            <span class="fw-semibold text-dark small text-truncate d-block">${escapeHtml(parents.fatherName)}</span>
           </div>
         </div>
 
-        <!-- 2.5 - 2.9 (Left & Right columns) -->
-        <div class="row g-0 border-bottom border-dark">
-          <!-- Left Column: Sex, Civil Status, Contacts -->
-          <div class="col-md-6 p-2 border-end border-dark">
-            <div class="mb-2">
-              <span class="text-2xs text-muted d-block mb-1">2.5. Sex</span>
-              <div class="d-flex gap-3">
-                ${renderCheck("Male", sex === "male")}
-                ${renderCheck("Female", sex === "female")}
-              </div>
-            </div>
-            <div class="mb-2">
-              <span class="text-2xs text-muted d-block mb-1">2.6. Civil Status</span>
-              <div class="d-flex flex-wrap gap-2">
-                ${renderCheck("Single", civilStatus === "single")}
-                ${renderCheck("Married", civilStatus === "married")}
-                ${renderCheck("Widow/er", civilStatus === "widowed")}
-                ${renderCheck("Separated", civilStatus === "separated")}
-              </div>
-            </div>
-            <div>
-              <span class="text-2xs text-muted d-block mb-1">2.7. Contact Number(s)</span>
-              <div class="row g-1 small">
-                <div class="col-6"><span class="text-muted text-2xs">Tel:</span> <span class="fw-medium">${escapeHtml(contact.tel)}</span></div>
-                <div class="col-6"><span class="text-muted text-2xs">Mobile:</span> <span class="fw-bold">${escapeHtml(contact.mobile)}</span></div>
-                <div class="col-12"><span class="text-muted text-2xs">E-mail:</span> <span class="fw-medium">${escapeHtml(contact.email)}</span></div>
-                <div class="col-6"><span class="text-muted text-2xs">Fax:</span> <span class="fw-medium">${escapeHtml(contact.fax)}</span></div>
-                <div class="col-6"><span class="text-muted text-2xs">Others:</span> <span class="fw-medium">${escapeHtml(contact.others)}</span></div>
-              </div>
+        <!-- 2.5 - 2.9 (5-Column Grid side-by-side) -->
+        <div class="tesda-flex-row border-bottom border-dark tesda-profile-5col">
+          <!-- 2.5 Sex -->
+          <div style="flex: 0 0 10%; max-width: 10%;" class="p-1 border-end border-dark">
+            <span class="text-2xs text-muted d-block mb-0.5 fw-bold">2.5. Sex</span>
+            <div class="d-flex flex-column gap-0.5">
+              ${renderCheck("Male", sex === "male")}
+              ${renderCheck("Female", sex === "female")}
             </div>
           </div>
 
-          <!-- Right Column: Education & Employment Status -->
-          <div class="col-md-6 p-2">
-            <div class="mb-2">
-              <span class="text-2xs text-muted d-block mb-1">2.8. Highest Educational Attainment</span>
-              <div class="d-flex flex-column gap-1">
-                ${renderCheck("Elementary Graduate", isElementary)}
-                ${renderCheck("High School Graduate", isHighSchool)}
-                ${renderCheck("TVET Graduate", isTvet)}
-                ${renderCheck("College Level", isCollegeLevel)}
-                ${renderCheck("College Graduate", isCollegeGrad)}
-                ${renderCheck("Others: " + (isEduOther ? escapeHtml(edu.label) : "__________"), isEduOther)}
-              </div>
+          <!-- 2.6 Civil Status -->
+          <div style="flex: 0 0 13%; max-width: 13%;" class="p-1 border-end border-dark">
+            <span class="text-2xs text-muted d-block mb-0.5 fw-bold">2.6. Civil Status</span>
+            <div class="d-flex flex-column gap-0.5">
+              ${renderCheck("Single", civilStatus === "single")}
+              ${renderCheck("Married", civilStatus === "married")}
+              ${renderCheck("Widow/er", civilStatus === "widow" || civilStatus === "widowed")}
+              ${renderCheck("Separated", civilStatus === "separated")}
             </div>
-            <div>
-              <span class="text-2xs text-muted d-block mb-1">2.9. Employment Status</span>
-              <div class="d-flex flex-wrap gap-2">
-                ${renderCheck("Casual", isCasual)}
-                ${renderCheck("Job Order", isJobOrder)}
-                ${renderCheck("Probationary", isProbationary)}
-                ${renderCheck("Permanent", isPermanent)}
-                ${renderCheck("Self-Employed", isSelfEmployed)}
-                ${renderCheck("OFW", isOfw)}
-              </div>
+          </div>
+
+          <!-- 2.7 Contact Number(s) -->
+          <div style="flex: 0 0 28%; max-width: 28%;" class="p-1 border-end border-dark">
+            <span class="text-2xs text-muted d-block mb-0.5 fw-bold">2.7. Contact Number(s)</span>
+            <div class="d-flex flex-column gap-0.5 small">
+              <div><span class="text-muted text-2xs">Tel:</span> <span class="fw-medium">${escapeHtml(contact.tel)}</span></div>
+              <div><span class="text-muted text-2xs">Mobile:</span> <span class="fw-bold">${escapeHtml(contact.mobile)}</span></div>
+              <div class="text-truncate" title="${escapeHtml(contact.email)}"><span class="text-muted text-2xs">E-mail:</span> <span class="fw-medium">${escapeHtml(contact.email)}</span></div>
+              <div><span class="text-muted text-2xs">Fax:</span> <span class="fw-medium">${escapeHtml(contact.fax)}</span></div>
+              <div><span class="text-muted text-2xs">Others:</span> <span class="fw-medium">${escapeHtml(contact.others)}</span></div>
+            </div>
+          </div>
+
+          <!-- 2.8 Highest Educational Attainment -->
+          <div style="flex: 0 0 27%; max-width: 27%;" class="p-1 border-end border-dark">
+            <span class="text-2xs text-muted d-block mb-0.5 fw-bold">2.8. Highest Educational Attainment</span>
+            <div class="d-flex flex-column gap-0.5">
+              ${renderCheck("Elementary Graduate", isElementary)}
+              ${renderCheck("High School Graduate", isHighSchool)}
+              ${renderCheck("TVET Graduate", isTvet)}
+              ${renderCheck("College Level", isCollegeLevel)}
+              ${renderCheck("College Graduate", isCollegeGrad)}
+              ${renderCheck("Others: " + (isEduOther ? escapeHtml(edu.label) : "__________"), isEduOther)}
+            </div>
+          </div>
+
+          <!-- 2.9 Employment Status -->
+          <div style="flex: 0 0 22%; max-width: 22%;" class="p-1">
+            <span class="text-2xs text-muted d-block mb-0.5 fw-bold">2.9. Employment Status</span>
+            <div class="d-flex flex-column gap-0.5">
+              ${renderCheck("Casual", isCasual)}
+              ${renderCheck("Job Order", isJobOrder)}
+              ${renderCheck("Probationary", isProbationary)}
+              ${renderCheck("Permanent", isPermanent)}
+              ${renderCheck("Self-Employed", isSelfEmployed)}
+              ${renderCheck("OFW", isOfw)}
             </div>
           </div>
         </div>
 
         <!-- 2.10 - 2.12 Birth Date, Birth Place, Age -->
-        <div class="row g-0 p-2 align-items-center">
-          <div class="col-md-5 d-flex align-items-center gap-2">
+        <div class="tesda-flex-row p-1 align-items-center">
+          <div style="flex: 0 0 40%; max-width: 40%;" class="d-flex align-items-center gap-1 border-end border-dark pe-2">
             <span class="text-2xs text-muted text-nowrap">2.10 Birth date (mm/dd/yy):</span>
-            <div class="d-flex align-items-center gap-1">
+            <div class="d-flex align-items-center gap-0.5">
               <span class="tesda-char-box bg-light fw-bold">${escapeHtml(birth.mm || "MM")}</span> /
               <span class="tesda-char-box bg-light fw-bold">${escapeHtml(birth.dd || "DD")}</span> /
-              <span class="tesda-char-box bg-light fw-bold" style="width: auto; min-width: 1.6rem; padding: 0 3px;">${escapeHtml(birth.yy || "YY")}</span>
+              <span class="tesda-char-box bg-light fw-bold" style="width: auto; min-width: 1.6rem; padding: 0 2px;">${escapeHtml(birth.yy || "YY")}</span>
             </div>
           </div>
-          <div class="col-md-5 d-flex align-items-center gap-2">
+          <div style="flex: 0 0 45%; max-width: 45%;" class="d-flex align-items-center gap-1 border-end border-dark px-2">
             <span class="text-2xs text-muted text-nowrap">2.11 Birth place:</span>
-            <span class="fw-semibold small text-dark">${escapeHtml(birth.birthplace)}</span>
+            <span class="fw-semibold small text-dark text-truncate">${escapeHtml(birth.birthplace)}</span>
           </div>
-          <div class="col-md-2 d-flex align-items-center gap-2">
+          <div style="flex: 0 0 15%; max-width: 15%;" class="d-flex align-items-center gap-1 ps-2">
             <span class="text-2xs text-muted text-nowrap">2.12 Age:</span>
             <span class="fw-bold small text-dark">${escapeHtml(birth.age)}</span>
           </div>
@@ -950,20 +1157,20 @@ export function renderAssessmentApplicationProfile(detail) {
       </div>
 
       <!-- 3. Work Experience -->
-      <div class="border border-dark border-top-0 mb-3">
-        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
-          3. Work Experience <span class="fw-normal text-muted" style="font-size: 0.75rem;">(National Qualification-related)</span>
+      <div class="border border-dark border-top-0 mb-0">
+        <div class="bg-light px-2 py-0.5 border-bottom border-dark fw-bold text-primary tesda-section-title">
+          3. Work Experience <span class="fw-normal text-muted" style="font-size: 0.72rem;">(National Qualification-related)</span>
         </div>
         <div class="table-responsive mb-0">
           <table class="tesda-official-table w-100 mb-0">
             <thead>
               <tr>
-                <th>3.1 Name of Company</th>
-                <th>3.2 Position</th>
-                <th>3.3 Inclusive Dates</th>
-                <th>3.4 Monthly Salary</th>
-                <th>3.5 Status of Appointment</th>
-                <th>3.6 No. of Yrs. Working Exp.</th>
+                <th style="width: 25%;">3.1 Name of Company</th>
+                <th style="width: 20%;">3.2 Position</th>
+                <th style="width: 15%;">3.3 Inclusive Dates</th>
+                <th style="width: 12%;">3.4 Monthly Salary</th>
+                <th style="width: 14%;">3.5 Status of Appointment</th>
+                <th style="width: 14%;">3.6 No. of Yrs. Working Exp.</th>
               </tr>
             </thead>
             <tbody>
@@ -971,89 +1178,97 @@ export function renderAssessmentApplicationProfile(detail) {
             </tbody>
           </table>
         </div>
-        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
+        <div class="px-2 py-0.5 text-muted fst-italic" style="font-size: 0.62rem;">(For more information, please use separate sheet)</div>
+      </div>
+    </div>
+
+    <!-- Page 2 separator (screen only) -->
+    <div class="d-flex align-items-center justify-content-between my-2 text-muted text-2xs px-1 no-print">
+      <span class="border-top border-secondary-subtle flex-grow-1 me-2"></span>
+      <span class="fw-bold text-uppercase text-secondary"><i class="bi bi-file-earmark-text me-1"></i>Page 2 — Qualifications & History & Admission Slip</span>
+      <span class="border-top border-secondary-subtle flex-grow-1 ms-2"></span>
+    </div>
+
+    <div class="tesda-official-form tesda-print-page tesda-print-page--2">
+      <!-- TOP HALF: Qualifications & History -->
+      <div class="tesda-page-2-top-half">
+        <!-- 4. Other Training/Seminars Attended -->
+        <div class="border border-dark mb-0">
+          <div class="bg-light px-2 py-0.5 border-bottom border-dark fw-bold text-primary tesda-section-title">
+            4. Other Training/Seminars Attended <span class="fw-normal text-muted" style="font-size: 0.72rem;">(National Qualification-related)</span>
+          </div>
+          <div class="table-responsive mb-0">
+            <table class="tesda-official-table w-100 mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 30%;">4.1 Title</th>
+                  <th style="width: 25%;">4.2 Venue</th>
+                  <th style="width: 15%;">4.3 Inclusive Dates</th>
+                  <th style="width: 12%;">4.4 No. of Hours</th>
+                  <th style="width: 18%;">4.5 Conducted By</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${renderTrainingRows(trainingRows)}
+              </tbody>
+            </table>
+          </div>
+          <div class="px-2 py-0.5 text-muted fst-italic" style="font-size: 0.62rem;">(For more information, please use separate sheet)</div>
+        </div>
+
+        <!-- 5. Licensure Examination(s) Passed -->
+        <div class="border border-dark border-top-0 mb-0">
+          <div class="bg-light px-2 py-0.5 border-bottom border-dark fw-bold text-primary tesda-section-title">
+            5. Licensure Examination(s) Passed
+          </div>
+          <div class="table-responsive mb-0">
+            <table class="tesda-official-table w-100 mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 26%;">5.1 Title</th>
+                  <th style="width: 12%;">5.2 Year Taken</th>
+                  <th style="width: 26%;">5.3 Examination Venue</th>
+                  <th style="width: 12%;">5.4 Rating</th>
+                  <th style="width: 12%;">5.5 Remarks</th>
+                  <th style="width: 12%;">5.6 Expiry Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${renderLicenseRows(licenseRows)}
+              </tbody>
+            </table>
+          </div>
+          <div class="px-2 py-0.5 text-muted fst-italic" style="font-size: 0.62rem;">(For more information, please use separate sheet)</div>
+        </div>
+
+        <!-- 6. Competency Assessment(s) Passed -->
+        <div class="border border-dark border-top-0">
+          <div class="bg-light px-2 py-0.5 border-bottom border-dark fw-bold text-primary tesda-section-title">
+            6. Competency Assessment(s) Passed
+          </div>
+          <div class="table-responsive mb-0">
+            <table class="tesda-official-table w-100 mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">6.1 Title</th>
+                  <th style="width: 15%;">6.2 Qualification Level</th>
+                  <th style="width: 18%;">6.3 Industry Sector</th>
+                  <th style="width: 18%;">6.4 Certificate Number</th>
+                  <th style="width: 12%;">6.5 Date of Issuance</th>
+                  <th style="width: 12%;">6.6 Expiration Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${renderCompetencyRows(competencyRows)}
+              </tbody>
+            </table>
+          </div>
+          <div class="px-2 py-0.5 text-muted fst-italic" style="font-size: 0.62rem;">(For more information, please use separate sheet)</div>
+        </div>
       </div>
 
-      <!-- Page 2 separator -->
-      <div class="d-flex align-items-center justify-content-between my-3 text-muted text-2xs px-1">
-        <span class="border-top border-secondary-subtle flex-grow-1 me-2"></span>
-        <span class="fw-bold text-uppercase text-secondary"><i class="bi bi-file-earmark-text me-1"></i>Page 2 — Qualifications & History</span>
-        <span class="border-top border-secondary-subtle flex-grow-1 ms-2"></span>
-      </div>
-
-      <!-- 4. Other Training/Seminars Attended -->
-      <div class="border border-dark mb-0">
-        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
-          4. Other Training/Seminars Attended <span class="fw-normal text-muted" style="font-size: 0.75rem;">(National Qualification-related)</span>
-        </div>
-        <div class="table-responsive mb-0">
-          <table class="tesda-official-table w-100 mb-0">
-            <thead>
-              <tr>
-                <th>4.1 Title</th>
-                <th>4.2 Venue</th>
-                <th>4.3 Inclusive Dates</th>
-                <th>4.4 No. of Hours</th>
-                <th>4.5 Conducted By</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${renderTrainingRows(trainingRows)}
-            </tbody>
-          </table>
-        </div>
-        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
-      </div>
-
-      <!-- 5. Licensure Examination(s) Passed -->
-      <div class="border border-dark border-top-0 mb-0">
-        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
-          5. Licensure Examination(s) Passed
-        </div>
-        <div class="table-responsive mb-0">
-          <table class="tesda-official-table w-100 mb-0">
-            <thead>
-              <tr>
-                <th>5.1 Title</th>
-                <th>5.2 Year Taken</th>
-                <th>5.3 Examination Venue</th>
-                <th>5.4 Rating</th>
-                <th>5.5 Remarks</th>
-                <th>5.6 Expiry Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${renderLicenseRows(licenseRows)}
-            </tbody>
-          </table>
-        </div>
-        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
-      </div>
-
-      <!-- 6. Competency Assessment(s) Passed -->
-      <div class="border border-dark border-top-0">
-        <div class="bg-light px-2 py-1 border-bottom border-dark fw-bold text-primary" style="font-size: 0.85rem;">
-          6. Competency Assessment(s) Passed
-        </div>
-        <div class="table-responsive mb-0">
-          <table class="tesda-official-table w-100 mb-0">
-            <thead>
-              <tr>
-                <th>6.1 Title</th>
-                <th>6.2 Qualification Level</th>
-                <th>6.3 Industry Sector</th>
-                <th>6.4 Certificate Number</th>
-                <th>6.5 Date of Issuance</th>
-                <th>6.6 Expiration Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${renderCompetencyRows(competencyRows)}
-            </tbody>
-          </table>
-        </div>
-        <div class="px-2 py-1 text-muted fst-italic" style="font-size: 0.65rem;">(For more information, please use separate sheet)</div>
-      </div>
+      <!-- BOTTOM HALF: ADMISSION SLIP ("half to half cut") -->
+      ${renderAdmissionSlip(detail, { school, contact, nameObj, assessmentTypes })}
     </div>`;
 }
 

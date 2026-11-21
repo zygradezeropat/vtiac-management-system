@@ -353,12 +353,26 @@ export function initStudentViewModal(modalEl, options = {}) {
     renderOptions = {},
   } = options;
 
-  const viewModal = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
+  let viewModal = null;
+  try {
+    viewModal = (modalEl && typeof bootstrap !== "undefined" && bootstrap?.Modal)
+      ? bootstrap.Modal.getOrCreateInstance(modalEl)
+      : null;
+  } catch (e) {
+    console.warn("Bootstrap modal initialization deferred:", e);
+  }
   const viewNameEl = modalEl?.querySelector(nameSelector);
   const viewMetaEl = modalEl?.querySelector(metaSelector);
   const viewBodyEl = modalEl?.querySelector(bodySelector);
 
   function open(detail, bodyExtra = null) {
+    if (!viewModal && modalEl && typeof bootstrap !== "undefined" && bootstrap?.Modal) {
+      try {
+        viewModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+      } catch (e) {
+        console.error("Could not instantiate Bootstrap modal:", e);
+      }
+    }
     if (!viewModal || !detail) return;
     if (viewNameEl) viewNameEl.textContent = detail.name;
     if (viewMetaEl) {

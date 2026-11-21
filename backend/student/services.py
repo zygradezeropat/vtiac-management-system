@@ -674,7 +674,7 @@ def parse_training_enrollment_post(post, files=None):
 
 def validate_enrollment_data(data, *, require_photo=True, program_type=None):
     if is_assessment_only_program(program_type):
-        return validate_assessment_enrollment_data(data, require_photo=require_photo)
+        return validate_assessment_enrollment_data(data, require_photo=False)
     return validate_training_enrollment_data(data, require_photo=require_photo)
 
 

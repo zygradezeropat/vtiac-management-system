@@ -2,18 +2,50 @@
 
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 
 from .models import StudentEnrollmentProfile
 
 
-def profile_has_payment(profile: StudentEnrollmentProfile | None) -> bool:
-    """True when the student has uploaded proof or cashier recorded payment (paid > 0)."""
-    if not profile:
+def profile_has_payment(profile: StudentEnrollmentProfile | None, registration=None) -> bool:
+    """True when the student has uploaded proof, cashier recorded payment, or balance is settled."""
+    if not profile and not registration:
         return False
-    if profile.payment_proofs.exists():
+
+    # 1. Student uploaded payment proof files
+    if profile and profile.payment_proofs.exists():
         return True
-    return profile.cashier_payments.filter(paid_amount__gt=0).exists()
+
+    # 2. Cashier recorded payments directly on profile
+    if profile and profile.cashier_payments.exists():
+        return True
+
+    # 3. Cashier recorded payments on registration
+    if registration and hasattr(registration, "cashier_payments") and registration.cashier_payments.exists():
+        return True
+
+    # 4. Check CashierPayment via registration_id cross-reference
+    reg_id = getattr(registration, "pk", None) or getattr(profile, "registration_id", None)
+    if reg_id:
+        from backend.cashier.models import CashierPayment
+        q = Q(registration_id=reg_id)
+        if profile:
+            q |= Q(profile=profile)
+        if CashierPayment.objects.filter(q).exists():
+            return True
+
+    # 5. Check if fee balance is already settled or fully covered by scholarship grant
+    try:
+        from backend.cashier.balance import fee_balance_for_profile
+        prog = (profile.selected_program if profile else "") or (registration.selected_program if registration else "")
+        bal = fee_balance_for_profile(profile, prog)
+        if bal.get("isFullyPaid") or Decimal(str(bal.get("totalRemaining", 1))) <= Decimal("0"):
+            if Decimal(str(bal.get("totalPaid", 0))) > Decimal("0") or (profile and profile.cashier_payments.exists()):
+                return True
+    except Exception:
+        pass
+
+    return False
 
 
 def profile_cashier_paid_total(profile: StudentEnrollmentProfile | None) -> Decimal:

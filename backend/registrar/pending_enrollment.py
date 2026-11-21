@@ -199,14 +199,15 @@ def _needed_status(
 
 
 def _serialize_item(reg: StudentRegistration, profile: StudentEnrollmentProfile | None) -> dict:
-    has_payment = profile_has_payment(profile)
-    needed = _needed_status(profile, has_payment=has_payment, reg=reg)
+    has_payment = profile_has_payment(profile, reg)
     balance = _fee_balance(profile, reg)
     total = int(balance["totalAssessed"])
     paid = int(balance["totalPaid"])
+    is_settled = balance["totalRemaining"] <= 0 and (paid > 0 or has_payment)
+    needed = _needed_status(profile, has_payment=(has_payment or is_settled), reg=reg)
     payment_status = needed.get("paymentStatus") or (
         "full"
-        if paid > 0 and balance["totalRemaining"] <= 0
+        if is_settled or (paid > 0 and balance["totalRemaining"] <= 0)
         else ("partial" if paid > 0 or has_payment else "unpaid")
     )
     latest_proof = profile.payment_proofs.order_by("-uploaded_at").first() if profile else None
@@ -245,8 +246,7 @@ def _serialize_item(reg: StudentRegistration, profile: StudentEnrollmentProfile 
         profile
         and profile.profile_step_completed
         and reqs_cleared
-        and paid > 0
-        and balance["totalRemaining"] <= 0
+        and (is_settled or (paid > 0 and balance["totalRemaining"] <= 0) or (has_payment and balance["totalRemaining"] <= 0))
         and reg
     )
 
@@ -446,14 +446,19 @@ def _approve_enrollment_item(profile, reg, user=None) -> tuple[bool, str | None]
             return False, "Student has not completed profile and requirements yet."
         if not documents_cleared_for_payment(profile):
             return False, "All enrollment documents must be approved and released first."
-        if not profile_has_payment(profile):
+        balance = _fee_balance(profile, reg)
+        total_remaining = Decimal(str(balance.get("totalRemaining", 0)))
+        total_paid = Decimal(str(balance.get("totalPaid", 0)))
+        is_settled = balance.get("isFullyPaid", False) or total_remaining <= Decimal("0")
+        has_payment = profile_has_payment(profile, reg) or is_settled or (total_paid > Decimal("0"))
+
+        if not has_payment:
             return (
                 False,
                 "Payment proof is not on file yet. Student must complete payment first.",
             )
-        balance = _fee_balance(profile, reg)
-        paid = Decimal(str(balance["totalPaid"]))
-        if paid <= 0 or balance["totalRemaining"] > 0:
+
+        if total_remaining > Decimal("0"):
             return False, "Payment must be fully settled before approval."
     else:
         return False, "Student has not started the learner profile yet."

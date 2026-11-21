@@ -56,21 +56,9 @@
     </div>
       </div>
       <div class="col-lg-4">
-        <div class="tesda-app-form__photo-block h-100">
-          <label class="student-enroll-label" for="field-photo">PICTURE <span class="student-enroll-required">*</span></label>
-          <p class="tesda-app-form__photo-hint mb-2">Colored, passport size</p>
-          <div class="student-file-upload-row" data-file-preview-root>
-            <input
-              id="field-photo"
-              name="photo"
-              type="file"
-              class="student-enroll-input student-enroll-file"
-              accept="image/jpeg,image/png"
-              data-preview-existing-url="{{ fi.existing_photo_url|default:'' }}"
-              data-preview-existing-name="{{ fi.existing_photo_name|default:'Passport-size Photo' }}"
-              {% if not has_existing_photo %} required data-required{% endif %}
-            />
-          </div>
+        <div class="tesda-app-form__photo-block h-100 d-flex flex-column align-items-center justify-content-center border border-dark rounded-2 p-3 text-center bg-white" style="min-height: 140px;">
+          <span class="fw-bold text-dark small" style="letter-spacing: 0.05em;">PICTURE</span>
+          <span class="fst-italic text-muted small mt-1">colored,<br>passport size</span>
         </div>
       </div>
     </div>

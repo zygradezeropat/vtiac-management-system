@@ -389,6 +389,58 @@ def build_learner_profile_detail(profile: StudentEnrollmentProfile | None, reg: 
         "section6_competencyAssessments": aa_raw.get("competency_assessments") or [],
     }
 
+    # Resolve official receipt info from CashierPayment if available
+    or_number = ""
+    date_issued = ""
+    try:
+        from backend.cashier.models import CashierPayment
+        latest_payment = None
+        if profile:
+            latest_payment = profile.cashier_payments.order_by("-created_at").first()
+        elif reg:
+            latest_payment = CashierPayment.objects.filter(registration=reg).order_by("-created_at").first()
+        if latest_payment:
+            or_number = (latest_payment.or_number or latest_payment.control_number or "").strip()
+            if latest_payment.created_at:
+                date_issued = timezone.localtime(latest_payment.created_at).strftime("%m/%d/%Y")
+    except Exception:
+        pass
+
+    # Resolve batch assessment schedule info
+    assessment_date_str = ""
+    assessment_time_str = ""
+    try:
+        from backend.registrar.models import BatchScheduleTemplate
+        cand_id = profile.pk if profile else (reg.pk if reg else None)
+        batches = BatchScheduleTemplate.objects.filter(
+            batch_kind=BatchScheduleTemplate.BatchKind.NATIONAL_ASSESSMENT
+        ).order_by("-updated_at")
+        for b in batches:
+            snap = b.students_snapshot or []
+            found = any(
+                str(s.get("id")) == str(cand_id) or str(s.get("registrationId")) == str(reg.pk if reg else "")
+                for s in snap if isinstance(s, dict)
+            )
+            if found:
+                if b.assessment_at:
+                    loc_dt = timezone.localtime(b.assessment_at)
+                    assessment_date_str = loc_dt.strftime("%m/%d/%Y")
+                    assessment_time_str = loc_dt.strftime("%I:%M %p")
+                elif b.available_from:
+                    assessment_date_str = b.available_from.strftime("%m/%d/%Y")
+                    if b.time_from and b.time_to:
+                        assessment_time_str = f"{b.time_from} - {b.time_to}"
+                break
+    except Exception:
+        pass
+
+    assessment_payload["admissionSlip"] = {
+        "orNumber": or_number,
+        "dateIssued": date_issued,
+        "assessmentDate": assessment_date_str,
+        "assessmentTime": assessment_time_str,
+    }
+
     return {
         "source": source,
         "formType": "training" if is_training else "assessment_only",
@@ -397,6 +449,10 @@ def build_learner_profile_detail(profile: StudentEnrollmentProfile | None, reg: 
         "email": initial.get("email", "—"),
         "program": initial.get("program_name", "—"),
         "programTypeLabel": initial.get("program_type_label", ""),
+        "officialReceiptNumber": or_number,
+        "receiptDateIssued": date_issued,
+        "assessmentDate": assessment_date_str,
+        "assessmentTime": assessment_time_str,
         "neededLabel": None,
         "section1": {
             "tsmis": tsmis,
