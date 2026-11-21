@@ -35,21 +35,35 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dma*ybm+(v5v=^iaifp3kzkjy6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "x76xgm7j-8000.asse.devtunnels.ms",
-    ".onrender.com",
-]
+_allowed_hosts_env = os.getenv("ALLOWED_HOSTS")
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
+else:
+    ALLOWED_HOSTS = [
+        "localhost",
+        "127.0.0.1",
+        "vtiac.online",
+        "www.vtiac.online",
+        "187.127.213.65",
+        "srv2171219.hstgr.cloud",
+        "x76xgm7j-8000.asse.devtunnels.ms",
+        ".onrender.com",
+    ]
 if os.getenv("RENDER_EXTERNAL_HOSTNAME"):
     ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "https://*.onrender.com",
-    "https://*.devtunnels.ms",
-]
+_csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS")
+if _csrf_env:
+    CSRF_TRUSTED_ORIGINS = [c.strip() for c in _csrf_env.split(",") if c.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "https://vtiac.online",
+        "https://www.vtiac.online",
+        "https://*.onrender.com",
+        "https://*.devtunnels.ms",
+    ]
 
 
 

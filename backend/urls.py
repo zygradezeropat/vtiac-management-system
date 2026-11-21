@@ -14,7 +14,7 @@ urlpatterns = [
     path("", include("backend.cashier.urls")),
     path("", include("backend.trainer.urls")),
     path("", include("backend.system_admin.urls")),
-    path("admin/", admin.site.urls),
+    path("django-admin/", admin.site.urls),
 ]
 
 if settings.DEBUG:
