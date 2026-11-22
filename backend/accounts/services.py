@@ -104,6 +104,17 @@ def require_portal_access(request, role):
         if not has_access:
             messages.error(request, "This account is not set up for student or candidate portal access.")
             return redirect("login", role=STUDENT_ROLE)
+
+        from backend.student.services import student_graduation_retention_info
+        ret_info = student_graduation_retention_info(request.user)
+        if ret_info.get("retention_expired"):
+            request.user.is_active = False
+            request.user.save(update_fields=["is_active"])
+            logout(request)
+            request.session.flush()
+            messages.error(request, "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation.")
+            return redirect("login", role=STUDENT_ROLE)
+
         is_cand = (
             CandidateProfile.objects.filter(user=request.user).exists()
             or getattr(getattr(request.user, "registration_application", None), "program_type", "") == "assessment_only"
@@ -182,7 +193,12 @@ def handle_portal_login_post(request, role):
         user = candidate
 
     if not user.is_active:
-        messages.error(request, LOGIN_CREDENTIALS_ERROR)
+        from backend.student.services import student_graduation_retention_info
+        ret_info = student_graduation_retention_info(user)
+        if ret_info.get("retention_expired") or (ret_info.get("is_graduated") and ret_info.get("days_passed", 0) >= 365):
+            messages.error(request, "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation.")
+        else:
+            messages.error(request, LOGIN_CREDENTIALS_ERROR)
         return redirect("login", role=role)
 
     if role in (STUDENT_ROLE, "candidate"):
@@ -192,6 +208,14 @@ def handle_portal_login_post(request, role):
         )
         if not has_access:
             messages.error(request, LOGIN_CREDENTIALS_ERROR)
+            return redirect("login", role=role)
+
+        from backend.student.services import student_graduation_retention_info
+        ret_info = student_graduation_retention_info(user)
+        if ret_info.get("retention_expired"):
+            user.is_active = False
+            user.save(update_fields=["is_active"])
+            messages.error(request, "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation.")
             return redirect("login", role=role)
     else:
         try:

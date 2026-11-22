@@ -664,14 +664,29 @@ def _students_for_template(
     if not snapshot:
         return dynamic
 
-    seen = {
+    snapshot_by_key = {
         (
             (s.get("lastName") or s.get("last_name") or "").strip().lower(),
             (s.get("firstName") or s.get("first_name") or "").strip().lower(),
-        )
-        for s in dynamic
+        ): s
+        for s in snapshot
     }
-    merged = list(dynamic)
+
+    seen = set()
+    merged = []
+    for d in dynamic:
+        key = (
+            (d.get("lastName") or d.get("last_name") or "").strip().lower(),
+            (d.get("firstName") or d.get("first_name") or "").strip().lower(),
+        )
+        seen.add(key)
+        if key in snapshot_by_key:
+            merged_item = dict(d)
+            merged_item.update(snapshot_by_key[key])
+            merged.append(merged_item)
+        else:
+            merged.append(d)
+
     for s in snapshot:
         key = (
             (s.get("lastName") or s.get("last_name") or "").strip().lower(),
@@ -803,9 +818,15 @@ def _add_competency_status_to_students(
             program or (registration.selected_program if registration else ""),
         )
 
-        student_data["competencyStatus"] = (
-            "Competent" if is_competent else "Incompetent"
-        )
+        manual_status = student.get("competencyStatus") or student.get("competency_status")
+        if student.get("competency_status_override") and manual_status:
+            student_data["competencyStatus"] = manual_status
+        elif manual_status in ("Competent", "Incompetent", "Not Yet Competent"):
+            student_data["competencyStatus"] = manual_status
+        else:
+            student_data["competencyStatus"] = (
+                "Competent" if is_competent else "Incompetent"
+            )
 
         result.append(student_data)
 
@@ -2074,6 +2095,234 @@ def batching_override_remove_student(request):
         {
             "ok": True,
             "message": "Student successfully removed from batch.",
+            "batch": _serialize_batch_card(template),
+        }
+    )
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def batching_update_competency_status(request):
+    """Update competency status (Competent / Incompetent) of a student in a batch."""
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return denied
+
+    import json
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        body = request.POST
+
+    template_id = body.get("templateId") or body.get("template_id")
+    first_name = (body.get("firstName") or body.get("first_name") or "").strip().lower()
+    last_name = (body.get("lastName") or body.get("last_name") or "").strip().lower()
+    new_status = (body.get("status") or "").strip()
+
+    if new_status not in ("Competent", "Incompetent", "Not Yet Competent"):
+        return JsonResponse({"error": "Invalid competency status. Must be Competent or Incompetent."}, status=400)
+
+    std_status = "Competent" if new_status == "Competent" else "Incompetent"
+
+    db_template_id = _parse_template_db_id(template_id)
+    if db_template_id is None:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    try:
+        template = RegistrarScheduleTemplate.objects.get(pk=db_template_id)
+    except RegistrarScheduleTemplate.DoesNotExist:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    snapshot = list(template.students_snapshot or [])
+    updated = False
+    for s in snapshot:
+        s_first = (s.get("firstName") or s.get("first_name") or "").strip().lower()
+        s_last = (s.get("lastName") or s.get("last_name") or "").strip().lower()
+        if s_first == first_name and s_last == last_name:
+            s["competencyStatus"] = std_status
+            s["competency_status_override"] = True
+            updated = True
+            break
+
+    if not updated:
+        # Check dynamic students for this course and add to snapshot
+        dynamic = _students_for_course(template.course_name, batch_kind=template.batch_kind)
+        matching_dyn = next(
+            (
+                d for d in dynamic
+                if (d.get("firstName") or d.get("first_name") or "").strip().lower() == first_name
+                and (d.get("lastName") or d.get("last_name") or "").strip().lower() == last_name
+            ),
+            None,
+        )
+        if matching_dyn:
+            new_s = dict(matching_dyn)
+            new_s["competencyStatus"] = std_status
+            new_s["competency_status_override"] = True
+            snapshot.append(new_s)
+            updated = True
+        else:
+            snapshot.append({
+                "firstName": first_name.title(),
+                "lastName": last_name.title(),
+                "program": template.course_name,
+                "competencyStatus": std_status,
+                "competency_status_override": True,
+            })
+            updated = True
+
+    template.students_snapshot = snapshot
+    template.save(update_fields=["students_snapshot", "updated_at"])
+
+    # Update StudentRegistration is_graduated if student exists
+    from backend.student.models import StudentRegistration
+    reg = StudentRegistration.objects.filter(
+        first_name__iexact=first_name,
+        last_name__iexact=last_name,
+    ).order_by("-created_at").first()
+    if reg:
+        if std_status == "Competent":
+            reg.is_graduated = True
+            reg.graduated_at = timezone.now()
+            reg.save(update_fields=["is_graduated", "graduated_at"])
+        else:
+            reg.is_graduated = False
+            reg.save(update_fields=["is_graduated"])
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "message": f"Status updated to {std_status}.",
+            "batch": _serialize_batch_card(template),
+        }
+    )
+
+
+@login_required(login_url="/")
+@require_http_methods(["POST"])
+def batching_send_assessment_result(request):
+    """Send assessment exam result to student via email and portal notification."""
+    denied = require_portal_access(request, REGISTRAR_ROLE)
+    if denied:
+        return denied
+
+    import json
+    try:
+        body = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        body = request.POST
+
+    template_id = body.get("templateId") or body.get("template_id")
+    first_name = (body.get("firstName") or body.get("first_name") or "").strip()
+    last_name = (body.get("lastName") or body.get("last_name") or "").strip()
+    status = (body.get("status") or "Incompetent").strip()
+
+    db_template_id = _parse_template_db_id(template_id)
+    if db_template_id is None:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    try:
+        template = RegistrarScheduleTemplate.objects.get(pk=db_template_id)
+    except RegistrarScheduleTemplate.DoesNotExist:
+        return JsonResponse({"error": "Batch template not found."}, status=404)
+
+    snapshot = list(template.students_snapshot or [])
+    target_student = None
+    for s in snapshot:
+        s_first = (s.get("firstName") or s.get("first_name") or "").strip().lower()
+        s_last = (s.get("lastName") or s.get("last_name") or "").strip().lower()
+        if s_first == first_name.lower() and s_last == last_name.lower():
+            s["resultSent"] = True
+            s["resultSentAt"] = timezone.now().strftime("%b %d, %Y %I:%M %p")
+            target_student = s
+            break
+
+    if not target_student:
+        return JsonResponse({"error": "Student not found in this batch."}, status=404)
+
+    template.students_snapshot = snapshot
+    template.save(update_fields=["students_snapshot", "updated_at"])
+
+    # Locate student user & registration for email/portal notification
+    from backend.student.models import StudentRegistration
+    from django.contrib.auth.models import User
+    from backend.core.notification_service import create_notification
+    from backend.core.models import PortalNotification
+    from django.core.mail import send_mail
+    from django.conf import settings
+
+    reg = StudentRegistration.objects.filter(
+        first_name__iexact=first_name,
+        last_name__iexact=last_name,
+    ).order_by("-created_at").first()
+
+    student_user = None
+    recipient_email = target_student.get("email") or ""
+    if reg:
+        if not recipient_email and reg.email:
+            recipient_email = reg.email
+        student_user = getattr(reg, "user", None)
+
+    if not student_user and recipient_email:
+        student_user = User.objects.filter(email__iexact=recipient_email).first()
+
+    # 1. Portal Notification
+    if student_user:
+        try:
+            create_notification(
+                student_user,
+                category=PortalNotification.Category.GENERAL,
+                title=f"Assessment Exam Result: {status.upper()}",
+                message=(
+                    f"Your official assessment result for {template.course_name} ({template.batch_label or template.name}) "
+                    f"has been released: {status.upper()}."
+                ),
+                link_url="/dashboard/student/documents/",
+            )
+        except Exception:
+            pass
+
+    # 2. Email Notification
+    email_sent = False
+    if recipient_email:
+        subject = f"Official Assessment Exam Result — {template.course_name} ({status.upper()})"
+        msg_body = (
+            f"Dear {first_name} {last_name},\n\n"
+            f"This is an official advisory from VTIAC regarding your National Competency Assessment.\n\n"
+            f"Program: {template.course_name}\n"
+            f"Batch: {template.batch_label or template.name}\n"
+            f"Official Result: {status.upper()}\n\n"
+        )
+        if status.lower() == "competent":
+            msg_body += (
+                "Congratulations! You have been certified as COMPETENT.\n"
+                "You may now request your official Certificate of Competency / Assessment credentials "
+                "through your VTIAC Student Portal under My Documents.\n\n"
+            )
+        else:
+            msg_body += (
+                "Your assessment rating has been evaluated as NOT YET COMPETENT.\n"
+                "Please reach out to the Registrar's Office or your designated assessor for re-assessment details and schedules.\n\n"
+            )
+        msg_body += "Best regards,\nVTIAC Assessment & Certification Office"
+
+        try:
+            send_mail(
+                subject=subject,
+                message=msg_body,
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@vtiac.online"),
+                recipient_list=[recipient_email],
+                fail_silently=True,
+            )
+            email_sent = True
+        except Exception:
+            pass
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "message": f"Assessment result ({status}) successfully sent to {first_name} {last_name}.",
+            "emailSent": email_sent,
             "batch": _serialize_batch_card(template),
         }
     )

@@ -19,9 +19,17 @@
           <div class="lh-1 d-none d-sm-block">
             <p id="staff-display-name" class="student-user-name mb-0">{% if portal_display_name %}{{ portal_display_name }}{% elif is_assessment_only %}Candidate{% else %}Student{% endif %}</p>
             <div id="staff-role-label" class="student-user-role mb-0 d-flex align-items-center gap-1">
-              <span>{% if is_assessment_only %}Candidate{% else %}Student{% endif %}</span>
+              <span>{% if is_graduated %}Graduate{% elif is_assessment_only %}Candidate{% else %}Student{% endif %}</span>
               {% if is_student_user %}
-                {% if is_enrolled %}
+                {% if is_graduated %}
+                  {% if retention_days_remaining is not None %}
+                  <span class="badge {% if retention_days_remaining <= 30 %}bg-danger-subtle text-danger border border-danger-subtle{% elif retention_days_remaining <= 90 %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} text-2xs px-1.5 py-0.5 rounded-pill" title="Graduate account active for 1 year (365 days) before automatic deactivation">
+                    <i class="bi bi-clock-history me-0.5"></i>{{ retention_days_remaining }}d left
+                  </span>
+                  {% else %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle text-2xs px-1.5 py-0.5 rounded-pill">Graduated</span>
+                  {% endif %}
+                {% elif is_enrolled %}
                 <span class="badge bg-success-subtle text-success border border-success-subtle text-2xs px-1.5 py-0.5 rounded-pill">{% if is_assessment_only %}Scheduled{% else %}Enrolled{% endif %}</span>
                 {% else %}
                 <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-2xs px-1.5 py-0.5 rounded-pill">{% if is_assessment_only %}Pending{% else %}Not Enrolled{% endif %}</span>

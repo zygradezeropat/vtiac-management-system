@@ -1323,7 +1323,11 @@ document.addEventListener(
     }
 
     function normAy(val) {
-      return String(val || "").replace(/–/g, "-").trim().toLowerCase();
+      return String(val || "")
+        .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
     }
 
     function getOccupiedBatchNamesForCourse(courseId, excludeTemplateId = null) {
@@ -1341,15 +1345,18 @@ document.addEventListener(
           if (excludeTemplateId && String(tpl.id) === String(excludeTemplateId)) {
             continue;
           }
-          const tplKind = tpl.batchKind || "training";
+          const tplKind = tpl.batchKind || (tpl.category === "national" || (String(tpl.courseId || "").endsWith("-national-assessment")) ? "national_assessment" : "training");
           if (tplKind !== targetBatchKind) continue;
 
           const tplCourseName = (tpl.courseName || "").trim().toLowerCase();
           const tplCourseId = String(tpl.courseId || "").trim().toLowerCase();
+          const cleanCourseId = String(courseId || "").trim().toLowerCase();
           const matchCourse =
-            String(cId).toLowerCase() === String(courseId).toLowerCase() ||
-            tplCourseId === String(courseId).toLowerCase() ||
-            (courseName && tplCourseName === courseName);
+            String(cId).toLowerCase() === cleanCourseId ||
+            tplCourseId === cleanCourseId ||
+            (courseName && tplCourseName === courseName) ||
+            cleanCourseId.startsWith(tplCourseId) ||
+            tplCourseId.startsWith(cleanCourseId);
           if (!matchCourse) continue;
 
           const tplAy = normAy(tpl.academicYear);
@@ -1358,9 +1365,14 @@ document.addEventListener(
               occupied.add(tpl.name.trim().toLowerCase());
             }
             if (tpl.batchLabel) {
-              const parts = tpl.batchLabel.split("·").map((p) => p.trim());
+              const parts = tpl.batchLabel.split(/[\u00b7\u2022\u2219\u25cf\-|]/).map((p) => p.trim());
               const last = parts[parts.length - 1];
               if (last) occupied.add(last.toLowerCase());
+              for (const part of parts) {
+                if (/^batch\s+\d+$/i.test(part)) {
+                  occupied.add(part.toLowerCase());
+                }
+              }
             }
           }
         }
@@ -2022,20 +2034,40 @@ document.addEventListener(
       const dd = String(today.getDate()).padStart(2, "0");
       const todayStr = `${yyyy}-${mm}-${dd}`;
 
+      // Reserve occupied batch names for this course/AY
+      const occupied = getOccupiedBatchNamesForCourse(course.id);
+      if (!forceReset) {
+        groupedBatches.forEach((b) => {
+          if (b.batchLabel) {
+            occupied.add(b.batchLabel.trim().toLowerCase());
+          }
+        });
+      }
+
+      let batchNumCounter = 1;
+      function getNextBatchLabel() {
+        while (occupied.has(`batch ${batchNumCounter}`)) {
+          batchNumCounter++;
+        }
+        const assigned = `Batch ${batchNumCounter}`;
+        occupied.add(assigned.toLowerCase());
+        batchNumCounter++;
+        return assigned;
+      }
+
       const rawGroups = [
-        { isMajority: true, ...majority, label: "Batch 1", id: "majority" },
+        { isMajority: true, ...majority, id: "majority" },
         ...different.map((d, i) => ({
           isMajority: false,
           ...d,
-          label: `Batch ${i + 2}`,
           id: `diff-${i}`,
         })),
       ];
 
       groupedBatches = rawGroups.map((rg) => {
-        const existing = groupedBatches.find(
-          (b) => b.id === rg.id && b.scheduleTitle === rg.scheduleTitle
-        );
+        const existing = !forceReset
+          ? groupedBatches.find((b) => b.id === rg.id)
+          : null;
         const defaults = parseScheduleDefaults(rg.scheduleTitle, nominalDays, nominalHours);
 
         const type = existing ? existing.type : defaults.type;
@@ -2052,13 +2084,22 @@ document.addEventListener(
         const endDate = computeEndDateForNominalDays(startDate, trainingDays, days);
         const students = (existing && existing.students) ? existing.students : rg.students;
 
+        let batchLabel = (existing && existing.batchLabel) ? existing.batchLabel : getNextBatchLabel();
+        if (existing && existing.batchLabel && occupied.has(existing.batchLabel.trim().toLowerCase())) {
+          batchLabel = getNextBatchLabel();
+        }
+        const isCustomBatch = (existing && existing.isCustomBatch !== undefined) ? existing.isCustomBatch : false;
+        const customBatchName = (existing && existing.customBatchName) ? existing.customBatchName : "";
+
         return {
           id: rg.id,
           isMajority: rg.isMajority,
           scheduleTitle: rg.scheduleTitle,
           students: students,
           count: students.length,
-          batchLabel: rg.label,
+          batchLabel: batchLabel,
+          isCustomBatch: isCustomBatch,
+          customBatchName: customBatchName,
           type,
           days,
           timeFrom,
@@ -2281,6 +2322,46 @@ document.addEventListener(
       `;
     }
 
+    function buildGroupBatchOptionsHtml(course, group) {
+      const occupied = getOccupiedBatchNamesForCourse(course.id);
+      const siblingBatches = groupedBatches.filter((b) => b.id !== group.id);
+      const siblingNames = new Set(
+        siblingBatches
+          .map((b) => (b.batchLabel || "").trim().toLowerCase())
+          .filter(Boolean)
+      );
+
+      const currentLabel = (group.batchLabel || "").trim();
+      const currentLower = currentLabel.toLowerCase();
+
+      let optionsHtml = "";
+      for (let i = 1; i <= 20; i++) {
+        const bName = `Batch ${i}`;
+        const bLower = bName.toLowerCase();
+        const isCurrent = currentLower === bLower;
+        const isDbOccupied = occupied.has(bLower);
+        const isSiblingOccupied = siblingNames.has(bLower);
+
+        if (isCurrent && isDbOccupied) {
+          optionsHtml += `<option value="${bName}" selected>${bName} (Already occupied - please change)</option>`;
+        } else if (isCurrent) {
+          optionsHtml += `<option value="${bName}" selected>${bName}</option>`;
+        } else if (isDbOccupied) {
+          optionsHtml += `<option value="${bName}" disabled>${bName} (Already occupied)</option>`;
+        } else if (isSiblingOccupied) {
+          optionsHtml += `<option value="${bName}" disabled>${bName} (Used in other batch)</option>`;
+        } else {
+          optionsHtml += `<option value="${bName}">${bName}</option>`;
+        }
+      }
+
+      const isStandard = /^batch\s+\d+$/i.test(currentLabel);
+      const isCustom = group.isCustomBatch || (!isStandard && Boolean(currentLabel));
+      optionsHtml += `<option value="__custom__" ${isCustom ? "selected" : ""}>+ Custom / Edit Batch Name…</option>`;
+
+      return optionsHtml;
+    }
+
     function renderScheduleCardHtml(group, course, qualifiedTrainers) {
       const isNational = batchingCourseCategory(course) === "national";
       const isMaj = group.isMajority;
@@ -2471,7 +2552,7 @@ document.addEventListener(
         <div class="card p-3 p-md-4 batching-schedule-card ${cardBorderClass} mb-4" id="batching-card-${
         group.id
       }">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
             <div class="d-flex align-items-center gap-2">
               ${
                 isMaj
@@ -2480,6 +2561,9 @@ document.addEventListener(
                       group.scheduleTitle
                     )}</span>`
               }
+              <span class="badge bg-secondary-subtle text-dark border px-2 py-1 fw-semibold" id="batch-badge-${group.id}" style="font-size: 0.75rem;">
+                <i class="bi bi-collection me-1 text-primary"></i>${escapeHtml(group.batchLabel || "Batch 1")}
+              </span>
             </div>
             <div class="d-flex align-items-center gap-1">
               ${countBadge}
@@ -2501,6 +2585,30 @@ document.addEventListener(
 
           <div class="text-muted small mb-3">
             ${capacityText}
+          </div>
+
+          <!-- Batch Choice & Custom Name -->
+          <div class="mb-3 p-2 px-3 rounded-3 bg-light border border-light-subtle">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold" style="font-size: 0.725rem;">
+                  <i class="bi bi-tag-fill me-1"></i>Batch Choice
+                </span>
+                <label class="form-label small fw-bold text-dark mb-0">Batch Name:</label>
+              </div>
+              <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end" style="max-width: 440px;">
+                <select class="form-select form-select-sm fw-semibold text-dark shadow-none" style="min-width: 140px; max-width: 180px;" data-action="batch-select" data-group="${group.id}">
+                  ${buildGroupBatchOptionsHtml(course, group)}
+                </select>
+                <button type="button" class="btn btn-sm btn-outline-secondary px-2 py-1 shadow-none" data-action="edit-batch-btn" data-group="${group.id}" title="Edit / customize batch name" style="font-size: 0.75rem;">
+                  <i class="bi bi-pencil-square"></i>
+                </button>
+                <div class="input-group input-group-sm ${group.isCustomBatch || (!/^batch\s+\d+$/i.test(group.batchLabel) && group.batchLabel) ? '' : 'd-none'}" id="custom-batch-container-${group.id}" style="min-width: 160px; max-width: 200px;">
+                  <span class="input-group-text bg-white text-muted py-0 px-2" style="font-size: 0.725rem;">Custom:</span>
+                  <input type="text" class="form-control form-control-sm fw-semibold" data-action="batch-custom-input" data-group="${group.id}" value="${escapeHtml(group.customBatchName || (!/^batch\s+\d+$/i.test(group.batchLabel) ? group.batchLabel : ''))}" placeholder="e.g. Special Batch A" maxlength="40" />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="mb-3">
@@ -2839,6 +2947,27 @@ document.addEventListener(
 
         const action = btn.dataset.action;
 
+        if (action === "edit-batch-btn") {
+          const groupId = btn.dataset.group;
+          const group = groupedBatches.find((g) => g.id === groupId);
+          if (group) {
+            group.isCustomBatch = true;
+            group.customBatchName = group.customBatchName || group.batchLabel || "";
+            const cardEl = document.getElementById(`batching-card-${groupId}`);
+            const sel = cardEl?.querySelector('[data-action="batch-select"]');
+            if (sel) sel.value = "__custom__";
+            const customContainer = document.getElementById(`custom-batch-container-${groupId}`);
+            const customInput = customContainer?.querySelector("input");
+            if (customContainer) customContainer.classList.remove("d-none");
+            if (customInput) {
+              customInput.value = group.customBatchName;
+              customInput.focus();
+              customInput.select();
+            }
+          }
+          return;
+        }
+
         // Recommendation & Global Batching Actions
         if (action === "apply-rec") {
           const srcId = btn.dataset.source;
@@ -3056,7 +3185,31 @@ document.addEventListener(
         const nominalHours =
           curCourse.nominalHours || (nominalDays * 8) || 192;
 
-        if (action === "time-from") {
+        if (action === "batch-select") {
+          const customContainer = document.getElementById(`custom-batch-container-${groupId}`);
+          const customInput = customContainer?.querySelector("input");
+          if (input.value === "__custom__") {
+            group.isCustomBatch = true;
+            group.customBatchName = group.customBatchName || group.batchLabel || "";
+            if (customContainer) customContainer.classList.remove("d-none");
+            if (customInput) {
+              customInput.value = group.customBatchName;
+              customInput.focus();
+              customInput.select();
+            }
+          } else {
+            group.isCustomBatch = false;
+            group.batchLabel = input.value;
+            if (customContainer) customContainer.classList.add("d-none");
+            renderGroupedBatchingUI(curCourse);
+          }
+          return;
+        } else if (action === "batch-custom-input") {
+          group.customBatchName = input.value;
+          group.batchLabel = input.value.trim() || "Batch 1";
+          renderGroupedBatchingUI(curCourse);
+          return;
+        } else if (action === "time-from") {
           group.timeFrom = input.value;
           group.dailyHours =
             computeDailyHours(group.timeFrom, group.timeTo) || 4;
@@ -3105,6 +3258,21 @@ document.addEventListener(
       });
 
       containerEl.addEventListener("input", (e) => {
+        const batchCustomInput = e.target.closest('[data-action="batch-custom-input"]');
+        if (batchCustomInput) {
+          const groupId = batchCustomInput.dataset.group;
+          const group = groupedBatches.find((g) => g.id === groupId);
+          if (group) {
+            group.customBatchName = batchCustomInput.value;
+            group.batchLabel = batchCustomInput.value.trim() || "Batch 1";
+            const badgeEl = document.getElementById(`batch-badge-${groupId}`);
+            if (badgeEl) {
+              badgeEl.innerHTML = `<i class="bi bi-collection me-1 text-primary"></i>${escapeHtml(group.batchLabel)}`;
+            }
+          }
+          return;
+        }
+
         const assessorInput = e.target.closest('[data-action="assessor-name"]');
         if (assessorInput) {
           const groupId = assessorInput.dataset.group;
@@ -3198,6 +3366,40 @@ document.addEventListener(
             return;
           }
 
+          // Validate batch names for conflict or duplicates
+          const occupied = getOccupiedBatchNamesForCourse(curCourse.id);
+          const namesSeen = new Set();
+          for (const group of readyGroups) {
+            const rawName = (group.batchLabel || "").trim();
+            if (!rawName) {
+              showNoticeModal(
+                `Please enter or choose a batch name for "${group.scheduleTitle}".`,
+                "Batch Name Required",
+                "warning"
+              );
+              return;
+            }
+            const norm = rawName.toLowerCase();
+            if (namesSeen.has(norm)) {
+              showNoticeModal(
+                `Multiple schedules have duplicate batch name "${rawName}". Each batch must have a unique name.`,
+                "Duplicate Batch Name",
+                "warning"
+              );
+              return;
+            }
+            namesSeen.add(norm);
+
+            if (occupied.has(norm)) {
+              showNoticeModal(
+                `Batch name "${rawName}" is already occupied for ${curCourse.name} in this academic year. Please choose another batch name to avoid duplicate batches.`,
+                "Batch Name Conflict",
+                "warning"
+              );
+              return;
+            }
+          }
+
           const saveBtn = document.getElementById(
             "btn-save-grouped-schedules"
           );
@@ -3243,7 +3445,12 @@ document.addEventListener(
             };
 
             try {
-              await upsertTemplateForCourse(curCourse.id, templateData);
+              const saved = await upsertTemplateForCourse(curCourse.id, templateData);
+              if (saved) {
+                const list = getTemplatesForCourse(curCourse.id);
+                list.push(saved);
+                setTemplatesForCourse(curCourse.id, list);
+              }
               savedCount++;
             } catch (err) {
               lastError = err;

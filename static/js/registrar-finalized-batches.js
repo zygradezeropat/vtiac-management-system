@@ -40,6 +40,128 @@ function getCsrfToken() {
 }
 
 /**
+ * Non-blocking toast notification to replace browser native alert().
+ */
+function showToast(message, type = "success") {
+  const existing = document.getElementById("registrarToast");
+  if (existing) existing.remove();
+
+  const isSuccess = type === "success";
+  const isDanger = type === "danger" || type === "error";
+  const icon = isSuccess
+    ? "bi-check-circle-fill text-success"
+    : isDanger
+    ? "bi-exclamation-octagon-fill text-danger"
+    : "bi-info-circle-fill text-warning";
+
+  const toast = document.createElement("div");
+  toast.id = "registrarToast";
+  toast.className = "position-fixed top-0 end-0 p-3";
+  toast.style.zIndex = "2150";
+  toast.innerHTML = `
+    <div class="toast align-items-center text-white bg-dark border-0 show shadow-lg rounded-3" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body d-flex align-items-center gap-2 py-2 px-3">
+          <i class="bi ${icon} fs-5"></i>
+          <span class="small fw-semibold">${escapeHtml(message)}</span>
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentNode) toast.remove();
+  }, 4000);
+}
+
+let actionConfirmCallback = null;
+
+/**
+ * Modern Bootstrap modal confirmation replacing browser native confirm().
+ */
+function showActionConfirm({
+  title = "Confirm Action",
+  message = "Are you sure you want to proceed?",
+  icon = "bi-send-fill",
+  iconBgClass = "bg-primary-subtle text-primary",
+  confirmText = "Confirm",
+  confirmBtnClass = "btn-primary",
+  onConfirm = null,
+} = {}) {
+  initActionConfirmModal();
+
+  const modalEl = document.getElementById("finalized-action-confirm-modal");
+  if (!modalEl || !window.bootstrap?.Modal) {
+    if (window.confirm(message)) {
+      if (typeof onConfirm === "function") onConfirm();
+    }
+    return;
+  }
+
+  const titleEl = document.getElementById("finalized-confirm-title");
+  const msgEl = document.getElementById("finalized-confirm-message");
+  const iconEl = document.getElementById("finalized-confirm-icon");
+  const iconBgEl = document.getElementById("finalized-confirm-icon-bg");
+  const actionBtn = document.getElementById("finalized-confirm-action-btn");
+
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl) msgEl.textContent = message;
+  if (iconEl) iconEl.className = `bi ${icon} fs-3`;
+  if (iconBgEl) {
+    iconBgEl.className = `d-inline-flex align-items-center justify-content-center rounded-circle ${iconBgClass}`;
+  }
+  if (actionBtn) {
+    actionBtn.textContent = confirmText;
+    actionBtn.className = `btn ${confirmBtnClass} px-4 fw-semibold`;
+    actionBtn.disabled = false;
+  }
+
+  actionConfirmCallback = onConfirm;
+  const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modalInstance.show();
+}
+
+function initActionConfirmModal() {
+  const confirmModalEl = document.getElementById("finalized-action-confirm-modal");
+  const confirmActionBtn = document.getElementById("finalized-confirm-action-btn");
+  if (!confirmModalEl || confirmModalEl.dataset.initialized === "1") return;
+  confirmModalEl.dataset.initialized = "1";
+
+  confirmActionBtn?.addEventListener("click", async () => {
+    if (typeof actionConfirmCallback === "function") {
+      const fn = actionConfirmCallback;
+      actionConfirmCallback = null;
+      confirmActionBtn.disabled = true;
+      try {
+        await fn();
+        const modalInstance = bootstrap.Modal.getInstance(confirmModalEl);
+        modalInstance?.hide();
+      } finally {
+        confirmActionBtn.disabled = false;
+      }
+    }
+  });
+
+  confirmModalEl.addEventListener("show.bs.modal", () => {
+    setTimeout(() => {
+      const backdrops = document.querySelectorAll(".modal-backdrop");
+      if (backdrops.length > 1) {
+        backdrops[backdrops.length - 1].style.zIndex = "2055";
+      }
+    }, 10);
+  });
+
+  confirmModalEl.addEventListener("hidden.bs.modal", () => {
+    actionConfirmCallback = null;
+    const detailModal = document.getElementById("finalized-detail-modal");
+    if (detailModal && detailModal.classList.contains("show")) {
+      document.body.classList.add("modal-open");
+    }
+  });
+}
+
+/**
  * Format date for display.
  */
 function formatDate(iso) {
@@ -278,6 +400,8 @@ document.addEventListener(
     */
 
     let allBatches = [];
+
+    let currentModalBatch = null;
 
     let searchQuery = "";
 
@@ -1016,6 +1140,14 @@ document.addEventListener(
     }
 
 
+    function openBatchModal(batchOrId) {
+      if (!batchOrId) return;
+      const id = typeof batchOrId === "object" ? batchOrId.id : batchOrId;
+      openDetail(id);
+    }
+    window.openBatchModal = openBatchModal;
+    window.openDetail = openDetail;
+
     /*
     |--------------------------------------------------------------------------
     | OPEN BATCH DETAILS MODAL
@@ -1027,7 +1159,7 @@ document.addEventListener(
       const batch =
         allBatches.find(
           (b) =>
-            b.id === id
+            String(b.id) === String(id)
         );
 
 
@@ -1037,6 +1169,8 @@ document.addEventListener(
       ) {
         return;
       }
+
+      currentModalBatch = String(id);
 
 
       /*
@@ -1099,57 +1233,110 @@ document.addEventListener(
 
               <tr>
 
-                <td>
+                <td style="width: 45px;">
                   ${i + 1}
                 </td>
 
-                <td>
+                <td style="width: 140px;">
                   <strong>${escapeHtml(
                     s.lastName ||
                     ""
                   )}</strong>
                 </td>
 
-                <td>
+                <td style="width: 140px;">
                   <strong>${escapeHtml(
                     s.firstName ||
                     ""
                   )}</strong>
                 </td>
 
-                <td>
-                  <span class="badge text-bg-light border">${escapeHtml(
+                <td style="min-width: 200px;">
+                  <span class="badge text-bg-light border text-wrap text-start text-break">${escapeHtml(
                     s.program ||
                     ""
                   )}</span>
                 </td>
 
-                <td>
+                <td style="width: 185px;">
                   <div class="d-inline-flex align-items-center gap-1">
                     ${
                       s.override
                         ? '<span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle" title="Manual Override"><i class="bi bi-shield-lock me-1"></i>Override</span>'
                         : ""
                     }
-                    ${
-                      s.competencyStatus === "Competent" || s.competency_status === "Competent"
-                        ? '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Competent</span>'
-                        : '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-x-circle-fill me-1"></i>Incompetent</span>'
-                    }
+                    <div class="dropdown d-inline-block">
+                      <button class="btn btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 py-1 px-2 border ${
+                        s.competencyStatus === "Competent" || s.competency_status === "Competent"
+                          ? "btn-outline-success bg-success-subtle text-success border-success-subtle"
+                          : "btn-outline-danger bg-danger-subtle text-danger border-danger-subtle"
+                      }" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.775rem;">
+                        <i class="bi ${
+                          s.competencyStatus === "Competent" || s.competency_status === "Competent"
+                            ? "bi-check-circle-fill"
+                            : "bi-x-circle-fill"
+                        }"></i>
+                        <span class="fw-semibold">${
+                          s.competencyStatus === "Competent" || s.competency_status === "Competent"
+                            ? "Competent"
+                            : "Incompetent"
+                        }</span>
+                      </button>
+                      <ul class="dropdown-menu shadow-sm" style="font-size: 0.8rem;">
+                        <li><h6 class="dropdown-header small text-muted py-1">Set Competency Status:</h6></li>
+                        <li>
+                          <button class="dropdown-item d-flex align-items-center gap-2 py-1 text-success competency-status-btn ${
+                            s.competencyStatus === "Competent" || s.competency_status === "Competent" ? "active" : ""
+                          }" type="button"
+                            data-template-id="${escapeHtml(batch.id)}"
+                            data-first="${escapeHtml(s.firstName || "")}"
+                            data-last="${escapeHtml(s.lastName || "")}"
+                            data-status="Competent">
+                            <i class="bi bi-check-circle-fill text-success"></i> Competent
+                          </button>
+                        </li>
+                        <li>
+                          <button class="dropdown-item d-flex align-items-center gap-2 py-1 text-danger competency-status-btn ${
+                            s.competencyStatus !== "Competent" && s.competency_status !== "Competent" ? "active" : ""
+                          }" type="button"
+                            data-template-id="${escapeHtml(batch.id)}"
+                            data-first="${escapeHtml(s.firstName || "")}"
+                            data-last="${escapeHtml(s.lastName || "")}"
+                            data-status="Incompetent">
+                            <i class="bi bi-x-circle-fill text-danger"></i> Incompetent
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 </td>
 
                 <td class="text-end">
-                  <button
-                    type="button"
-                    class="btn btn-outline-danger btn-sm p-1 px-2 override-remove-btn"
-                    data-template-id="${escapeHtml(batch.id)}"
-                    data-first="${escapeHtml(s.firstName || "")}"
-                    data-last="${escapeHtml(s.lastName || "")}"
-                    title="Remove from batch"
-                  >
-                    <i class="bi bi-trash" aria-hidden="true"></i>
-                  </button>
+                  <div class="d-inline-flex align-items-center gap-1">
+                    <button
+                      type="button"
+                      class="btn btn-sm ${s.resultSent ? 'btn-success' : 'btn-outline-primary'} p-1 px-2 send-result-btn"
+                      data-template-id="${escapeHtml(batch.id)}"
+                      data-first="${escapeHtml(s.firstName || '')}"
+                      data-last="${escapeHtml(s.lastName || '')}"
+                      data-status="${s.competencyStatus === 'Competent' || s.competency_status === 'Competent' ? 'Competent' : 'Incompetent'}"
+                      title="${s.resultSent ? `Result already sent ${escapeHtml(s.resultSentAt || '')} (click to resend)` : 'Send assessment result to student via email & portal'}"
+                      style="font-size: 0.75rem;"
+                    >
+                      <i class="bi ${s.resultSent ? 'bi-check2-all' : 'bi-send'} me-1"></i>
+                      <span>${s.resultSent ? 'Sent' : 'Send'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger btn-sm p-1 px-2 override-remove-btn"
+                      data-template-id="${escapeHtml(batch.id)}"
+                      data-first="${escapeHtml(s.firstName || "")}"
+                      data-last="${escapeHtml(s.lastName || "")}"
+                      title="Remove from batch"
+                    >
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                  </div>
                 </td>
 
               </tr>
@@ -1451,34 +1638,35 @@ document.addEventListener(
             >
 
               <table
-                class="table registrar-table registrar-batching-table mb-0"
+                class="table registrar-table align-middle mb-0"
+                style="table-layout: auto; width: 100%;"
               >
 
                 <thead>
 
                   <tr>
 
-                    <th>
+                    <th style="width: 45px; min-width: 45px;">
                       #
                     </th>
 
-                    <th>
+                    <th style="width: 140px; min-width: 120px;">
                       Last Name
                     </th>
 
-                    <th>
+                    <th style="width: 140px; min-width: 120px;">
                       First Name
                     </th>
 
-                    <th>
+                    <th style="min-width: 200px;">
                       Program
                     </th>
 
-                    <th>
+                    <th style="width: 185px; min-width: 175px;">
                       Status
                     </th>
 
-                    <th class="text-end">
+                    <th style="width: 130px; min-width: 125px;" class="text-end">
                       Action
                     </th>
 
@@ -1664,9 +1852,10 @@ document.addEventListener(
             /*
              * Show activation error.
              */
-            alert(
+            showToast(
               err.message ||
-              "Could not activate batch."
+              "Could not activate batch.",
+              "danger"
             );
 
           }
@@ -2104,7 +2293,13 @@ document.addEventListener(
     // -------------------------------------------------------------
     // FINALIZED BATCH OVERRIDE MODAL & ACTIONS
     // -------------------------------------------------------------
-    let currentModalBatch = null;
+    function openBatchModal(batchOrId) {
+      if (!batchOrId) return;
+      const id = typeof batchOrId === "object" ? batchOrId.id : batchOrId;
+      openDetail(id);
+    }
+    window.openBatchModal = openBatchModal;
+    window.openDetail = openDetail;
 
     const finalizedOverrideModalEl =
       document.getElementById(
@@ -2200,42 +2395,140 @@ document.addEventListener(
         const templateId = removeBtn.dataset.templateId;
         const firstName = removeBtn.dataset.first;
         const lastName = removeBtn.dataset.last;
-        if (
-          !confirm(
-            `Are you sure you want to remove ${firstName} ${lastName} from this batch?`
-          )
-        ) {
-          return;
-        }
 
-        removeBtn.disabled = true;
-        fetch("/registrar/api/batching/override-remove/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCsrfToken(),
+        showActionConfirm({
+          title: "Remove Student from Batch",
+          message: `Are you sure you want to remove ${firstName} ${lastName} from this batch?`,
+          icon: "bi-trash-fill",
+          iconBgClass: "bg-danger-subtle text-danger",
+          confirmText: "Yes, Remove",
+          confirmBtnClass: "btn-danger",
+          onConfirm: async () => {
+            removeBtn.disabled = true;
+            try {
+              const res = await fetch("/registrar/api/batching/override-remove/", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": getCsrfToken(),
+                },
+                body: JSON.stringify({
+                  templateId,
+                  firstName,
+                  lastName,
+                }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok || !data.ok) throw new Error(data.error || "Failed to remove student.");
+
+              const idx = allBatches.findIndex((b) => String(b.id) === String(templateId));
+              if (idx !== -1 && data.batch) {
+                allBatches[idx] = data.batch;
+                openDetail(data.batch.id);
+              }
+              render();
+              showToast("Student removed from batch.", "success");
+            } catch (err) {
+              showToast(err.message || "Failed to remove student.", "danger");
+              removeBtn.disabled = false;
+            }
           },
-          body: JSON.stringify({
-            templateId,
-            firstName,
-            lastName,
-          }),
-        })
-          .then((r) => r.json())
-          .then((data) => {
-            if (!data.ok) throw new Error(data.error || "Failed to remove student.");
-            // Update local batch
+        });
+        return;
+      }
+
+      const statusBtn = e.target.closest(".competency-status-btn");
+      if (statusBtn) {
+        const templateId = statusBtn.dataset.templateId;
+        const firstName = statusBtn.dataset.first;
+        const lastName = statusBtn.dataset.last;
+        const status = statusBtn.dataset.status;
+
+        statusBtn.disabled = true;
+        (async () => {
+          try {
+            const res = await fetch("/registrar/api/batching/update-competency-status/", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCsrfToken(),
+              },
+              body: JSON.stringify({
+                templateId,
+                firstName,
+                lastName,
+                status,
+              }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) throw new Error(data.error || "Failed to update status.");
+
             const idx = allBatches.findIndex((b) => String(b.id) === String(templateId));
             if (idx !== -1 && data.batch) {
               allBatches[idx] = data.batch;
-              openBatchModal(data.batch);
+              openDetail(data.batch.id);
             }
             render();
-          })
-          .catch((err) => {
-            alert(err.message || "Failed to remove student.");
-            removeBtn.disabled = false;
-          });
+            showToast(data.message || `Status updated to ${status}.`, "success");
+          } catch (err) {
+            showToast(err.message || "Failed to update competency status.", "danger");
+            statusBtn.disabled = false;
+          }
+        })();
+        return;
+      }
+
+      const sendBtn = e.target.closest(".send-result-btn");
+      if (sendBtn) {
+        const templateId = sendBtn.dataset.templateId;
+        const firstName = sendBtn.dataset.first;
+        const lastName = sendBtn.dataset.last;
+        const status = sendBtn.dataset.status;
+
+        showActionConfirm({
+          title: "Send Assessment Result",
+          message: `Send official assessment result (${status}) to ${firstName} ${lastName} via email and student portal account?`,
+          icon: "bi-send-fill",
+          iconBgClass: "bg-primary-subtle text-primary",
+          confirmText: "Confirm & Send",
+          confirmBtnClass: "btn-primary",
+          onConfirm: async () => {
+            const originalHtml = sendBtn.innerHTML;
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Sending...';
+
+            try {
+              const res = await fetch("/registrar/api/batching/send-assessment-result/", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": getCsrfToken(),
+                },
+                body: JSON.stringify({
+                  templateId,
+                  firstName,
+                  lastName,
+                  status,
+                }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok || !data.ok) throw new Error(data.error || "Failed to send assessment result.");
+
+              const idx = allBatches.findIndex((b) => String(b.id) === String(templateId));
+              if (idx !== -1 && data.batch) {
+                allBatches[idx] = data.batch;
+                openDetail(data.batch.id);
+              }
+              render();
+              showToast(data.message || `Assessment result sent to ${firstName} ${lastName}.`, "success");
+            } catch (err) {
+              showToast(err.message || "Failed to send assessment result.", "danger");
+              sendBtn.disabled = false;
+              sendBtn.innerHTML = originalHtml;
+            }
+          },
+        });
+        return;
       }
     });
 
@@ -2258,7 +2551,7 @@ document.addEventListener(
       };
 
       if (!currentModalBatch) {
-        alert("Batch not found.");
+        showToast("Batch not found.", "danger");
         btn.disabled = false;
         return;
       }
@@ -2275,20 +2568,26 @@ document.addEventListener(
             student,
           }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to insert student.");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || "Failed to insert student.");
 
         finalizedOverrideModal?.hide();
-        // Update batch locally and in modal
+
+        // Update batch locally and re-render cards
         const idx = allBatches.findIndex((b) => String(b.id) === String(currentModalBatch));
         if (idx !== -1 && data.batch) {
           allBatches[idx] = data.batch;
-          openBatchModal(data.batch);
         }
         render();
-        alert(data.message || "Student inserted into batch successfully.");
+
+        setTimeout(() => {
+          if (currentModalBatch) {
+            openDetail(currentModalBatch);
+          }
+          showToast(data.message || "Student inserted into batch successfully.", "success");
+        }, 250);
       } catch (err) {
-        alert(err.message || "Failed to insert student.");
+        showToast(err.message || "Failed to insert student.", "danger");
         btn.disabled = false;
       }
     });

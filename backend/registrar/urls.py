@@ -10,9 +10,11 @@ from .batching_api import (
     batching_override_candidates,
     batching_override_insert_student,
     batching_override_remove_student,
+    batching_send_assessment_result,
     batching_template_delete,
     batching_template_activate,
     batching_template_upsert,
+    batching_update_competency_status,
 )
 from .document_review_api import (
     document_approve,
@@ -155,6 +157,16 @@ urlpatterns = [
         "registrar/api/batching/override-remove/",
         batching_override_remove_student,
         name="registrar_batching_override_remove",
+    ),
+    path(
+        "registrar/api/batching/update-competency-status/",
+        batching_update_competency_status,
+        name="registrar_batching_update_competency_status",
+    ),
+    path(
+        "registrar/api/batching/send-assessment-result/",
+        batching_send_assessment_result,
+        name="registrar_batching_send_assessment_result",
     ),
     path(
         "registrar/trainer-evaluations/",

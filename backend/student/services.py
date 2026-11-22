@@ -218,7 +218,78 @@ def student_is_user_graduated(user) -> bool:
     except Exception:
         pass
 
+    # Check national assessment batch templates if assessment-only candidate
+    try:
+        if is_assessment_only_user(user):
+            from backend.registrar.models import RegistrarScheduleTemplate
+            first = (reg.first_name or "").strip().lower()
+            last = (reg.last_name or "").strip().lower()
+            templates = RegistrarScheduleTemplate.objects.filter(batch_kind="national_assessment")
+            for tpl in templates:
+                for s in (tpl.students_snapshot or []):
+                    s_first = (s.get("firstName") or s.get("first_name") or "").strip().lower()
+                    s_last = (s.get("lastName") or s.get("last_name") or "").strip().lower()
+                    if s_first == first and s_last == last:
+                        if (s.get("competencyStatus") or "").lower() == "competent":
+                            reg.is_graduated = True
+                            reg.graduated_at = getattr(tpl, "updated_at", None) or timezone.now()
+                            reg.save(update_fields=["is_graduated", "graduated_at"])
+                            return True
+    except Exception:
+        pass
+
     return False
+
+
+def student_graduation_retention_info(user) -> dict:
+    """
+    Returns graduation retention status for student/candidate user:
+    - is_graduated: bool
+    - graduated_at: datetime or None
+    - graduated_at_display: str (e.g. "Nov 22, 2026")
+    - days_passed: int
+    - days_remaining: int (max(0, 365 - days_passed), or None if not graduated)
+    - retention_expired: bool (days_passed >= 365)
+    Graduate accounts remain active for 1 year (365 days) from graduation before deactivation.
+    """
+    default_ret = {
+        "is_graduated": False,
+        "graduated_at": None,
+        "graduated_at_display": "",
+        "days_passed": 0,
+        "days_remaining": None,
+        "retention_expired": False,
+    }
+    if not user or not getattr(user, "is_authenticated", False):
+        return default_ret
+
+    is_grad = student_is_user_graduated(user)
+    if not is_grad:
+        return default_ret
+
+    reg = getattr(user, "registration_application", None)
+    g_dt = getattr(reg, "graduated_at", None) if reg else None
+    if not g_dt and reg:
+        g_dt = getattr(reg, "created_at", None)
+    if not g_dt:
+        g_dt = getattr(user, "date_joined", None)
+    if not g_dt:
+        g_dt = timezone.now()
+
+    g_local = timezone.localtime(g_dt)
+    graduated_at_display = g_local.strftime("%b %d, %Y")
+    days_passed = max(0, (timezone.localdate() - g_local.date()).days)
+    days_remaining = max(0, 365 - days_passed)
+    retention_expired = days_passed >= 365
+
+    return {
+        "is_graduated": True,
+        "graduated_at": g_local,
+        "graduated_at_display": graduated_at_display,
+        "days_passed": days_passed,
+        "days_remaining": days_remaining,
+        "retention_expired": retention_expired,
+    }
 
 
 def _student_sidebar_menu(user=None):
@@ -258,7 +329,7 @@ def _student_sidebar_menu(user=None):
             continue
         if not enrolled and route_name == "student_my_profile":
             continue
-        if route_name == "student_documents" and not is_graduated:
+        if route_name == "student_documents" and not enrolled and not is_graduated:
             continue
 
         is_disabled = False
@@ -371,6 +442,9 @@ def _student_portal_base(request, active_menu, page_title, page_subtitle, **extr
         except Exception:
             pass
 
+    ret_info = student_graduation_retention_info(user)
+    is_graduated = ret_info["is_graduated"]
+
     return {
         "page_title": page_title,
         "page_subtitle": page_subtitle,
@@ -378,7 +452,12 @@ def _student_portal_base(request, active_menu, page_title, page_subtitle, **extr
         "sidebar_menu": _student_sidebar_menu(user),
         "notification_count": 0,
         "progress_percent": progress_percent,
-        "is_graduated": student_is_user_graduated(user),
+        "is_graduated": is_graduated,
+        "retention_days_remaining": ret_info["days_remaining"],
+        "retention_days_passed": ret_info["days_passed"],
+        "retention_expired": ret_info["retention_expired"],
+        "graduated_at_display": ret_info["graduated_at_display"],
+        "graduation_date": ret_info["graduated_at_display"],
         "eval_is_open": eval_open,
         "eval_status": eval_status,
         "eval_pending": eval_pending,
@@ -1225,7 +1304,13 @@ def candidate_dashboard_context(request):
     ring_circ = round(2 * math.pi * 54, 2)
     ring_offset = round(ring_circ * (1 - progress_percent / 100), 2)
 
-    if reg and reg.status == "approved":
+    if base.get("is_graduated"):
+        for step in candidate_steps:
+            if step["title"] in ("Competency Assessment", "NC Certificate Issuance"):
+                step["status"] = "done"
+        candidate_status_label = "Officially Graduated (Competent)"
+        application_status = "Graduated"
+    elif reg and reg.status == "approved":
         candidate_status_label = "Assessment Scheduled"
         application_status = "Scheduled"
     elif reg and reg.status == "rejected":
@@ -1251,7 +1336,11 @@ def candidate_dashboard_context(request):
         "requirements": requirements,
         "candidate_steps": candidate_steps,
         "announcements": announcements,
-        "is_graduated": bool(reg and getattr(reg, "is_graduated", False)),
+        "is_graduated": base.get("is_graduated", False),
+        "graduation_date": base.get("graduated_at_display", ""),
+        "retention_days_remaining": base.get("retention_days_remaining"),
+        "retention_days_passed": base.get("retention_days_passed", 0),
+        "retention_expired": base.get("retention_expired", False),
         "progress_ring_circumference": ring_circ,
         "progress_ring_offset": ring_offset,
         "progress_percent": progress_percent,

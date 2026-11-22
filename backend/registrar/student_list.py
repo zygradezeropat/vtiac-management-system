@@ -57,10 +57,17 @@ def _serialize_approved_student(
         date_display = "—"
 
     graduated_at_display = "—"
+    days_remaining = None
+    days_passed = 0
+    retention_expired = False
     if is_graduate:
         g_dt = reg.graduated_at or getattr(grade, "updated_at", None) or date_dt
         if g_dt:
-            graduated_at_display = timezone.localtime(g_dt).strftime("%Y-%m-%d")
+            g_local = timezone.localtime(g_dt)
+            graduated_at_display = g_local.strftime("%Y-%m-%d")
+            days_passed = max(0, (timezone.localdate() - g_local.date()).days)
+            days_remaining = max(0, 365 - days_passed)
+            retention_expired = days_passed >= 365
 
     program_type = (
         profile.program_type if profile and profile.program_type else reg.program_type
@@ -96,6 +103,9 @@ def _serialize_approved_student(
         "status": "Graduated" if is_graduate else "Enrolled",
         "isGraduated": is_graduate,
         "graduatedAt": graduated_at_display,
+        "daysRemaining": days_remaining,
+        "daysPassed": days_passed,
+        "retentionExpired": retention_expired,
         "date": date_display,
         "birthDate": bday.strftime("%B %d, %Y") if bday else "—",
         "program": program or "—",

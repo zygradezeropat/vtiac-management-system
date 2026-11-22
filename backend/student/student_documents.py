@@ -207,17 +207,11 @@ def submit_document_request(request):
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "Invalid request method."}, status=405)
 
-    from .services import registration_is_enrolled, student_is_user_graduated
+    from .services import is_assessment_only_user, registration_is_enrolled, student_is_user_graduated
 
     if not registration_is_enrolled(request.user):
         return JsonResponse(
             {"ok": False, "error": "Document requests are restricted until your enrollment is officially confirmed."},
-            status=403,
-        )
-
-    if not student_is_user_graduated(request.user):
-        return JsonResponse(
-            {"ok": False, "error": "Official document requests are only available for graduated students."},
             status=403,
         )
 
@@ -226,6 +220,22 @@ def submit_document_request(request):
 
     if not doc_name:
         return JsonResponse({"ok": False, "error": "Please select a document to request."}, status=400)
+
+    is_assessment = is_assessment_only_user(request.user)
+    is_grad = student_is_user_graduated(request.user)
+
+    # Pre-graduation allowed documents for all enrolled students
+    pre_grad_docs = (
+        "Certificate of Enrollment",
+        "Good Moral Certificate",
+        "Assessment Result Slip",
+        "Certificate of Assessment",
+    )
+    if not is_assessment and not is_grad and doc_name not in pre_grad_docs:
+        return JsonResponse(
+            {"ok": False, "error": "Official graduation documents (Diploma, Certificate of Graduation, Transcript of Records) are only available for graduated students."},
+            status=403,
+        )
 
     profile = get_enrollment_profile(request.user)
     doc_req = StudentDocumentRequest.objects.create(

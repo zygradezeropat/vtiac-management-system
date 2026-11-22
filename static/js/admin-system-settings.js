@@ -251,9 +251,6 @@ function renderProgramsTable() {
           <td class="text-center">${Number(program.sortOrder) || 0}</td>
           <td class="text-center">${status}</td>
           <td class="text-end text-nowrap">
-            <button type="button" class="btn btn-sm btn-outline-success me-1" data-manage-competencies="${program.id}" title="Configure Competencies">
-              <i class="bi bi-journal-bookmark me-1"></i>Competencies
-            </button>
             <button type="button" class="btn btn-sm btn-light me-1" data-edit-program="${program.id}">Edit</button>
             <button type="button" class="btn btn-sm btn-outline-danger" data-delete-program="${program.id}" title="Delete Program">Delete</button>
           </td>

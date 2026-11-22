@@ -19,10 +19,44 @@
     <span class="badge rounded-pill bg-success text-white px-3 py-1.5 fs-7 fw-semibold shadow-sm d-inline-flex align-items-center gap-1.5 border border-white border-opacity-25" style="letter-spacing:0.01em;">
       <i class="bi bi-mortarboard-fill"></i> Officially Graduated
     </span>
+    {% if retention_days_remaining is not None %}
+    <span class="badge rounded-pill {% if retention_days_remaining <= 30 %}bg-danger text-white{% elif retention_days_remaining <= 90 %}bg-warning text-dark{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} px-2.5 py-1 text-xs fw-medium d-inline-flex align-items-center gap-1" title="Graduate account active for 1 year before automatic deactivation">
+      <i class="bi bi-hourglass-split"></i> {{ retention_days_remaining }} day{{ retention_days_remaining|pluralize }} left
+    </span>
+    {% endif %}
     {% endif %}
     <p id="student-clock" class="student-clock mb-0 text-muted fs-7" aria-live="polite"></p>
   </div>
 </header>
+
+{% if is_graduated %}
+<div class="alert alert-success border border-success shadow-sm rounded-4 p-3 d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4" role="alert">
+  <div class="d-flex align-items-center gap-3">
+    <div class="bg-success text-white rounded-circle p-2.5 d-flex align-items-center justify-content-center shadow-sm flex-shrink-0" style="width: 48px; height: 48px;">
+      <i class="bi bi-mortarboard-fill fs-3"></i>
+    </div>
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-success text-white rounded-pill fs-9 fw-bold text-uppercase px-2 py-0.5">National Assessment Passed</span>
+        <h6 class="fw-bold text-dark mb-0 fs-6">Congratulations! You are Competent & Officially Graduated</h6>
+      </div>
+      <p class="fs-7 text-secondary mb-0">
+        You have successfully passed the National Competency Assessment for <strong class="text-dark">{{ program_name }}</strong>{% if graduation_date %} on <strong>{{ graduation_date }}</strong>{% endif %}.
+      </p>
+    </div>
+  </div>
+  <div class="d-flex flex-column align-items-end gap-1">
+    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-1.5 fw-semibold">
+      <i class="bi bi-award-fill me-1"></i>Competent / Graduated
+    </span>
+    {% if retention_days_remaining is not None %}
+    <span class="badge rounded-pill {% if retention_days_remaining <= 30 %}bg-danger text-white{% elif retention_days_remaining <= 90 %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-info-subtle text-info-emphasis border border-info-subtle{% endif %} px-3 py-1 text-xs fw-semibold d-inline-flex align-items-center gap-1 shadow-xs">
+      <i class="bi bi-clock-history"></i> {{ retention_days_remaining }} day{{ retention_days_remaining|pluralize }} remaining before account deactivation
+    </span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 <div class="row g-3">
   <!-- Left Main Column -->

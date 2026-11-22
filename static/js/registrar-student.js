@@ -454,7 +454,13 @@ function initRegistrarStudents() {
 
         const isGrad = activeTab === "graduates" || Boolean(s.isGraduated) || (s.status || "").toLowerCase().includes("graduat");
         const statusBadge = isGrad
-          ? `<span class="badge bg-success text-white rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"><i class="bi bi-mortarboard-fill"></i>Graduated</span>`
+          ? `<span class="badge bg-success text-white rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"><i class="bi bi-mortarboard-fill"></i>Graduated</span>
+             ${s.daysRemaining !== null && s.daysRemaining !== undefined ? `
+             <div class="mt-1">
+               <span class="badge ${s.daysRemaining <= 30 ? 'bg-danger-subtle text-danger border border-danger-subtle' : s.daysRemaining <= 90 ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'} rounded-pill" style="font-size:0.68rem;" title="1-year portal access retention before automatic deactivation">
+                 <i class="bi bi-hourglass-split me-0.5"></i>${s.daysRemaining} days remaining
+               </span>
+             </div>` : ''}`
           : `<span class="badge ${statusBadgeClass(s.status)}">${escapeHtml(s.status)}</span>`;
 
         const displayDate = (isGrad && s.graduatedAt && s.graduatedAt !== "—") ? s.graduatedAt : s.date;
