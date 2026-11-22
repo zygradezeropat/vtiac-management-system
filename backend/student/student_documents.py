@@ -228,12 +228,13 @@ def submit_document_request(request):
     pre_grad_docs = (
         "Certificate of Enrollment",
         "Good Moral Certificate",
+        "Transcript of Records",
         "Assessment Result Slip",
         "Certificate of Assessment",
     )
-    if not is_assessment and not is_grad and doc_name not in pre_grad_docs:
+    if not is_assessment and not is_grad and doc_name in ("Diploma", "Certificate of Graduation"):
         return JsonResponse(
-            {"ok": False, "error": "Official graduation documents (Diploma, Certificate of Graduation, Transcript of Records) are only available for graduated students."},
+            {"ok": False, "error": "Official graduation documents (Diploma, Certificate of Graduation) are only available for graduated students."},
             status=403,
         )
 

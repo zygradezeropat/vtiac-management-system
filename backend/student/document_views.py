@@ -23,12 +23,12 @@ def _require_document(request, doc_key, *, for_download=False):
     if denied:
         return denied, None, None, None
 
-    from .services import registration_is_enrolled, student_is_user_graduated
+    from .services import registration_is_enrolled
 
-    if not registration_is_enrolled(request.user) or not student_is_user_graduated(request.user):
+    if not registration_is_enrolled(request.user):
         messages.warning(
             request,
-            "Official documents and credentials are only accessible to officially graduated students.",
+            "Official documents and credentials will be accessible once your enrollment is confirmed.",
         )
         return redirect("student_dashboard"), None, None, None
 
@@ -55,19 +55,12 @@ def documents(request):
     if denied:
         return denied
 
-    from .services import registration_is_enrolled, student_is_user_graduated
+    from .services import registration_is_enrolled
 
     if not registration_is_enrolled(request.user):
         messages.warning(
             request,
-            "The Documents and Statement of Account (SOA) section is temporarily disabled and will be accessible once your enrollment is confirmed.",
-        )
-        return redirect("student_dashboard")
-
-    if not student_is_user_graduated(request.user):
-        messages.warning(
-            request,
-            "Official document requests and credentials are only accessible to officially graduated students.",
+            "The Documents section is temporarily disabled and will be accessible once your enrollment is confirmed.",
         )
         return redirect("student_dashboard")
 
