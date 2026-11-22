@@ -288,12 +288,11 @@ function updateRequiredFieldStates(form, scopeStep = null) {
       el.classList.remove("is-invalid");
       return;
     }
-    let invalid = false;
     if (el.type === "radio") {
-      invalid = !hasRadioGroupSelected(form, el.name);
-    } else {
-      invalid = isEmpty(el);
+      el.classList.remove("is-invalid");
+      return;
     }
+    const invalid = isEmpty(el);
     el.classList.toggle("is-invalid", invalid);
   });
 
@@ -521,8 +520,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const wizard = initEnrollmentWizard(form, validationHelpers);
 
+  let hasAttemptedSubmit = false;
+
   const refreshValidation = (scopeStep = null) => {
-    updateRequiredFieldStates(form, scopeStep);
+    if (hasAttemptedSubmit) {
+      updateRequiredFieldStates(form, scopeStep);
+    }
     if (validateForm(form)) {
       alertEl?.classList.add("d-none");
     }
@@ -586,6 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // ---------------------------------------------------------
       // Continue with the existing full frontend validation.
       // ---------------------------------------------------------
+      hasAttemptedSubmit = true;
       updateRequiredFieldStates(form);
     
       const valid = validateForm(form);
@@ -631,8 +635,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
   form.querySelectorAll("[data-required]").forEach((el) => {
-    el.addEventListener("input", refreshValidation);
-    el.addEventListener("change", refreshValidation);
+    const handleInteract = () => {
+      if (!isEmpty(el)) {
+        el.classList.remove("is-invalid");
+      }
+      refreshValidation();
+    };
+    el.addEventListener("input", handleInteract);
+    el.addEventListener("change", handleInteract);
   });
 
   form.querySelectorAll('input[name="client_classification"]').forEach((el) => {

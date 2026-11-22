@@ -50,6 +50,9 @@
       <i class="bi bi-clock-history"></i> {{ retention_days_remaining }} day{{ retention_days_remaining|pluralize }} remaining before account deactivation
     </span>
     {% endif %}
+    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 mt-1 shadow-xs" data-bs-toggle="modal" data-bs-target="#enrollAnotherProgramModal">
+      <i class="bi bi-arrow-repeat"></i> Enroll or Assess in Another Program
+    </button>
   </div>
 </div>
 {% endif %}
@@ -375,5 +378,123 @@
     tick();
     setInterval(tick, 1000);
   }
+
+  const anotherForm = document.getElementById("enrollAnotherProgramForm");
+  if (anotherForm) {
+    anotherForm.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById("btnSubmitAnotherProgram");
+      const origHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Submitting...';
+
+      const formData = new FormData(anotherForm);
+      const payload = {
+        program_type: formData.get("program_type"),
+        selected_program: formData.get("selected_program"),
+        preferred_schedule: formData.get("preferred_schedule"),
+      };
+
+      try {
+        const res = await fetch("{% url 'student_apply_another_program_api' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": formData.get("csrfmiddlewaretoken"),
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "Failed to submit application.");
+        }
+        window.location.href = data.redirect_url || window.location.href;
+      } catch (err) {
+        alert(err.message || "An error occurred.");
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    });
+  }
 </script>
+
+{% if is_graduated %}
+<!-- Modal: Enroll or Assess in Another Program -->
+<div class="modal fade" id="enrollAnotherProgramModal" tabindex="-1" aria-labelledby="enrollAnotherProgramModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-bottom px-4 pt-4 pb-3">
+        <div class="d-flex align-items-center gap-2">
+          <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+            <i class="bi bi-mortarboard-fill fs-5"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold fs-6 mb-0" id="enrollAnotherProgramModalLabel">Apply for Another Program / Assessment</h5>
+            <p class="text-muted fs-8 mb-0">Continue your skills qualification journey at VTIAC</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="enrollAnotherProgramForm">
+        {% csrf_token %}
+        <div class="modal-body px-4 py-3">
+          <div class="alert alert-info border-info border-opacity-25 rounded-3 py-2 px-3 fs-8 mb-3 d-flex align-items-start gap-2">
+            <i class="bi bi-info-circle-fill text-info flex-shrink-0 mt-0.5"></i>
+            <div>
+              <strong>Documentation Carried Over:</strong> Your existing personal details and uploaded documents (PSA Birth Certificate, Valid ID, etc.) will automatically transfer to this application for Registrar verification.
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold fs-7 text-dark mb-1">Application Type <span class="text-danger">*</span></label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="program_type" id="typeTraining" value="training_with_assessment" checked>
+                <label class="form-check-label fs-7 fw-medium" for="typeTraining">
+                  Training with Assessment <span class="text-muted fs-8 d-block">(Institutional Course Training)</span>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="program_type" id="typeAssessment" value="assessment_only">
+                <label class="form-check-label fs-7 fw-medium" for="typeAssessment">
+                  Assessment Only <span class="text-muted fs-8 d-block">(National Assessment Only)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="selectProgramInput" class="form-label fw-semibold fs-7 text-dark mb-1">Select Program / Qualification <span class="text-danger">*</span></label>
+            <select class="form-select rounded-3 fs-7" id="selectProgramInput" name="selected_program" required>
+              <option value="" disabled selected>— Choose Qualification —</option>
+              {% for prog in available_programs %}
+                {% if prog != program_name %}
+                  <option value="{{ prog }}">{{ prog }}</option>
+                {% else %}
+                  <option value="{{ prog }}" disabled>{{ prog }} (Completed)</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-2">
+            <label for="selectScheduleInput" class="form-label fw-semibold fs-7 text-dark mb-1">Preferred Schedule <span class="text-danger">*</span></label>
+            <select class="form-select rounded-3 fs-7" id="selectScheduleInput" name="preferred_schedule" required>
+              {% for sched in available_schedules %}
+                <option value="{{ sched }}">{{ sched }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer border-top px-4 py-3 bg-light rounded-bottom-4">
+          <button type="button" class="btn btn-outline-secondary rounded-3 px-3 py-1.5 fs-7" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="btnSubmitAnotherProgram" class="btn btn-primary rounded-3 px-3 py-1.5 fs-7 fw-semibold d-inline-flex align-items-center gap-1.5">
+            <span>Submit Application</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

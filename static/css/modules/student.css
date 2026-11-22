@@ -1159,9 +1159,28 @@ body:has(.student-layout) {
   border-color: var(--student-primary);
 }
 
-.student-enroll-check .form-check-label {
+.student-enroll-check .form-check-label,
+.student-enroll-check .form-check-input.is-invalid ~ .form-check-label,
+.student-enroll-check .form-check-input:invalid ~ .form-check-label,
+.student-enroll-check .form-check-input.is-valid ~ .form-check-label,
+.student-enroll-check .form-check-input:valid ~ .form-check-label,
+.was-validated .student-enroll-check .form-check-input.is-invalid ~ .form-check-label,
+.was-validated .student-enroll-check .form-check-input:invalid ~ .form-check-label,
+.was-validated .student-enroll-check :invalid ~ .form-check-label,
+.student-enroll-form .form-check-label,
+.student-enroll-form .form-check-input.is-invalid ~ .form-check-label,
+.student-enroll-form .form-check-input:invalid ~ .form-check-label,
+.was-validated .student-enroll-form .form-check-input.is-invalid ~ .form-check-label,
+.was-validated .student-enroll-form .form-check-input:invalid ~ .form-check-label,
+.was-validated .student-enroll-form :invalid ~ .form-check-label,
+.tesda-app-form .form-check-label,
+.tesda-app-form .form-check-input.is-invalid ~ .form-check-label,
+.tesda-app-form .form-check-input:invalid ~ .form-check-label,
+.was-validated .tesda-app-form .form-check-input.is-invalid ~ .form-check-label,
+.was-validated .tesda-app-form .form-check-input:invalid ~ .form-check-label,
+.was-validated .tesda-app-form :invalid ~ .form-check-label {
   font-size: 0.875rem;
-  color: #334155;
+  color: #334155 !important;
   line-height: 1.4;
 }
 

@@ -58,4 +58,9 @@ urlpatterns = [
         views.trainer_evaluation,
         name="student_trainer_evaluation",
     ),
+    path(
+        "dashboard/student/api/apply-another-program/",
+        views.apply_another_program_api,
+        name="student_apply_another_program_api",
+    ),
 ]

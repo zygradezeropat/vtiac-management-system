@@ -452,18 +452,32 @@ function initRegistrarStudents() {
         const digitalBadge = `<span class="badge registrar-doc-badge ${s.digitalBadgeClass || 'registrar-doc-badge--uploaded'}"><i class="bi ${s.isDigitalUploaded ? 'bi-cloud-check-fill' : 'bi-cloud-arrow-up'} me-1"></i>${escapeHtml(s.digitalLabel || 'Uploaded')}</span>`;
         const hardBadge = `<span class="badge registrar-doc-badge ${s.hardCopyBadgeClass || (s.hardCopiesSubmitted ? 'registrar-doc-badge--hard-submitted' : 'registrar-doc-badge--hard-pending')}"><i class="bi ${s.hardCopiesSubmitted ? 'bi-file-earmark-check-fill' : 'bi-file-earmark-x'} me-1"></i>${escapeHtml(s.hardCopyLabel || (s.hardCopiesSubmitted ? 'Hard Copies: Submitted' : 'Hard Copies: Pending'))}</span>`;
 
-        const isGrad = activeTab === "graduates" || Boolean(s.isGraduated) || (s.status || "").toLowerCase().includes("graduat");
-        const statusBadge = isGrad
-          ? `<span class="badge bg-success text-white rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"><i class="bi bi-mortarboard-fill"></i>Graduated</span>
-             ${s.daysRemaining !== null && s.daysRemaining !== undefined ? `
-             <div class="mt-1">
-               <span class="badge ${s.daysRemaining <= 30 ? 'bg-danger-subtle text-danger border border-danger-subtle' : s.daysRemaining <= 90 ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'} rounded-pill" style="font-size:0.68rem;" title="1-year portal access retention before automatic deactivation">
-                 <i class="bi bi-hourglass-split me-0.5"></i>${s.daysRemaining} days remaining
-               </span>
-             </div>` : ''}`
-          : `<span class="badge ${statusBadgeClass(s.status)}">${escapeHtml(s.status)}</span>`;
+        const isAssessmentClient = Boolean(s.isAssessmentOnly) || s.programType === "assessment_only" || activeTab === "assessment";
+        const isCompetentAssessment = isAssessmentClient && (Boolean(s.isGraduated) || (s.status || "").toLowerCase() === "competent");
+        const isGrad = !isAssessmentClient && (activeTab === "graduates" || Boolean(s.isGraduated) || (s.status || "").toLowerCase().includes("graduat"));
 
-        const displayDate = (isGrad && s.graduatedAt && s.graduatedAt !== "—") ? s.graduatedAt : s.date;
+        let statusBadge = "";
+        if (isCompetentAssessment) {
+          statusBadge = `<span class="badge bg-success text-white rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"><i class="bi bi-patch-check-fill"></i>Competent</span>
+            ${s.daysRemaining !== null && s.daysRemaining !== undefined ? `
+            <div class="mt-1">
+              <span class="badge ${s.daysRemaining <= 30 ? 'bg-danger-subtle text-danger border border-danger-subtle' : s.daysRemaining <= 90 ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'} rounded-pill" style="font-size:0.68rem;" title="1-year portal access retention before automatic deactivation">
+                <i class="bi bi-hourglass-split me-0.5"></i>${s.daysRemaining} days remaining
+              </span>
+            </div>` : ''}`;
+        } else if (isGrad) {
+          statusBadge = `<span class="badge bg-success text-white rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"><i class="bi bi-mortarboard-fill"></i>Graduated</span>
+            ${s.daysRemaining !== null && s.daysRemaining !== undefined ? `
+            <div class="mt-1">
+              <span class="badge ${s.daysRemaining <= 30 ? 'bg-danger-subtle text-danger border border-danger-subtle' : s.daysRemaining <= 90 ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'} rounded-pill" style="font-size:0.68rem;" title="1-year portal access retention before automatic deactivation">
+                <i class="bi bi-hourglass-split me-0.5"></i>${s.daysRemaining} days remaining
+              </span>
+            </div>` : ''}`;
+        } else {
+          statusBadge = `<span class="badge ${statusBadgeClass(s.status)}">${escapeHtml(s.status)}</span>`;
+        }
+
+        const displayDate = ((isGrad || isCompetentAssessment) && s.graduatedAt && s.graduatedAt !== "—") ? s.graduatedAt : s.date;
 
         return `
       <tr>
@@ -473,6 +487,7 @@ function initRegistrarStudents() {
             <span>${escapeHtml(s.name)}</span>
             ${isScholar ? `<span class="badge rounded-pill ms-1" style="background-color:#ffc107 !important; color:#212529 !important; font-size:0.65rem;" title="Scholarship Beneficiary"><i class="bi bi-award-fill me-1"></i>Scholar</span>` : ""}
             ${isGrad && activeTab !== "graduates" ? `<span class="badge bg-success-subtle text-success rounded-pill ms-1" style="font-size:0.65rem;" title="Graduated Trainee"><i class="bi bi-mortarboard-fill me-1"></i>Graduate</span>` : ""}
+            ${isCompetentAssessment ? `<span class="badge bg-success-subtle text-success rounded-pill ms-1" style="font-size:0.65rem;" title="Competency Certified"><i class="bi bi-patch-check-fill me-1"></i>Competent</span>` : ""}
           </div>
           <div>${scholarBadge}</div>
         </td>

@@ -399,11 +399,12 @@ def enrollment_requirements(request):
                 else "Your requirements have been submitted for approval."
             )
             messages.success(request, success_msg)
-            redirect_url = (
-                reverse("student_dashboard")
-                if registration_is_enrolled(request.user)
-                else reverse("student_enrollment_pending")
-            )
+            if is_assessment_only:
+                redirect_url = reverse("candidate_dashboard")
+            elif registration_is_enrolled(request.user):
+                redirect_url = reverse("student_dashboard")
+            else:
+                redirect_url = reverse("student_enrollment_pending")
             if is_ajax:
                 return JsonResponse({
                     "ok": True,
@@ -660,3 +661,104 @@ def trainer_evaluation(request):
         "student/trainer_evaluation.html",
         student_trainer_evaluation_context(request),
     )
+
+
+@login_required(login_url="/")
+def apply_another_program_api(request):
+    """
+    Allows a graduated/competent student or candidate to enroll or assess in another qualification.
+    Maintains their verified baseline documentation and submits the new program application to the Registrar.
+    """
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Invalid request method."}, status=405)
+
+    user = request.user
+    from django.utils import timezone
+    from backend.student.models import CandidateProfile, StudentProfile, StudentRegistration
+    from backend.student.services import student_is_user_graduated
+    if not student_is_user_graduated(user):
+        return JsonResponse({
+            "ok": False,
+            "error": "Only students or candidates who have completed a qualification can apply for another program.",
+        }, status=400)
+
+    try:
+        import json
+        if request.content_type and "application/json" in request.content_type:
+            data = json.loads(request.body.decode("utf-8"))
+        else:
+            data = request.POST
+    except Exception:
+        data = request.POST
+
+    program_type = (data.get("program_type") or "").strip().lower()
+    selected_program = (data.get("selected_program") or "").strip()
+    preferred_schedule = (data.get("preferred_schedule") or "").strip()
+
+    valid_types = ("assessment_only", "training_with_assessment")
+    if program_type not in valid_types:
+        return JsonResponse({"ok": False, "error": "Please select a valid application type."}, status=400)
+
+    from backend.system_admin.program_config import enrollment_program_options
+    from backend.system_admin.assessments import enrollment_assessment_options
+    programs = list(enrollment_program_options())
+    assessments = list(enrollment_assessment_options())
+    all_allowed = set(programs + assessments)
+    if selected_program not in all_allowed:
+        return JsonResponse({"ok": False, "error": f"Invalid qualification selected: '{selected_program}'."}, status=400)
+
+    reg = getattr(user, "registration_application", None)
+    if not reg:
+        return JsonResponse({"ok": False, "error": "Registration record not found."}, status=404)
+
+    # Archive previous completed qualification in profile history
+    profile = get_enrollment_profile(user)
+    if profile:
+        if not isinstance(profile.assessment_application_data, dict):
+            profile.assessment_application_data = {}
+        history = list(profile.assessment_application_data.get("completed_qualifications", []))
+        prev_record = {
+            "program": reg.selected_program,
+            "program_type": reg.program_type,
+            "graduated_at": reg.graduated_at.isoformat() if reg.graduated_at else timezone.now().isoformat(),
+            "is_graduated": True,
+        }
+        if not any(h.get("program") == reg.selected_program for h in history):
+            history.append(prev_record)
+        profile.assessment_application_data["completed_qualifications"] = history
+        profile.selected_program = selected_program
+        profile.program_type = program_type
+        profile.profile_step_completed = True
+        profile.requirements_submitted = False
+        profile.documents_review_released = False
+        profile.save()
+
+    # Update registration application to the new program for registrar verification
+    reg.selected_program = selected_program
+    reg.program_type = program_type
+    if preferred_schedule:
+        reg.preferred_schedule = preferred_schedule
+    reg.status = StudentRegistration.Status.PENDING
+    reg.is_graduated = False
+    reg.graduated_at = None
+    reg.save()
+
+    # Ensure profile role
+    if program_type == "assessment_only":
+        CandidateProfile.objects.get_or_create(user=user)
+    else:
+        StudentProfile.objects.get_or_create(user=user)
+
+    redirect_url = reverse("student_enrollment_requirements")
+
+    type_label = "National Assessment" if program_type == "assessment_only" else "Training Program"
+    messages.info(
+        request,
+        f"You are applying for {selected_program} ({type_label}). Please review, update, or upload your required documents below.",
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "message": f"Application initiated for {selected_program}! Please review and update your required documents.",
+        "redirect_url": redirect_url,
+    })

@@ -1082,3 +1082,13 @@ body {
   background-color: #b91c1c;
   border-color: #b91c1c;
 }
+
+/* Radio and checkbox option labels must never color red upon validation */
+.form-check-input.is-invalid ~ .form-check-label,
+.form-check-input:invalid ~ .form-check-label,
+.was-validated .form-check-input.is-invalid ~ .form-check-label,
+.was-validated .form-check-input:invalid ~ .form-check-label,
+.was-validated :invalid ~ .form-check-label {
+  color: #334155 !important;
+}
+

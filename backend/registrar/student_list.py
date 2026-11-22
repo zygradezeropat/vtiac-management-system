@@ -92,6 +92,9 @@ def _serialize_approved_student(
 
     doc_indicators = get_document_submission_indicators(profile, reg)
 
+    is_assessment = (program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY)
+    status_display = ("Competent" if is_graduate else "Scheduled") if is_assessment else ("Graduated" if is_graduate else "Enrolled")
+
     return {
         "id": row_id,
         "registrationId": str(reg.pk),
@@ -100,8 +103,9 @@ def _serialize_approved_student(
         "scholarship": scholar_label,
         "scholarshipType": scholarship_type or "",
         "scholarshipDetail": scholar_detail,
-        "status": "Graduated" if is_graduate else "Enrolled",
+        "status": status_display,
         "isGraduated": is_graduate,
+        "isAssessmentOnly": is_assessment,
         "graduatedAt": graduated_at_display,
         "daysRemaining": days_remaining,
         "daysPassed": days_passed,
@@ -166,10 +170,10 @@ def registrar_students_module_data():
         if row["program"]:
             programs.add(row["program"])
 
-        if is_grad:
-            graduates.append(row)
-        elif reg.program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
+        if reg.program_type == StudentRegistration.ProgramType.ASSESSMENT_ONLY:
             assessment.append(row)
+        elif is_grad:
+            graduates.append(row)
         else:
             training.append(row)
 

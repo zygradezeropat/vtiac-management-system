@@ -5,7 +5,12 @@ from django.shortcuts import redirect
 
 from backend.core.models import StaffProfile
 from backend.core.services import STAFF_LOGIN_ROLES, landing_context
-from backend.student.models import CandidateProfile, StudentProfile
+from backend.student.models import (
+    CandidateProfile,
+    StudentEnrollmentProfile,
+    StudentProfile,
+    StudentRegistration,
+)
 
 User = get_user_model()
 
@@ -100,25 +105,39 @@ def require_portal_access(request, role):
         has_access = (
             StudentProfile.objects.filter(user=request.user).exists()
             or CandidateProfile.objects.filter(user=request.user).exists()
+            or StudentRegistration.objects.filter(user=request.user).exists()
+            or StudentEnrollmentProfile.objects.filter(user=request.user).exists()
         )
         if not has_access:
             messages.error(request, "This account is not set up for student or candidate portal access.")
             return redirect("login", role=STUDENT_ROLE)
 
+        if not StudentProfile.objects.filter(user=request.user).exists() and not CandidateProfile.objects.filter(user=request.user).exists():
+            reg = getattr(request.user, "registration_application", None)
+            if reg and getattr(reg, "program_type", "") == "assessment_only":
+                CandidateProfile.objects.get_or_create(user=request.user)
+            else:
+                StudentProfile.objects.get_or_create(user=request.user)
+
         from backend.student.services import student_graduation_retention_info
         ret_info = student_graduation_retention_info(request.user)
+        is_cand = (
+            CandidateProfile.objects.filter(user=request.user).exists()
+            or getattr(getattr(request.user, "registration_application", None), "program_type", "") == "assessment_only"
+        )
         if ret_info.get("retention_expired"):
             request.user.is_active = False
             request.user.save(update_fields=["is_active"])
             logout(request)
             request.session.flush()
-            messages.error(request, "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation.")
+            deact_msg = (
+                "Your account has been deactivated. Candidate accounts remain active for 1 year (365 days) following assessment completion."
+                if is_cand else
+                "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation."
+            )
+            messages.error(request, deact_msg)
             return redirect("login", role=STUDENT_ROLE)
 
-        is_cand = (
-            CandidateProfile.objects.filter(user=request.user).exists()
-            or getattr(getattr(request.user, "registration_application", None), "program_type", "") == "assessment_only"
-        )
         request.session["portal_role"] = "candidate" if is_cand else STUDENT_ROLE
         return None
 
@@ -196,7 +215,16 @@ def handle_portal_login_post(request, role):
         from backend.student.services import student_graduation_retention_info
         ret_info = student_graduation_retention_info(user)
         if ret_info.get("retention_expired") or (ret_info.get("is_graduated") and ret_info.get("days_passed", 0) >= 365):
-            messages.error(request, "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation.")
+            is_cand = (
+                CandidateProfile.objects.filter(user=user).exists()
+                or getattr(getattr(user, "registration_application", None), "program_type", "") == "assessment_only"
+            )
+            deact_msg = (
+                "Your account has been deactivated. Candidate accounts remain active for 1 year (365 days) following assessment completion."
+                if is_cand else
+                "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation."
+            )
+            messages.error(request, deact_msg)
         else:
             messages.error(request, LOGIN_CREDENTIALS_ERROR)
         return redirect("login", role=role)
@@ -205,17 +233,35 @@ def handle_portal_login_post(request, role):
         has_access = (
             StudentProfile.objects.filter(user=user).exists()
             or CandidateProfile.objects.filter(user=user).exists()
+            or StudentRegistration.objects.filter(user=user).exists()
+            or StudentEnrollmentProfile.objects.filter(user=user).exists()
         )
         if not has_access:
             messages.error(request, LOGIN_CREDENTIALS_ERROR)
             return redirect("login", role=role)
+
+        if not StudentProfile.objects.filter(user=user).exists() and not CandidateProfile.objects.filter(user=user).exists():
+            reg = getattr(user, "registration_application", None)
+            if reg and getattr(reg, "program_type", "") == "assessment_only":
+                CandidateProfile.objects.get_or_create(user=user)
+            else:
+                StudentProfile.objects.get_or_create(user=user)
 
         from backend.student.services import student_graduation_retention_info
         ret_info = student_graduation_retention_info(user)
         if ret_info.get("retention_expired"):
             user.is_active = False
             user.save(update_fields=["is_active"])
-            messages.error(request, "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation.")
+            is_cand = (
+                CandidateProfile.objects.filter(user=user).exists()
+                or getattr(getattr(user, "registration_application", None), "program_type", "") == "assessment_only"
+            )
+            deact_msg = (
+                "Your account has been deactivated. Candidate accounts remain active for 1 year (365 days) following assessment completion."
+                if is_cand else
+                "Your account has been deactivated. Graduate accounts remain active for 1 year (365 days) following graduation."
+            )
+            messages.error(request, deact_msg)
             return redirect("login", role=role)
     else:
         try:

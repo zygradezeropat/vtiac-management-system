@@ -127,6 +127,7 @@ DISABILITY_CAUSES = (
 )
 
 from backend.system_admin.program_config import enrollment_is_open, enrollment_program_options
+from backend.system_admin.assessments import enrollment_assessment_options
 
 CLIENT_CLASSIFICATIONS = (
     "4Ps Beneficiary",
@@ -1158,6 +1159,9 @@ def student_dashboard_context(request=None):
 
     doc_indicators = get_document_submission_indicators(profile, registration)
 
+    from backend.system_admin.program_config import enrollment_program_options
+    from backend.system_admin.assessments import enrollment_assessment_options
+
     return {
         **base,
         **schedule_ctx,
@@ -1186,6 +1190,9 @@ def student_dashboard_context(request=None):
         "enrollment_steps": enrollment_steps,
         "announcements": announcements,
         "progress_percent": progress_percent,
+        "available_programs": list(enrollment_program_options()),
+        "available_assessments": list(enrollment_assessment_options()),
+        "available_schedules": [choice[1] for choice in StudentRegistration.PreferredSchedule.choices],
     }
 
 
@@ -1308,8 +1315,8 @@ def candidate_dashboard_context(request):
         for step in candidate_steps:
             if step["title"] in ("Competency Assessment", "NC Certificate Issuance"):
                 step["status"] = "done"
-        candidate_status_label = "Officially Graduated (Competent)"
-        application_status = "Graduated"
+        candidate_status_label = "Competent"
+        application_status = "Competent"
     elif reg and reg.status == "approved":
         candidate_status_label = "Assessment Scheduled"
         application_status = "Scheduled"
@@ -1345,6 +1352,9 @@ def candidate_dashboard_context(request):
         "progress_ring_offset": ring_offset,
         "progress_percent": progress_percent,
         "is_assessment_only": True,
+        "available_programs": list(enrollment_program_options()),
+        "available_assessments": list(enrollment_assessment_options()),
+        "available_schedules": [choice[1] for choice in StudentRegistration.PreferredSchedule.choices],
         **base,
     }
 
